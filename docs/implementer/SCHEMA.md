@@ -12,12 +12,14 @@ evidence[]        evidence_id, proposition_id, polarity (supports|opposes),
 lineage[]         from_id, to_id, kind (derived_from|supersedes|superseded_by|parent_source)
 conflicts[]       conflict_id, proposition_ids[], status (open|resolved), note
 checks[]          check_id, method, scope, source, observed_at,
-                  result (supports|opposes|inconclusive)
+                  result (supports|opposes|inconclusive),
+                  subjects[] optional
 omitted_sources[]
 retrieval_scope   default complete
 degraded          default false
 freshness_policy_seconds
 adapter_meta      ignore for axes; may record lineage_basis
+subjects[]        optional v0.2 subject ids (customer-42, …)
 ```
 
 ## SourceRef
@@ -46,4 +48,6 @@ sufficiency    SUFFICIENT | INSUFFICIENT | DEGRADED
 
 Also record `policy_id=reference-v1`, `policy_version=reference-v1`, and `evaluated_at`. Do not treat `strength` as required.
 
-`checks[].result` is required input. Classify using method, origin, and result together — see `POLICY.md`.
+This file is the normative serialization of the interchange. The nested `WarrantView` block in `docs/PROTOCOL_v0.1.md` is a conceptual view of the same axes plus diagnostics. Compare independent implementations on the five axes only.
+
+`checks[].result` is required input. Classify using method, origin, result, scope/subjects, and availability at `evaluated_at` together — see `POLICY.md`.

@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.2.0 — 2026-09-22
+
+Protocol bump. Policy identity stays `reference-v1`. Frozen 26 goldens unchanged; evaluator hash changes.
+
+- Generic verification scope binding: identifier-shaped tokens (`customer-42`, `contract-123`) participate, not only `server|host|node|device|serial`. Optional `subjects[]` on the view and on each check is the store-neutral identity primitive; empty falls back to token extraction.
+- A check with `observed_at` after `evaluated_at` is not available at T. It cannot confer class, refresh currency, open conflict, or produce `ACCEPTED`.
+- SQLite persists view completeness (`omitted_sources`, `retrieval_scope`, `degraded`, freshness, subjects). Reconstructing a degraded view no longer defaults to `SUFFICIENT`.
+- `WarrantView.normative()` is identity + time + five axes. The nested protocol-doc object is labeled conceptual; `docs/implementer/SCHEMA.md` is the serialization.
+- `tests/report.py` is a claim printer. It requires `tests/.last_ci.json` from `tests/ci.py` before it will say `CONFORMANT`.
+- Security: origin metadata is assumed established at the ingestion/adapter boundary. EWP does not authenticate evidence entering the ledger.
+- Live Graphiti parked sidecar is found by `kind=ewp_parked` / `ewp-parked` content / `meta:{pid}` name, not by Graphiti's assigned episode UUID.
+- Mem0 memories without `metadata.ewp.proposition_id` do not enter a proposition view.
+- MCP façade ships: `python3 -m protocol.mcp_server`. Tools evaluate warrant, persist EvidenceViews, record checks, and gate `may_act`. Trusted origins require `ingest_attestation`. The pre-freeze claim/confidence sketch stays in `historical/docs/MCP_CONTRACT.md`.
+
 ## 0.1.0-docs — 2026-09-22
 
 Documentation alignment only. Protocol number and goldens unchanged.

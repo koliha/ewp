@@ -125,20 +125,47 @@ class GraphitiAdapter:
             adapter_meta={"lineage_basis": lineage_basis, "store": "graphiti"},
         )
 
+    def _find_parked(self, proposition_id: str):
+        """Parked sidecar is identified by kind/content/name, not by Graphiti's UUID.
+
+        Live `add_episode` assigns its own uuid. Looking up only `meta:{pid}`
+        is ADAPTER_MAP_LOSS against a real client.
+        """
+        exact = self.store.episodes.get(f"meta:{proposition_id}")
+        if exact is not None:
+            return exact
+        for ep in self.store.episodes.values():
+            meta = ep.metadata or {}
+            inner = meta.get("ewp") if isinstance(meta.get("ewp"), dict) else meta
+            kind = str(inner.get("kind") or "")
+            pid = inner.get("proposition_id")
+            content = (ep.content or "").strip()
+            if kind == "ewp_parked" and pid in (None, proposition_id):
+                return ep
+            if content in {"ewp-parked", f"ewp-parked:{proposition_id}"}:
+                if pid in (None, proposition_id):
+                    return ep
+            if ep.uuid.startswith("meta:") and ep.uuid == f"meta:{proposition_id}":
+                return ep
+        return None
+
     def _apply_parked(self, view: EvidenceView, proposition_id: str) -> EvidenceView:
-        parked = self.store.episodes.get(f"meta:{proposition_id}")
+        parked = self._find_parked(proposition_id)
         if parked is None:
             return view
         meta = parked.metadata
+        if isinstance(meta.get("ewp"), dict):
+            meta = meta["ewp"]
         fields = tuple(SourceRef.__dataclass_fields__)
         view.checks = [
             VerificationCheck(
                 check_id=c["check_id"],
                 method=c["method"],
                 scope=c["scope"],
-                source=SourceRef(**{k: c["source"][k] for k in fields}),
+                source=SourceRef(**{k: c["source"][k] for k in fields if k in c["source"]}),
                 observed_at=c["observed_at"],
                 result=c["result"],
+                subjects=tuple(c.get("subjects") or ()),
             )
             for c in meta.get("checks", [])
         ]

@@ -76,6 +76,8 @@ class VerificationCheck:
     source: SourceRef
     observed_at: str
     result: Literal["supports", "opposes", "inconclusive"]
+    # Optional v0.2 subject binding. Empty → evaluator uses scope-string tokens.
+    subjects: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -107,6 +109,8 @@ class EvidenceView:
     degraded: bool = False
     freshness_policy_seconds: int = 86400 * 30
     adapter_meta: dict[str, Any] = field(default_factory=dict)
+    # Optional v0.2 subject binding. Empty → evaluator uses text tokens.
+    subjects: tuple[str, ...] = field(default_factory=tuple)
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -166,14 +170,25 @@ class WarrantView:
         return d
 
     def normative(self) -> dict[str, Any]:
-        """Interchange contract: five axes + identity + time. Not strength."""
+        """Serialized interchange contract: identity + time + five axes.
+
+        Diagnostic arrays live on the reference object and on normalized().
+        The nested object in docs/PROTOCOL_v0.1.md is a conceptual view;
+        this dict is the normative serialization — see docs/implementer/SCHEMA.md.
+        """
         d = self.normalized()
-        d["warrant"] = {
-            "acceptance": d["warrant"]["acceptance"],
-            "conflict": d["warrant"]["conflict"],
-            "verification": d["warrant"]["verification"],
-            "currency": d["warrant"]["currency"],
-            "sufficiency": d["warrant"]["sufficiency"],
-            "rationale_codes": d["warrant"]["rationale_codes"],
+        return {
+            "proposition_id": d["proposition_id"],
+            "view_id": d["view_id"],
+            "policy_id": d["policy_id"],
+            "policy_version": d["policy_version"],
+            "evaluated_at": d["evaluated_at"],
+            "warrant": {
+                "acceptance": d["warrant"]["acceptance"],
+                "conflict": d["warrant"]["conflict"],
+                "verification": d["warrant"]["verification"],
+                "currency": d["warrant"]["currency"],
+                "sufficiency": d["warrant"]["sufficiency"],
+                "rationale_codes": d["warrant"]["rationale_codes"],
+            },
         }
-        return d

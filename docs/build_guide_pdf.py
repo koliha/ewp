@@ -1,4 +1,4 @@
-"""EWP v0.1.0 guide — aligned with README.md."""
+"""EWP v0.2.0 guide — aligned with README.md."""
 
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ from reportlab.platypus import (
 )
 
 ROOT = Path(__file__).resolve().parents[1]
-OUT = ROOT / "docs" / "EWP_v0.1.0.pdf"
+OUT = ROOT / "docs" / "EWP_v0.2.0.pdf"
 LEGACY = ROOT / "docs" / "WarrantProtocol_v0.1.0.pdf"
 
 INK = HexColor("#1a1f24")
@@ -61,7 +61,7 @@ def header_footer(canvas, doc):
     canvas.rect(0, letter[1] - 30, letter[0], 2, fill=1, stroke=0)
     canvas.setFillColor(white)
     canvas.setFont("Times-Roman", 8)
-    canvas.drawString(0.75 * inch, letter[1] - 18, "EWP  v0.1.0")
+    canvas.drawString(0.75 * inch, letter[1] - 18, "EWP  v0.2.0")
     canvas.drawRightString(letter[0] - 0.75 * inch, letter[1] - 18, "reference-v1")
     canvas.setFillColor(RULE)
     canvas.rect(0, 0.48 * inch, letter[0], 1.2, fill=1, stroke=0)
@@ -114,7 +114,7 @@ def build():
     story.append(Spacer(1, 1.15 * inch))
     story.append(p(s, "CoverKicker", "EPISTEMIC WARRANT PROTOCOL"))
     story.append(p(s, "CoverTitle", "What an agent is justified<br/>in accepting — and why"))
-    story.append(p(s, "CoverSub", "EWP-0.1.0  ·  Policy reference-v1  ·  22 September 2026 republish"))
+    story.append(p(s, "CoverSub", "EWP-0.2.0  ·  Policy reference-v1  ·  22 September 2026"))
     story.append(p(s, "CoverSub", "MIT  ·  Python 3.12+  ·  Canonical 14  ·  Pathological 12  ·  Goldens 26"))
     story.append(Spacer(1, 0.12 * inch))
     story.append(p(s, "Lead", "EWP defines the deterministic boundary between what an AI agent's memory contains and what the agent is epistemically justified in accepting."))
@@ -124,7 +124,7 @@ def build():
     story.append(PageBreak())
 
     story.append(p(s, "H1", "1. What this is"))
-    story.append(p(s, "Body", "EWP-0.1.0 is an epistemic protocol, not an action-authorization framework. Other projects use warrant to describe permission to act. EWP uses epistemic warrant to describe what an agent is justified in accepting. may_act() is deliberately a later gate."))
+    story.append(p(s, "Body", "EWP-0.2.0 is an epistemic protocol, not an action-authorization framework. Other projects use warrant to describe permission to act. EWP uses epistemic warrant to describe what an agent is justified in accepting. may_act() is deliberately a later gate."))
     story.append(Preformatted(
         "Memory / Evidence Store\n        |\n        v\n   EvidenceView\n        |\n        v\nwarrant_now(view, policy, evaluated_at)\n        |\n        v\n    WarrantView\n        |\n        v\nmay_act(warrant, action, risk_policy)\n        |\n        v\nMAY_ACT | REQUIRE_CONFIRMATION | DENY",
         s["CodeBlock"],
@@ -204,10 +204,10 @@ def build():
     ], [2.15 * inch, 4.65 * inch]))
     story.append(p(s, "Body", "Dreaming may rewrite MEMORY.md. EWP treats that rewrite as a new assertion, not as verification. Compression must not turn \"X is disputed\" into \"X.\""))
     story.append(p(s, "H2", "Claude, Codex, other MCP clients"))
-    story.append(p(s, "Body", "Same planned contract. Prefer HTTP if several clients share one ledger. Fluency is not recollection. OPEN conflict is said out loud. DEGRADED means the view is incomplete. Store-native write tools stay disconnected. An EWP MCP server is planned, not shipped in v0.1.0. The tool-contract sketch lives in historical/docs/MCP_CONTRACT.md. docs/MCP_CONTRACT.md is only a pointer to that sketch. Neither file is required to evaluate warrant."))
+    story.append(p(s, "Body", "Same planned contract. Prefer HTTP if several clients share one ledger. Fluency is not recollection. OPEN conflict is said out loud. DEGRADED means the view is incomplete. Store-native write tools stay disconnected. An EWP MCP server is planned, not shipped in v0.2.0. The tool-contract sketch lives in historical/docs/MCP_CONTRACT.md. docs/MCP_CONTRACT.md is only a pointer to that sketch. Neither file is required to evaluate warrant."))
     story.append(p(s, "H2", "Graphiti, Mem0, Particles, SQLite"))
     story.append(p(s, "Body", "Graphiti can be used as a temporal/entity evidence substrate or mirror. Inject lineage_id in episode metadata. invalid_at is store-local. valid_at is not a verification check. Search collapse marks the view DEGRADED. The frozen suite uses fake Graphiti-shaped records. Live Graphiti and Mem0 mappings live in protocol/graphiti_client_adapter.py and protocol/mem0_adapter.py; notes in docs/implementer/LIVE_ADAPTERS.md. Live graphiti-core 0.30.2 is not validated. Mem0 default origin is extract; retrieval score is not warrant. Particles is a good immutable substrate — agents write only through EWP. SQLite and JSON prove store neutrality."))
-    story.append(p(s, "RuleLine", "Graphiti adapts to v0.1. v0.1 does not adapt to Graphiti."))
+    story.append(p(s, "RuleLine", "Graphiti adapts to the protocol. The protocol does not adapt to Graphiti."))
 
     story.append(PageBreak())
     story.append(p(s, "H1", "8. Why EWP sits above the store"))
@@ -235,7 +235,7 @@ def build():
 
     story.append(p(s, "H1", "10. Freeze"))
     story.append(Preformatted(
-        "Epistemic Warrant Protocol EWP-0.1.0\n"
+        "Epistemic Warrant Protocol EWP-0.2.0\n"
         "Policy: reference-v1\n"
         "Canonical: 14/14     Pathological: 12/12\n"
         "SQLite PASS    JSON PASS    Fake Graphiti PASS\n"
@@ -252,7 +252,7 @@ def build():
 
     story.append(p(s, "H1", "11. What EWP is not"))
     story.append(p(s, "Body", "Not a vector database, knowledge graph, memory engine, truth oracle, LLM fact-checker, or authorization framework. It does not ask what is ultimately true. It asks a narrower, computable question: given this bounded evidence view, at this time, under this versioned policy, what may the agent accept — and why?"))
-    story.append(p(s, "Body", "v0.1.0 is frozen. The 22 September 2026 pre-freeze pass applies the trusted-origin allowlist, DEGRADED-blocks-ACCEPTED, and evaluator corrections listed in CHANGELOG.md. Architecture work is paused. New stores may reveal adapter bugs, retrieval loss, missing tests, or a genuine hole. They do not redefine warrant. A case this contract cannot represent is evidence for v0.2."))
+    story.append(p(s, "Body", "v0.2.0 tightens generic scope binding, refuses future-dated checks at T, persists SQLite view completeness, and narrows the serialized WarrantView. The 26 goldens are unchanged. New stores may reveal adapter bugs; they do not redefine warrant."))
     story.append(p(s, "RuleLine", "Stores keep evidence. Warrant is computed. Action is a later gate."))
 
     doc = SimpleDocTemplate(
@@ -262,7 +262,7 @@ def build():
         rightMargin=0.75 * inch,
         topMargin=0.68 * inch,
         bottomMargin=0.68 * inch,
-        title="Epistemic Warrant Protocol EWP-0.1.0",
+        title="Epistemic Warrant Protocol EWP-0.2.0",
         author="Rob Koliha",
         subject="What an agent is justified in accepting — and why",
     )

@@ -280,13 +280,26 @@ class Mem0Adapter:
         return unwrap_collection(payload)
 
     def _for_proposition(self, items: list[Any], proposition_id: str) -> list[Any]:
+        """Only memories tagged with this proposition_id.
+
+        Untagged Mem0 extracts have no EWP identity. Including them in every
+        view is an unscoped leak (ADAPTER_MAP_LOSS / false corroboration).
+        """
         matched = []
         for item in items:
             blob = ewp_blob(item)
-            prop = blob.get("proposition_id")
-            if prop is None or prop == proposition_id:
+            if blob.get("proposition_id") == proposition_id:
                 matched.append(item)
         return matched
+
+    def unscoped_items(self) -> list[Any]:
+        """Memories with no ewp.proposition_id. Not evidence for any P."""
+        out = []
+        for item in self._all_items():
+            blob = ewp_blob(item)
+            if not blob.get("proposition_id"):
+                out.append(item)
+        return out
 
     def raw_view(
         self,
@@ -309,7 +322,7 @@ class Mem0Adapter:
         limit: int = 20,
     ) -> EvidenceView:
         raw = self._for_proposition(self._all_items(), proposition_id)
-        hits = self._search_items(query, limit)
+        hits = self._for_proposition(self._search_items(query, limit), proposition_id)
         hit_ids = {_item_id(h) for h in hits}
         raw_ids = {_item_id(r) for r in raw if str(ewp_blob(r).get("kind") or "memory") == "memory"}
         omitted = sorted(raw_ids - hit_ids)

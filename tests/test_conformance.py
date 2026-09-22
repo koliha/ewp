@@ -142,6 +142,20 @@ def test_10_store_independence_sqlite_roundtrip():
         assert direct[key] == via_json[key], f"json:{key}"
 
 
+
+def test_10b_sqlite_persists_degraded_view_meta():
+    view = fixture_retrieval_degraded()
+    db = SQLiteAdapter()
+    db.load_view(view)
+    loaded = db.get_view(view.proposition_id, view.view_id)
+    w = eval_view(loaded)
+    assert loaded.degraded is True
+    assert loaded.omitted_sources == view.omitted_sources
+    assert loaded.retrieval_scope == view.retrieval_scope
+    assert w.warrant.sufficiency == "DEGRADED"
+    assert w.warrant.acceptance != "ACCEPTED"
+
+
 def test_action_gate_is_separate():
     w = eval_view(fixture_verified_current())
     cancel = Action("cancel", "contract.cancel", reversible=False, risk="high")

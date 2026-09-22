@@ -1,4 +1,4 @@
-"""v0.1.0 release metadata. Hashes change only with an explicit version bump."""
+"""Release metadata. Hashes change only with an explicit version bump."""
 
 from __future__ import annotations
 
@@ -59,7 +59,7 @@ def golden_set_hash() -> str:
 
 def metadata() -> dict:
     return {
-        "protocol": "EWP-0.1.0",
+        "protocol": "EWP-0.2.0",
         "short_name": "EWP",
         "policy": "reference-v1",
         "fixtures": "canonical-14 + pathological-12",
@@ -67,7 +67,7 @@ def metadata() -> dict:
         "evaluator_set_sha256": evaluator_set_hash(),
         "golden_set_sha256": golden_set_hash(),
         "graphiti_pin": "0.30.2",
-        "rule": "Graphiti adapts to v0.1. v0.1 does not adapt to Graphiti.",
+        "rule": "Graphiti adapts to the protocol. The protocol does not adapt to Graphiti.",
     }
 
 

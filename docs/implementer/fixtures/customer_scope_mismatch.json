@@ -1,0 +1,77 @@
+{
+  "adapter_meta": {},
+  "assertions": [
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.9,
+      "assertion_id": "a1",
+      "proposition_id": "P-refund",
+      "source": {
+        "content_hash": "sha256:billing",
+        "extractor_id": null,
+        "lineage_id": "L-api",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:billing",
+        "origin_type": "api",
+        "parent_source_id": null,
+        "snapshot_id": "snap:billing",
+        "source_id": "billing"
+      },
+      "text": "customer-42 has approved the refund"
+    }
+  ],
+  "checks": [
+    {
+      "check_id": "k1",
+      "method": "external_api",
+      "observed_at": "2026-09-21T18:31:00+00:00",
+      "result": "supports",
+      "scope": "customer-99",
+      "source": {
+        "content_hash": "sha256:billing",
+        "extractor_id": null,
+        "lineage_id": "L-api",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:billing",
+        "origin_type": "api",
+        "parent_source_id": null,
+        "snapshot_id": "snap:billing",
+        "source_id": "billing"
+      },
+      "subjects": []
+    }
+  ],
+  "conflicts": [],
+  "degraded": false,
+  "evaluated_at": "2026-09-21T21:00:00+00:00",
+  "evidence": [
+    {
+      "content": "refund approved for customer-42",
+      "evidence_id": "e1",
+      "observed_at": "2026-09-01T00:00:00+00:00",
+      "polarity": "supports",
+      "proposition_id": "P-refund",
+      "source": {
+        "content_hash": "sha256:billing",
+        "extractor_id": null,
+        "lineage_id": "L-api",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:billing",
+        "origin_type": "api",
+        "parent_source_id": null,
+        "snapshot_id": "snap:billing",
+        "source_id": "billing"
+      }
+    }
+  ],
+  "freshness_policy_seconds": 604800,
+  "lineage": [],
+  "omitted_sources": [],
+  "proposition_id": "P-refund",
+  "retrieval_scope": "complete",
+  "subjects": [
+    "customer-42"
+  ],
+  "view_id": "l-cust-scope"
+}

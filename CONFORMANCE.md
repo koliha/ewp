@@ -21,7 +21,7 @@ Live Graphiti / Mem0 mappings (`protocol/graphiti_client_adapter.py`, `protocol/
 ## Report shape
 
 ```
-Epistemic Warrant Protocol EWP-0.1.0
+Epistemic Warrant Protocol EWP-0.2.0
 Policy reference-v1
 Fixture set sha256: …
 Evaluator set sha256: …

@@ -33,17 +33,17 @@ def axes_only(view: EvidenceView, policy: Policy, evaluated_at: str) -> dict[str
     open_c = [c for c in view.conflicts if c.status == "open"]
     resolved_c = [c for c in view.conflicts if c.status == "resolved"]
 
-    if open_c or implied_open_conflict(view):
+    if open_c or implied_open_conflict(view, evaluated_at):
         conflict = "OPEN"
     elif resolved_c:
         conflict = "RESOLVED"
     else:
         conflict = "NONE"
 
-    verification = highest_verification(view)
+    verification = highest_verification(view, evaluated_at)
 
     stale = False
-    class_checks = class_conferring_checks(view, verification)
+    class_checks = class_conferring_checks(view, verification, evaluated_at)
     if class_checks:
         newest = freshest_check(class_checks)
         age = (eval_dt - parse_ts(newest.observed_at)).total_seconds()
@@ -64,7 +64,7 @@ def axes_only(view: EvidenceView, policy: Policy, evaluated_at: str) -> dict[str
     else:
         sufficiency = "SUFFICIENT"
 
-    opposing_high = opposing_high_check(view)
+    opposing_high = opposing_high_check(view, evaluated_at)
     if not view.assertions and not supporting:
         acceptance = "UNACCEPTED"
     elif (

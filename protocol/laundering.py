@@ -11,6 +11,8 @@ from .types import Conflict, EvidenceView, LineageEdge, VerificationCheck
 
 T1 = "2026-09-21T18:31:00+00:00"
 T_LATER = "2026-09-21T19:00:00+00:00"
+T10 = "2026-09-21T10:00:00+00:00"
+T11 = "2026-09-21T11:00:00+00:00"
 
 
 def launder_repetition() -> EvidenceView:
@@ -280,6 +282,34 @@ def scope_mismatch_is_not_external() -> EvidenceView:
     )
 
 
+
+def customer_scope_mismatch() -> EvidenceView:
+    """Check scoped to customer-99 cannot verify customer-42."""
+    s = src("billing", "L-api", "api")
+    return EvidenceView(
+        "l-cust-scope",
+        "P-refund",
+        assertions=[assertion("a1", "P-refund", "customer-42 has approved the refund", s)],
+        evidence=[ev("e1", "P-refund", "supports", s, "refund approved for customer-42")],
+        checks=[VerificationCheck("k1", "external_api", "customer-99", s, T1, "supports")],
+        subjects=("customer-42",),
+        freshness_policy_seconds=86400 * 7,
+    )
+
+
+def future_check_not_available_at_t() -> EvidenceView:
+    """An 11:00 external check is not evidence available at 10:00."""
+    s = src("api", "L-api", "api")
+    return EvidenceView(
+        "l-future-check",
+        "P-refund",
+        assertions=[assertion("a1", "P-refund", "customer-42 has approved the refund", s)],
+        evidence=[ev("e1", "P-refund", "supports", s, "refund ticket")],
+        checks=[VerificationCheck("k1", "external_api", "customer-42", s, T11, "supports")],
+        freshness_policy_seconds=86400 * 7,
+    )
+
+
 def mixed_timestamp_formats_use_instants() -> EvidenceView:
     """Z vs +00:00 must not reorder freshest-check selection."""
     s = src("winrm", "L-obs", "tool")
@@ -312,8 +342,14 @@ PACK = [
     ("episode_origin_is_not_trusted", episode_origin_is_not_trusted),
     ("degraded_external_is_not_accepted", degraded_external_is_not_accepted),
     ("scope_mismatch_is_not_external", scope_mismatch_is_not_external),
+    ("customer_scope_mismatch", customer_scope_mismatch),
+    ("future_check_not_available_at_t", future_check_not_available_at_t),
     ("mixed_timestamp_formats_use_instants", mixed_timestamp_formats_use_instants),
 ]
+
+EVAL_AT = {
+    "future_check_not_available_at_t": T10,
+}
 
 
 __all__ = ["PACK", "EVAL", "human_looks_right_vs_inspection"]

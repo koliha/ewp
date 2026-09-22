@@ -1,6 +1,6 @@
-# Epistemic Warrant Protocol (EWP) v0.1 — frozen 2026-09-21, republished 2026-09-22
+# Epistemic Warrant Protocol (EWP) v0.2 — 2026-09-22
 
-Status: frozen conceptual contract. Policy identity is `reference-v1`. Further change requires a version bump.
+Status: current conceptual contract. Policy identity remains `reference-v1` with the v0.2 tightenings below. The 26 frozen goldens are unchanged; evaluator and adapter contracts are not.
 
 The core object is not memory, truth, or confidence. It is a reproducible answer to:
 
@@ -105,6 +105,8 @@ Method name is not enough. Only origins `tool`, `document`, `human`, `api`, `ven
 
 Axes are independent. They MUST NOT be collapsed into one exclusive enum.
 
+The block below is a **conceptual view** of the axes plus diagnostics. The normative serialization is the flatter object in `docs/implementer/SCHEMA.md` and `WarrantView.normative()`: identity, time, five axes, rationale_codes. Diagnostic arrays on the Python `WarrantView` are reference-implementation convenience.
+
 ```
 WarrantView {
   proposition_id
@@ -161,10 +163,15 @@ A missing `Conflict` row must not hide opposition already present in the view.
 ## Currency
 
 - lineage edge `superseded_by` → `SUPERSEDED`
+- a check with `observed_at` after `evaluated_at` is not available at T and cannot confer class, refresh currency, or open conflict
 - else the newest check that confers the chosen verification class is older than `freshness_policy_seconds` at `evaluated_at` → `STALE`
 - else `CURRENT`
 
 A later endogenous check cannot refresh `EXTERNAL` or `HUMAN` currency.
+
+## Scope and subjects
+
+`VerificationCheck.scope` is opaque text. v0.2 also allows optional `subjects[]` on the check and on the view as a store-neutral identity primitive. Binding rule: if check and view name the same identifier family (`customer`, `server`, `contract`, …) and the tokens differ, the check cannot raise `HUMAN` or `EXTERNAL`. Adapters SHOULD populate `subjects` when the store has a real subject key; the evaluator still extracts identifier-shaped tokens from `scope` and view text when `subjects` is empty.
 
 ## Three confidences (MUST NOT be substituted)
 

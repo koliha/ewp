@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from .classify import (
+    available_at,
     check_verification_class,
     class_conferring_checks,
     freshest_check,
@@ -38,7 +39,7 @@ def warrant_now(view: EvidenceView, policy: Policy, evaluated_at: str) -> Warran
 
     open_c = [c for c in view.conflicts if c.status == "open"]
     resolved_c = [c for c in view.conflicts if c.status == "resolved"]
-    implied = implied_open_conflict(view)
+    implied = implied_open_conflict(view, evaluated_at)
     if open_c or implied:
         conflict: str = "OPEN"
         if open_c:
@@ -56,8 +57,10 @@ def warrant_now(view: EvidenceView, policy: Policy, evaluated_at: str) -> Warran
         for c in view.checks
     ):
         codes.append("verification.laundered_endogenous")
+    if any(not available_at(c.observed_at, evaluated_at) for c in view.checks):
+        codes.append("verification.not_available_at_t")
 
-    verification = highest_verification(view)
+    verification = highest_verification(view, evaluated_at)
     if verification == "HUMAN":
         codes.append("verification.human")
     elif verification == "EXTERNAL":
@@ -78,7 +81,7 @@ def warrant_now(view: EvidenceView, policy: Policy, evaluated_at: str) -> Warran
 
     # Freshness is taken from checks that actually confer the chosen class.
     # A later endogenous self-check cannot refresh EXTERNAL/HUMAN currency.
-    class_checks = class_conferring_checks(view, verification)
+    class_checks = class_conferring_checks(view, verification, evaluated_at)
     freshest = None
     stale = False
     if class_checks:
@@ -109,7 +112,7 @@ def warrant_now(view: EvidenceView, policy: Policy, evaluated_at: str) -> Warran
     else:
         sufficiency = "SUFFICIENT"
 
-    opposing_high = opposing_high_check(view)
+    opposing_high = opposing_high_check(view, evaluated_at)
     if not view.assertions and not supporting:
         acceptance: str = "UNACCEPTED"
         codes.append("acceptance.none")

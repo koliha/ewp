@@ -16,7 +16,10 @@ HERE = Path(__file__).resolve().parent
 POLICY = json.loads((HERE / "policy.json").read_text())
 RANK = {"NONE": 0, "INDIRECT": 1, "EXTERNAL": 2, "HUMAN": 3}
 FAMILIES = ("server", "host", "node", "device", "serial")
-ENTITY_RE = re.compile(r"(?:server|host|node|device|serial)[\w.-]*", re.I)
+ENTITY_RE = re.compile(
+    r"\b(?:(?:server|host|node|device|serial)[\w.-]*|[a-z][a-z0-9]*[-_:/][a-z0-9][\w.-]*)\b",
+    re.I,
+)
 AXES = ("acceptance", "conflict", "verification", "currency", "sufficiency")
 
 
@@ -33,10 +36,14 @@ def entities(text: str) -> set[str]:
 
 
 def family(tok: str) -> str:
+    low = tok.lower()
     for fam in FAMILIES:
-        if tok.startswith(fam):
+        if low.startswith(fam):
             return fam
-    return tok
+    for sep in ("-", "_", ":", "/"):
+        if sep in low:
+            return low.split(sep, 1)[0]
+    return low
 
 
 def scope_caps_check(check: dict, view: dict) -> bool:
@@ -57,7 +64,15 @@ def scope_caps_check(check: dict, view: dict) -> bool:
     return False
 
 
-def class_of(check: dict, view: dict) -> str:
+def available_at(observed_at: str, evaluated_at: str | None) -> bool:
+    if not evaluated_at or not observed_at:
+        return True
+    return instant(observed_at) <= instant(evaluated_at)
+
+
+def class_of(check: dict, view: dict, evaluated_at: str | None = None) -> str:
+    if not available_at(check.get("observed_at") or "", evaluated_at):
+        return "NONE"
     method = check.get("method") or ""
     origin = origin_of(check)
     trusted = origin in POLICY["trusted_origins"]
@@ -80,21 +95,29 @@ def class_of(check: dict, view: dict) -> str:
     return cls
 
 
-def verification_of(view: dict) -> str:
+def verification_of(view: dict, evaluated_at: str | None = None) -> str:
     best = "NONE"
     for check in view.get("checks") or []:
-        cls = class_of(check, view)
+        cls = class_of(check, view, evaluated_at)
         if RANK[cls] > RANK[best]:
             best = cls
     return best
 
 
-def conflict_of(view: dict) -> str:
+def conflict_of(view: dict, evaluated_at: str | None = None) -> str:
     rows = view.get("conflicts") or []
     if any(c.get("status") == "open" for c in rows):
         return "OPEN"
-    polarities = {e.get("polarity") for e in view.get("evidence") or []}
-    results = {c.get("result") for c in view.get("checks") or []}
+    polarities = {
+        e.get("polarity")
+        for e in view.get("evidence") or []
+        if available_at(e.get("observed_at") or "", evaluated_at)
+    }
+    results = {
+        c.get("result")
+        for c in view.get("checks") or []
+        if available_at(c.get("observed_at") or "", evaluated_at)
+    }
     if ("supports" in polarities or "supports" in results) and (
         "opposes" in polarities or "opposes" in results
     ):
@@ -122,7 +145,7 @@ def currency_of(view: dict, verification: str, evaluated_at: str) -> tuple[str, 
     conferring = [
         c
         for c in view.get("checks") or []
-        if verification != "NONE" and class_of(c, view) == verification
+        if verification != "NONE" and class_of(c, view, evaluated_at) == verification
     ]
     stale = False
     if conferring:
@@ -137,12 +160,12 @@ def currency_of(view: dict, verification: str, evaluated_at: str) -> tuple[str, 
     return "CURRENT", stale
 
 
-def acceptance_of(view: dict, verification: str, conflict: str, currency: str, sufficiency: str, stale: bool) -> str:
+def acceptance_of(view: dict, verification: str, conflict: str, currency: str, sufficiency: str, stale: bool, evaluated_at: str | None = None) -> str:
     supporting = [e for e in view.get("evidence") or [] if e.get("polarity") == "supports"]
     if not view.get("assertions") and not supporting:
         return "UNACCEPTED"
     opposing_high = any(
-        c.get("result") == "opposes" and class_of(c, view) in {"EXTERNAL", "HUMAN"}
+        c.get("result") == "opposes" and class_of(c, view, evaluated_at) in {"EXTERNAL", "HUMAN"}
         for c in view.get("checks") or []
     )
     if (
@@ -159,11 +182,11 @@ def acceptance_of(view: dict, verification: str, conflict: str, currency: str, s
 
 def warrant_now(view: dict) -> dict:
     evaluated_at = view["evaluated_at"]
-    verification = verification_of(view)
-    conflict = conflict_of(view)
+    verification = verification_of(view, evaluated_at)
+    conflict = conflict_of(view, evaluated_at)
     sufficiency = sufficiency_of(view)
     currency, stale = currency_of(view, verification, evaluated_at)
-    acceptance = acceptance_of(view, verification, conflict, currency, sufficiency, stale)
+    acceptance = acceptance_of(view, verification, conflict, currency, sufficiency, stale, evaluated_at)
     return {
         "acceptance": acceptance,
         "conflict": conflict,

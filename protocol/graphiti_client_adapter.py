@@ -34,17 +34,28 @@ def _dt(value: Any) -> str | None:
     return iso(value)
 
 
+def _is_parked_blob(blob: dict[str, Any]) -> bool:
+    return str(blob.get("kind") or "") == "ewp_parked"
+
+
 def episode_from_live(ep: Any) -> FakeEpisode:
     blob = ewp_blob(ep)
     uuid = str(attr(ep, "uuid", "id", default=""))
     created = iso(attr(ep, "created_at", "valid_at", "reference_time", default=None))
     metadata = dict(attr(ep, "metadata", default={}) or {})
+    name = str(attr(ep, "name", default="") or "")
     if blob:
         metadata.update(blob)
         metadata.setdefault("lineage_id", blob.get("lineage_id"))
+    if name.startswith("meta:") and "proposition_id" not in metadata:
+        metadata["proposition_id"] = name.split(":", 1)[1]
+        metadata.setdefault("kind", "ewp_parked")
+    content = str(attr(ep, "content", default="") or "")
+    if not content:
+        content = name
     return FakeEpisode(
-        uuid=uuid or "unknown-episode",
-        content=str(attr(ep, "content", "name", default="") or ""),
+        uuid=uuid or name or "unknown-episode",
+        content=content,
         created_at=created,
         reference_time=_dt(attr(ep, "valid_at", "reference_time", default=None)),
         metadata=metadata,
@@ -74,7 +85,23 @@ def store_from_live(
 ) -> FakeGraphitiStore:
     store = FakeGraphitiStore()
     for ep in episodes or []:
-        store.add_episode(episode_from_live(ep))
+        fe = episode_from_live(ep)
+        store.add_episode(fe)
+        blob = fe.metadata
+        pid = blob.get("proposition_id")
+        parked = _is_parked_blob(blob) or str(fe.content).startswith("ewp-parked")
+        if parked and pid:
+            alias = f"meta:{pid}"
+            if alias != fe.uuid:
+                store.add_episode(
+                    FakeEpisode(
+                        uuid=alias,
+                        content=fe.content if str(fe.content).startswith("ewp-parked") else "ewp-parked",
+                        created_at=fe.created_at,
+                        reference_time=fe.reference_time,
+                        metadata=dict(fe.metadata),
+                    )
+                )
     for edge in edges:
         fe = edge_from_live(edge)
         store.add_edge(fe)
@@ -138,7 +165,36 @@ class GraphitiClientAdapter:
                 return []
         return []
 
+    async def _list_episodes(self) -> list[Any]:
+        """Every episodic node in the group. Parked meta is one of them.
+
+        Must not assume its uuid is `meta:{proposition_id}`.
+        """
+        if hasattr(self.client, "get_episodes_by_group"):
+            try:
+                return list(await self.client.get_episodes_by_group(self.group_id) or [])
+            except Exception:
+                pass
+        nodes_ns = attr(attr(self.client, "nodes", default=None), "episodic", default=None)
+        if nodes_ns is not None and hasattr(nodes_ns, "get_by_group_ids"):
+            try:
+                return list(await nodes_ns.get_by_group_ids([self.group_id]) or [])
+            except Exception:
+                pass
+        return []
+
     async def _get_episodes(self, uuids: list[str]) -> list[Any]:
+        listed = await self._list_episodes()
+        if listed:
+            have = {str(attr(e, "uuid", "id", default="")) for e in listed}
+            missing = [u for u in uuids if u not in have]
+            if not missing:
+                return listed
+            extra = await self._get_episodes_by_id(missing)
+            return listed + extra
+        return await self._get_episodes_by_id(uuids)
+
+    async def _get_episodes_by_id(self, uuids: list[str]) -> list[Any]:
         if not uuids:
             return []
         nodes_ns = attr(attr(self.client, "nodes", default=None), "episodic", default=None)
@@ -295,6 +351,7 @@ class GraphitiClientAdapter:
         park = {
             EWP_META_KEY: {
                 "kind": "ewp_parked",
+                "stable_name": f"meta:{view.proposition_id}",
                 "proposition_id": view.proposition_id,
                 "checks": [
                     {**c.__dict__, "source": c.source.__dict__} for c in view.checks
@@ -317,15 +374,20 @@ class GraphitiClientAdapter:
                 "freshness_policy_seconds": view.freshness_policy_seconds,
             }
         }
-        await self.client.add_episode(
+        parked = await self.client.add_episode(
             name=f"meta:{view.proposition_id}",
             episode_body="ewp-parked",
             source="text",
             source_description=json.dumps(park),
             group_id=self.group_id,
         )
+        parked_uuid = str(
+            attr(attr(parked, "episode", default=parked), "uuid", "id", default="") or ""
+        )
         report["checks_parked"] = len(view.checks)
         report["conflicts_parked"] = len(view.conflicts)
+        report["parked_name"] = f"meta:{view.proposition_id}"
+        report["parked_uuid"] = parked_uuid or None
         return report
 
 

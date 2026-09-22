@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""CI gate for EWP v0.1.0.
+"""CI gate for EWP.
 
 1. goldens never drift silently
 2. all 26 fixtures pass reference-v1
@@ -64,15 +64,18 @@ def main() -> int:
         [sys.executable, "tests/test_pathological.py"],
         [sys.executable, "tests/test_laundering.py"],
         [sys.executable, "tests/test_live_adapters.py"],
+        [sys.executable, "tests/test_mcp.py"],
         [sys.executable, "docs/implementer/third_eval.py"],
     ]
     for cmd in steps:
         rc = run(cmd)
         if rc != 0:
             print("CI FAIL", cmd)
+            (ROOT / "tests" / ".last_ci.json").write_text(json.dumps({"ok": False, "failed": cmd}, indent=2) + "\n")
             return rc
-    print("CI PASS — goldens, 26 fixtures, SQLite=JSON, fake Graphiti isolated, laundering pack, live mappings, third evaluator")
+    print("CI PASS — goldens, 26 fixtures, SQLite=JSON, fake Graphiti isolated, laundering pack, live mappings, MCP façade, third evaluator")
     print(json.dumps(metadata(), indent=2))
+    (ROOT / "tests" / ".last_ci.json").write_text(json.dumps({"ok": True, "protocol": metadata()["protocol"], "policy": metadata()["policy"]}, indent=2) + "\n")
     return 0
 
 

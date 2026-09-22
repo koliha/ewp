@@ -1,6 +1,6 @@
 [project]
 name = "ewp"
-version = "0.1.0"
+version = "0.2.0"
 description = "Epistemic Warrant Protocol — deterministic boundary between agent memory and justified acceptance"
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -10,6 +10,9 @@ keywords = ["epistemic", "warrant", "agent-memory", "ai-agents"]
 
 [project.urls]
 Repository = "https://github.com/koliha/ewp"
+
+[project.scripts]
+ewp-mcp = "protocol.mcp_server:main"
 
 [tool.setuptools.packages.find]
 include = ["protocol*"]

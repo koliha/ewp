@@ -1,8 +1,8 @@
-protocol=EWP-0.1.0
+protocol=EWP-0.2.0
 policy=reference-v1
 canonical_fixtures=14
 pathological_fixtures=12
 goldens=26
 graphiti_pin=0.30.2
-rule=Graphiti adapts to v0.1. v0.1 does not adapt to Graphiti.
+rule=Graphiti adapts to the protocol. The protocol does not adapt to Graphiti.
 lock=fixture+evaluator+golden

@@ -41,15 +41,29 @@ class FakeGraphitiClient:
         return hits[:num_results]
 
     async def add_episode(self, name, episode_body, source="text", source_description="", group_id=None, **kw):
-        self.added.append(
-            {
-                "name": name,
-                "episode_body": episode_body,
-                "source_description": source_description,
-                "group_id": group_id,
-            }
+        # Graphiti assigns its own uuid. The episode *name* is not the uuid.
+        uid = f"g-{len(self.added) + 1}"
+        rec = {
+            "name": name,
+            "episode_body": episode_body,
+            "source_description": source_description,
+            "group_id": group_id,
+            "uuid": uid,
+        }
+        self.added.append(rec)
+        self.episodes_data[uid] = SimpleNamespace(
+            uuid=uid,
+            name=name,
+            content=episode_body,
+            created_at="2026-09-21T18:31:00+00:00",
+            source_description=source_description,
+            metadata={},
+            group_id=group_id,
         )
-        return SimpleNamespace(episode=SimpleNamespace(uuid=name, content=episode_body))
+        return SimpleNamespace(episode=SimpleNamespace(uuid=uid, content=episode_body, name=name))
+
+    async def get_episodes_by_group(self, group_id: str):
+        return [e for e in self.episodes_data.values() if getattr(e, "group_id", None) == group_id]
 
 
 class FakeMem0:
@@ -176,6 +190,21 @@ class GraphitiMappingTests(unittest.TestCase):
         self.assertGreater(report["episodes"], 0)
         self.assertTrue(any(a["name"].startswith("meta:") for a in client.added))
         self.assertTrue(any("ewp" in a["source_description"] for a in client.added))
+        self.assertTrue(report["parked_uuid"])
+        self.assertFalse(report["parked_uuid"].startswith("meta:"))
+
+    def test_parked_checks_survive_graphiti_assigned_uuid(self):
+        client = FakeGraphitiClient()
+        adapter = GraphitiClientAdapter(client, group_id="P-win", proposition_id="P-win")
+        src_view = fixture_verified_current()
+        asyncio.run(adapter.ingest_view_via_episodes(src_view))
+        parked = [e for e in client.episodes_data.values() if str(getattr(e, "content", "")).startswith("ewp-parked")]
+        self.assertEqual(len(parked), 1)
+        self.assertNotEqual(parked[0].uuid, f"meta:{src_view.proposition_id}")
+        out = asyncio.run(adapter.raw_view(src_view.proposition_id))
+        self.assertEqual(len(out.checks), len(src_view.checks))
+        self.assertEqual(out.checks[0].method, src_view.checks[0].method)
+        self.assertEqual(out.checks[0].result, src_view.checks[0].result)
 
 
 class Mem0MappingTests(unittest.TestCase):
@@ -234,6 +263,20 @@ class Mem0MappingTests(unittest.TestCase):
         # warrant must still be computable
         result = warrant_now(out, Policy(), EVAL)
         self.assertEqual(result.warrant.verification, warrant_now(src_view, Policy(), EVAL).warrant.verification)
+
+    def test_untagged_memory_does_not_enter_proposition_view(self):
+        mem = FakeMem0()
+        adapter = Mem0Adapter(mem, user_id="u1")
+        mem.add([{"role": "user", "content": "I like rye bread"}], user_id="u1")
+        view = fixture_verified_current()
+        adapter.ingest_view(view)
+        out = adapter.raw_view(view.proposition_id)
+        texts = [a.text for a in out.assertions]
+        self.assertTrue(any("Windows" in t for t in texts))
+        self.assertFalse(any("rye" in t.lower() for t in texts))
+        self.assertEqual(len(adapter.unscoped_items()), 1)
+        searched = adapter.search_view(view.proposition_id, query="rye")
+        self.assertFalse(any("rye" in a.text.lower() for a in searched.assertions))
 
     def test_search_keeps_parked_sidecar(self):
         mem = FakeMem0()

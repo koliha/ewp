@@ -14,7 +14,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from protocol.fixtures import EVAL
-from protocol.laundering import PACK as LAUNDER
+from protocol.laundering import PACK as LAUNDER, EVAL_AT
 from protocol.pathological import PACK as PATHO
 from protocol.types import Policy
 from protocol.warrant import warrant_now
@@ -46,7 +46,7 @@ def main() -> None:
     for name, factory in PATHO:
         dump(name, factory(), EVAL)
     for name, factory in LAUNDER:
-        dump(name, factory(), EVAL)
+        dump(name, factory(), EVAL_AT.get(name, EVAL))
 
 
 if __name__ == "__main__":

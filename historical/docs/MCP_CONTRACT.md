@@ -1,3 +1,14 @@
+# MCP contract — historical (superseded)
+
+This sketch predates the freeze. It talks about ClaimView, confidence caps,
+`status=current`, and `claim_verify` raising a scalar. That is not EWP.
+
+**Shipped contract:** `docs/MCP_CONTRACT.md` (`python3 -m protocol.mcp_server`).
+
+Kept only so the pre-freeze design notes remain readable.
+
+---
+
 # MCP contract — EWP v0.1
 
 Transport: streamable HTTP (`/mcp`) and stdio.

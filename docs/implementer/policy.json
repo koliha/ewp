@@ -35,7 +35,8 @@
     "freshness_basis": "stale is computed from checks that confer the chosen verification class",
     "trusted_origin_allowlist": "Only trusted origins may raise HUMAN or EXTERNAL",
     "degraded_blocks_accepted": "sufficiency must be SUFFICIENT for ACCEPTED",
-    "scope_must_apply": "cap only when scope names a different token in the same entity family (server/host/node/device/serial)"
+    "scope_must_apply": "cap when scope or subjects names a different identifier in the same family (server01 vs server02, customer-42 vs customer-99)",
+    "not_available_at_t": "a check observed_at after evaluated_at cannot confer class or warrant acceptance"
   },
   "trusted_origins": [
     "tool",

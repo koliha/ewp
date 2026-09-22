@@ -27,6 +27,9 @@ from protocol.laundering import (
     mixed_timestamp_formats_use_instants,
     opposing_check_is_not_acceptance,
     scope_mismatch_is_not_external,
+    customer_scope_mismatch,
+    future_check_not_available_at_t,
+    EVAL_AT,
 )
 from protocol.types import Policy
 from protocol.warrant import warrant_now
@@ -161,6 +164,22 @@ def test_scope_mismatch_caps_class():
     print("PASS check scoped to server02 does not verify server01")
 
 
+
+def test_customer_scope_mismatch_caps_class():
+    a = axes_a(customer_scope_mismatch())
+    assert a["verification"] == "INDIRECT", a
+    assert a["acceptance"] != "ACCEPTED", a
+    print("PASS check scoped to customer-99 does not verify customer-42")
+
+
+def test_future_check_not_available_at_t():
+    view = future_check_not_available_at_t()
+    a = axes_a(view, evaluated_at="2026-09-21T10:00:00+00:00")
+    assert a["verification"] != "EXTERNAL", a
+    assert a["acceptance"] != "ACCEPTED", a
+    print("PASS future-dated check cannot warrant acceptance at T")
+
+
 def test_timestamp_formats_pick_later_instant():
     w = warrant_now(mixed_timestamp_formats_use_instants(), POLICY, EVAL)
     assert w.freshest_check == "k-z", w.freshest_check
@@ -171,8 +190,9 @@ def test_two_evaluators_match_on_axes():
     rows = []
     for name, factory in PACK:
         view = factory()
-        a = axes_a(view)
-        b = axes_only(view, POLICY, EVAL)
+        when = EVAL_AT.get(name, EVAL)
+        a = axes_a(view, evaluated_at=when)
+        b = axes_only(view, POLICY, when)
         match = a == {k: b[k] for k in AXES}
         rows.append((name, a["verification"], b["verification"], match))
         assert match, (name, a, b)
@@ -199,6 +219,8 @@ def main() -> int:
     test_episode_origin_is_not_external()
     test_degraded_external_is_tentative()
     test_scope_mismatch_caps_class()
+    test_customer_scope_mismatch_caps_class()
+    test_future_check_not_available_at_t()
     test_timestamp_formats_pick_later_instant()
     test_two_evaluators_match_on_axes()
     print("LAUNDERING SUITE PASS")

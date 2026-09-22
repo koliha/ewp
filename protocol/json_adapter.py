@@ -58,6 +58,7 @@ class JsonFileAdapter:
                 "retrieval_scope": view.retrieval_scope,
                 "degraded": view.degraded,
                 "omitted_sources": view.omitted_sources,
+                "subjects": list(view.subjects),
             },
             "observations": [
                 {
@@ -89,6 +90,7 @@ class JsonFileAdapter:
                     "what_was_inspected": c.scope,
                     "when": c.observed_at,
                     "outcome": c.result,
+                    "subjects": list(c.subjects),
                     "source": c.source.__dict__,
                 }
                 for c in view.checks
@@ -156,6 +158,7 @@ class JsonFileAdapter:
                 source=_src(v["source"]),
                 observed_at=v["when"],
                 result=v["outcome"],
+                subjects=tuple(v.get("subjects") or ()),
             )
             for v in doc.get("verification_history", [])
         ]
@@ -188,4 +191,5 @@ class JsonFileAdapter:
                 if freshness_policy_seconds is not None
                 else meta.get("freshness_policy_seconds", 86400 * 30)
             ),
+            subjects=tuple(meta.get("subjects") or ()),
         )

@@ -27,7 +27,7 @@ Unknown origins (`episode`, `graph`, `agent`, …) are untrusted.
 - Indirect method → `INDIRECT`.
 - Unknown method → `NONE`.
 - `result=inconclusive` cannot raise `HUMAN` or `EXTERNAL`. Cap at `INDIRECT`.
-- If `scope` names an entity in the same family as the view (`server*`, `host*`, `node*`, `device*`, `serial*`) and that token is not the one in the view → cap that check at `INDIRECT`. A scope that is only an inspection surface (`dashboard_screenshot`) does not cap.
+- If `scope` or declared `subjects` names an identifier in the same family as the view (`server-01`, `customer-42`, `contract-123`, …) and that token is not the one in the view → cap that check at `INDIRECT`. A scope that is only an inspection surface (`dashboard_screenshot`) does not cap. When both the check and the view declare `subjects`, disjoint same-family ids cap; overlapping ids apply.
 - `result=opposes` still classifies the check. Polarity is a conflict input, not a reason to ignore the check.
 
 A later check does not supersede an earlier one by timestamp alone. Compare `observed_at` as instants, not as raw strings (`Z` vs `+00:00`).
@@ -46,6 +46,7 @@ Missing `Conflict` rows must not hide a live opposition that is already in the v
 ## Currency
 
 - Any lineage edge of kind `superseded_by` that applies to this proposition → `SUPERSEDED`
+- A check with `observed_at` after `evaluated_at` is not available at T. It cannot confer class, refresh currency, or open conflict at T.
 - Else, if the newest check *that confers the chosen verification class* is older than `freshness_policy_seconds` at `evaluated_at` → `STALE`
 - Else `CURRENT`
 

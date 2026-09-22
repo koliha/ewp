@@ -23,13 +23,11 @@ Agents never get store mutation tools directly. If someone wires an agent straig
 OpenClaw already consumes outbound MCP servers. That is the integration.
 
 ```bash
-# planned process (not shipped in v0.1.0)
-# sketch: historical/docs/MCP_CONTRACT.md
-# pointer: docs/MCP_CONTRACT.md
-python3 -m ewp.mcp --http 127.0.0.1:8765
-
+python3 -m protocol.mcp_server --http 127.0.0.1:8765 --db ./ewp.sqlite
 openclaw mcp add ewp --url http://127.0.0.1:8765/mcp
 ```
+
+Contract: `docs/MCP_CONTRACT.md`. Pre-freeze sketch: `historical/docs/MCP_CONTRACT.md` (superseded).
 
 Keep OpenClaw’s own files as *inputs and working memory*, not as the system of record:
 

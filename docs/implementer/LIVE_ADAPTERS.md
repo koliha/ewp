@@ -30,6 +30,11 @@ print(warrant_now(view, Policy(), "2026-09-22T15:00:00+00:00").warrant)
 | `valid_at` / `invalid_at` / `expired_at` | evidence note only | Store-local. Not currency, not verification. |
 | `search()` hit set ⊂ group edges | `degraded=True`, `retrieval_scope=graphiti.search` | `RETRIEVAL_LOSS` if you forget this. |
 
+Parked checks live on an episode whose *name* is `meta:{proposition_id}` and
+whose body is `ewp-parked`. Graphiti assigns its own UUID. The adapter finds
+that sidecar by `kind=ewp_parked`, content, or name — never by assuming the
+UUID equals `meta:{pid}`.
+
 `add_episode()` runs Graphiti’s LLM extractor. That path is lossy. Prefer
 writing `lineage_id` / `origin_type` into `source_description` as:
 
@@ -65,6 +70,9 @@ print(adapter.search_view(view.proposition_id, "Windows").degraded)
 | `score` | `adapter_meta.retrieval_scores` | Never warrant strength. |
 | `get_all` vs `search` | `degraded` | Omitted memory ids listed. |
 | sidecar `kind=ewp_parked` | checks, conflicts, lineage | Mem0 has no first-class check table. |
+
+Untagged memories (no `metadata.ewp.proposition_id`) do not enter a named
+proposition view. They are `Mem0Adapter.unscoped_items()`, not evidence for P.
 
 `infer=False` (the adapter default) stores the string you passed. `infer=True`
 lets Mem0 rewrite the fact. That is convenient and usually `INGEST_LOSS`.

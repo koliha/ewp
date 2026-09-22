@@ -4,16 +4,18 @@ EWP defines the deterministic boundary between what an AI agent’s memory conta
 
 Memory is evidence, not truth.
 
-[![EWP](https://img.shields.io/badge/EWP-0.1.0-1e2a32)](#v010-freeze)
+[![EWP](https://img.shields.io/badge/EWP-0.2.0-1e2a32)](#v020)
 [![conformance](https://github.com/koliha/ewp/actions/workflows/conformance.yml/badge.svg)](https://github.com/koliha/ewp/actions/workflows/conformance.yml)
 [![python](https://img.shields.io/badge/python-3.12%2B-3776ab)](#layout)
 [![license](https://img.shields.io/badge/license-MIT-5c6770)](LICENSE)
 
-**EWP-0.1.0.** Policy `reference-v1`. EWP is an epistemic protocol, not an action-authorization framework. Other projects use *warrant* to describe permission to act; EWP uses *epistemic warrant* to describe what an agent is justified in accepting. `may_act()` is deliberately a later gate.
+**EWP-0.2.0.** Policy `reference-v1`. EWP is an epistemic protocol, not an action-authorization framework. Other projects use *warrant* to describe permission to act; EWP uses *epistemic warrant* to describe what an agent is justified in accepting. `may_act()` is deliberately a later gate.
 
 Stores adapt to the protocol. The protocol does not inherit the store’s epistemology.
 
-See `NAME.md`, `docs/PROTOCOL_v0.1.md`, `docs/DESIGN_NOTE.md`, `docs/implementer/`, `docs/PLATFORMS.md`, `docs/implementer/LIVE_ADAPTERS.md`, `CONFORMANCE.md`. The MCP tool-contract sketch is `historical/docs/MCP_CONTRACT.md` (not shipped; `docs/MCP_CONTRACT.md` is only a pointer).
+v0.2.0 tightens scope binding, refuses future-dated checks at T, persists SQLite view completeness, and narrows the serialized `WarrantView` contract. The 26 goldens stay; the evaluator lock moves.
+
+See `NAME.md`, `docs/PROTOCOL_v0.1.md`, `docs/DESIGN_NOTE.md`, `docs/implementer/`, `docs/PLATFORMS.md`, `docs/implementer/LIVE_ADAPTERS.md`, `docs/MCP_CONTRACT.md`, `CONFORMANCE.md`. MCP server: `python3 -m protocol.mcp_server`. The pre-freeze claim/confidence sketch is `historical/docs/MCP_CONTRACT.md` (superseded).
 
 Boundary. Policy. Observations. Permission. Four things. None gets to wear the others' clothes.
 

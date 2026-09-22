@@ -1,0 +1,75 @@
+{
+  "adapter_meta": {},
+  "assertions": [
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.9,
+      "assertion_id": "a1",
+      "proposition_id": "P-refund",
+      "source": {
+        "content_hash": "sha256:api",
+        "extractor_id": null,
+        "lineage_id": "L-api",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:api",
+        "origin_type": "api",
+        "parent_source_id": null,
+        "snapshot_id": "snap:api",
+        "source_id": "api"
+      },
+      "text": "customer-42 has approved the refund"
+    }
+  ],
+  "checks": [
+    {
+      "check_id": "k1",
+      "method": "external_api",
+      "observed_at": "2026-09-21T11:00:00+00:00",
+      "result": "supports",
+      "scope": "customer-42",
+      "source": {
+        "content_hash": "sha256:api",
+        "extractor_id": null,
+        "lineage_id": "L-api",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:api",
+        "origin_type": "api",
+        "parent_source_id": null,
+        "snapshot_id": "snap:api",
+        "source_id": "api"
+      },
+      "subjects": []
+    }
+  ],
+  "conflicts": [],
+  "degraded": false,
+  "evaluated_at": "2026-09-21T10:00:00+00:00",
+  "evidence": [
+    {
+      "content": "refund ticket",
+      "evidence_id": "e1",
+      "observed_at": "2026-09-01T00:00:00+00:00",
+      "polarity": "supports",
+      "proposition_id": "P-refund",
+      "source": {
+        "content_hash": "sha256:api",
+        "extractor_id": null,
+        "lineage_id": "L-api",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:api",
+        "origin_type": "api",
+        "parent_source_id": null,
+        "snapshot_id": "snap:api",
+        "source_id": "api"
+      }
+    }
+  ],
+  "freshness_policy_seconds": 604800,
+  "lineage": [],
+  "omitted_sources": [],
+  "proposition_id": "P-refund",
+  "retrieval_scope": "complete",
+  "subjects": [],
+  "view_id": "l-future-check"
+}

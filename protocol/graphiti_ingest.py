@@ -79,6 +79,8 @@ def ingest_view(store: FakeGraphitiStore, view: EvidenceView) -> dict:
             content="ewp-parked",
             created_at="1970-01-01T00:00:00+00:00",
             metadata={
+                "kind": "ewp_parked",
+                "proposition_id": view.proposition_id,
                 "checks": [c.__dict__ | {"source": c.source.__dict__} for c in view.checks],
                 "conflicts": [
                     {"conflict_id": c.conflict_id, "proposition_ids": list(c.proposition_ids), "status": c.status, "note": c.note}

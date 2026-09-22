@@ -2,11 +2,13 @@
 
 EWP evaluates evidence. It does not authenticate callers, sign tokens, or authorize actions.
 
+EWP assumes source-origin metadata presented in an `EvidenceView` has been authenticated or established by the trusted ingestion/adapter boundary. Untrusted agents must not be permitted to self-assert trusted `origin_type` values. EWP prevents epistemic laundering after ingestion; it does not itself authenticate evidence entering the ledger.
+
 ## What this project does not protect
 
 - Agent tool execution
 - Secret storage
-- Prompt injection against an MCP client (no MCP server ships in v0.1.0; see `historical/docs/MCP_CONTRACT.md`)
+- Prompt injection against an MCP client. `protocol.mcp_server` is an ingest boundary, not an authenticator; it refuses unattested trusted origins.
 - Store credentials
 
 Those belong in the platform (OpenClaw allowlists, Tenuo-style action warrants, ordinary IAM).

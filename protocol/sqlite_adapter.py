@@ -52,7 +52,17 @@ CREATE TABLE IF NOT EXISTS checks (
   scope TEXT NOT NULL,
   source_id TEXT NOT NULL,
   observed_at TEXT NOT NULL,
-  result TEXT NOT NULL
+  result TEXT NOT NULL,
+  subjects TEXT NOT NULL DEFAULT '[]'
+);
+CREATE TABLE IF NOT EXISTS views (
+  view_id TEXT PRIMARY KEY,
+  proposition_id TEXT NOT NULL,
+  omitted_sources TEXT NOT NULL,
+  retrieval_scope TEXT NOT NULL,
+  degraded INTEGER NOT NULL,
+  freshness_policy_seconds INTEGER NOT NULL,
+  subjects TEXT NOT NULL DEFAULT '[]'
 );
 CREATE TABLE IF NOT EXISTS conflicts (
   conflict_id TEXT PRIMARY KEY,
@@ -116,8 +126,17 @@ class SQLiteAdapter:
         for c in view.checks:
             self._put_source(c.source)
             self.conn.execute(
-                "INSERT OR REPLACE INTO checks VALUES (?,?,?,?,?,?,?)",
-                (c.check_id, view.proposition_id, c.method, c.scope, c.source.source_id, c.observed_at, c.result),
+                "INSERT OR REPLACE INTO checks VALUES (?,?,?,?,?,?,?,?)",
+                (
+                    c.check_id,
+                    view.proposition_id,
+                    c.method,
+                    c.scope,
+                    c.source.source_id,
+                    c.observed_at,
+                    c.result,
+                    json.dumps(list(c.subjects)),
+                ),
             )
         for c in view.conflicts:
             self.conn.execute(
@@ -126,6 +145,18 @@ class SQLiteAdapter:
             )
         for e in view.lineage:
             self.conn.execute("INSERT INTO lineage VALUES (?,?,?)", (e.from_id, e.to_id, e.kind))
+        self.conn.execute(
+            "INSERT OR REPLACE INTO views VALUES (?,?,?,?,?,?,?)",
+            (
+                view.view_id,
+                view.proposition_id,
+                json.dumps(list(view.omitted_sources)),
+                view.retrieval_scope,
+                1 if view.degraded else 0,
+                view.freshness_policy_seconds,
+                json.dumps(list(view.subjects)),
+            ),
+        )
         self.conn.commit()
 
     def _source(self, source_id: str) -> SourceRef:
@@ -148,9 +179,9 @@ class SQLiteAdapter:
         view_id: str,
         *,
         omitted_sources: list[str] | None = None,
-        retrieval_scope: str = "complete",
-        degraded: bool = False,
-        freshness_policy_seconds: int = 86400 * 30,
+        retrieval_scope: str | None = None,
+        degraded: bool | None = None,
+        freshness_policy_seconds: int | None = None,
     ) -> EvidenceView:
         assertions = [
             Assertion(
@@ -187,6 +218,7 @@ class SQLiteAdapter:
                 source=self._source(r["source_id"]),
                 observed_at=r["observed_at"],
                 result=r["result"],
+                subjects=tuple(json.loads(r["subjects"])) if "subjects" in r.keys() else (),
             )
             for r in self.conn.execute("SELECT * FROM checks WHERE proposition_id=?", (proposition_id,))
         ]
@@ -208,16 +240,33 @@ class SQLiteAdapter:
             or r["from_id"].startswith(proposition_id + ":")
             or r["to_id"].startswith(proposition_id + ":")
         ]
+        meta = self.conn.execute(
+            "SELECT * FROM views WHERE view_id=? OR proposition_id=?",
+            (view_id, proposition_id),
+        ).fetchone()
+        if meta is None:
+            stored_omitted: list[str] = []
+            stored_scope = "unknown"
+            stored_degraded = True
+            stored_fresh = 86400 * 30
+            stored_subjects: tuple[str, ...] = ()
+        else:
+            stored_omitted = json.loads(meta["omitted_sources"])
+            stored_scope = meta["retrieval_scope"]
+            stored_degraded = bool(meta["degraded"])
+            stored_fresh = int(meta["freshness_policy_seconds"])
+            stored_subjects = tuple(json.loads(meta["subjects"]))
         return EvidenceView(
-            view_id=view_id,
+            view_id=view_id or (meta["view_id"] if meta else "sqlite"),
             proposition_id=proposition_id,
             assertions=assertions,
             evidence=evidence,
             lineage=lineage,
             conflicts=conflicts,
             checks=checks,
-            omitted_sources=omitted_sources or [],
-            retrieval_scope=retrieval_scope,
-            degraded=degraded,
-            freshness_policy_seconds=freshness_policy_seconds,
+            omitted_sources=stored_omitted if omitted_sources is None else omitted_sources,
+            retrieval_scope=stored_scope if retrieval_scope is None else retrieval_scope,
+            degraded=stored_degraded if degraded is None else degraded,
+            freshness_policy_seconds=stored_fresh if freshness_policy_seconds is None else freshness_policy_seconds,
+            subjects=stored_subjects,
         )
