@@ -1,6 +1,6 @@
-# EWP v0.1 design / conformance note
+# EWP design / conformance note
 
-Not a protocol bump. This note separates what must stay still from what `reference-v1` happens to do.
+Written for the v0.1 freeze and still accurate for the boundary/policy split. v0.2.0 did not add axes. It tightened scope binding, availability-at-T, and adapter completeness. This note separates what must stay still from what `reference-v1` happens to do.
 
 Boundary. Policy. Observations. Permission. Four things. None gets to wear the others' clothes.
 

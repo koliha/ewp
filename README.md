@@ -199,7 +199,7 @@ Implementations **MUST NOT** use retrieval relevance, repetition count, memory s
 
 ---
 
-## Core invariants (v0.1.0)
+## Core invariants
 
 1. Assertions are not beliefs.
 2. Beliefs are not truth.
@@ -222,21 +222,22 @@ If the store has A→P and B→¬P but search returns only A, sufficiency is `DE
 
 ## What this repo is
 
-The v0.1.0 *reference kernel*:
+The v0.2.0 *reference kernel*:
 
 - deterministic `warrant_now()` — no network, no LLM, no hidden writes
 - shared `protocol/classify.py` used by both reference evaluators
 - separate `may_act()`
-- 14 canonical fixtures + 12 pathological fixtures + laundering pack
+- 14 canonical fixtures + 12 pathological fixtures + laundering pack (including customer-scope and future-check-at-T)
 - 26 pinned golden `WarrantView`s
-- SQLite and JSON reference adapters
+- SQLite and JSON reference adapters (SQLite persists view completeness)
 - Graphiti-*shaped* semantic adapter (fake records used by the frozen suite)
 - live Graphiti and Mem0 *mappings* (`protocol/graphiti_client_adapter.py`, `protocol/mem0_adapter.py`) — not validated against goldens; live `graphiti-core 0.30.2` is **not** validated
+- MCP façade (`protocol/mcp_server.py`, `tests/test_mcp.py`) — stdio or `POST /mcp`; contract in `docs/MCP_CONTRACT.md`
 - four-stage runners and field-level diffs
 
-There is no MCP server in this freeze. The tool-contract sketch lives in `historical/docs/MCP_CONTRACT.md`. `docs/MCP_CONTRACT.md` exists only so old links resolve to that sketch. A production `ewp.mcp` server would be an integration façade; it is not required to evaluate warrant. Persona files (`MEMORY.md`) are a generated checkout, not the system of record.
+Warrant evaluation does not require MCP. Persona files (`MEMORY.md`) are a generated checkout, not the system of record.
 
-Earlier sketches live in `historical/`. They are not the frozen kernel.
+The pre-freeze claim/confidence sketch is `historical/docs/MCP_CONTRACT.md` (superseded). Earlier warrantmem sketches live in `historical/`. They are not the kernel.
 
 ---
 
@@ -244,11 +245,14 @@ Earlier sketches live in `historical/`. They are not the frozen kernel.
 
 ### OpenClaw
 
-OpenClaw consumes outbound MCP servers. An EWP MCP server is planned, not shipped in this freeze (`historical/docs/MCP_CONTRACT.md`). When one is running:
+OpenClaw consumes outbound MCP servers. Run the shipped façade and add it:
 
 ```bash
+python3 -m protocol.mcp_server --http 127.0.0.1:8765 --db ./ewp.sqlite
 openclaw mcp add ewp --url http://127.0.0.1:8765/mcp
 ```
+
+Contract: `docs/MCP_CONTRACT.md`. Trusted origins require `ingest_attestation`.
 
 | OpenClaw object | Role under EWP |
 |---|---|
@@ -283,7 +287,7 @@ Compose EWP with action gates (OpenClaw allowlists, Tenuo, human approval). Do n
 | OpenClaw native memory | Inspectable agent context and memory | Separation of persona, evidence, and warrant |
 | EWP | Epistemic evaluation | Not a general-purpose memory store |
 
-Graphiti adapts to v0.1. v0.1 does not adapt to Graphiti.
+Graphiti adapts to the protocol. The protocol does not adapt to Graphiti.
 
 ---
 
@@ -298,7 +302,7 @@ python3 tests/runner.py
 python3 tests/runner_pathological.py
 ```
 
-CI enforces fixture, evaluator, and golden lock hashes, all 26 goldens, SQLite ≡ JSON, fake-Graphiti isolation, and the laundering pack. Changing a golden or the evaluator requires an explicit version bump, then `python3 tests/ci.py --write-lock`.
+CI enforces fixture, evaluator, and golden lock hashes, all 26 goldens, SQLite ≡ JSON, fake-Graphiti isolation, the laundering pack, live-adapter mappings, the MCP façade, and the third evaluator. Changing a golden or the evaluator requires an explicit version bump, then `python3 tests/ci.py --write-lock`.
 
 Failure classes: `INGEST_LOSS`, `ADAPTER_MAP_LOSS`, `WARRANT_MISMATCH`, `RETRIEVAL_LOSS`, `EXPECTED_DIVERGENCE`.
 
@@ -308,10 +312,12 @@ Pathological pack (among others): false supersession, open contradiction, real t
 
 ---
 
-## v0.1.0 freeze
+## v0.2.0 freeze
+
+<a id="v020"></a>
 
 ```
-Epistemic Warrant Protocol EWP-0.1.0
+Epistemic Warrant Protocol EWP-0.2.0
 Policy: reference-v1
 Canonical: 14/14
 Pathological: 12/12
@@ -323,7 +329,7 @@ graphiti-core 0.30.2 — NOT VALIDATED
 Fixture set sha256:
 910b6e98bee3148460f15303810c8e4c447721252b02c7f4805f3c0ce75b98db
 Evaluator set sha256:
-cd56535a1d51fc0a6b5a4e1c0cb64636361fcc27f0002a8a352ea62a47bb87b8
+b791e6395a4c0272485c3c25d7f549e7ba832a50e50c21dc1923920713854d82
 Golden set sha256:
 95f26b124ac813ef7b6f895bd43c20832f2026bfb8a25513ce6bfd7302088dd3
 ```
@@ -335,15 +341,16 @@ A store that produces a different answer has an adapter or conformance problem, 
 ## Layout
 
 ```
-protocol/          frozen kernel (classify, warrant, adapters, fixtures)
+protocol/          kernel (classify, warrant, adapters, fixtures, MCP server)
                    plus live Graphiti/Mem0 mappings (not part of the 26-golden lock)
-tests/             conformance, goldens, runners, CI, live-adapter mapping tests
-docs/              PROTOCOL, design note, platforms, implementer pack, PDF
-                   docs/MCP_CONTRACT.md → pointer to the historical sketch
+tests/             conformance, goldens, runners, CI, live-adapter and MCP tests
+docs/              PROTOCOL (filename PROTOCOL_v0.1.md, content v0.2),
+                   design note, platforms, implementer pack, PDF
+                   docs/MCP_CONTRACT.md — shipped MCP façade
 historical/        pre-freeze warrantmem ledger/MCP/Postgres sketches
-                   including historical/docs/MCP_CONTRACT.md
+                   including historical/docs/MCP_CONTRACT.md (superseded)
 RELEASE.lock.json  fixture + evaluator + golden hashes
-pyproject.toml     package metadata (no published install yet)
+pyproject.toml     package metadata (no published install yet; ewp-mcp entry point)
 ```
 
 ---
@@ -362,11 +369,11 @@ That answer can be reproduced, tested, inspected, and challenged.
 
 ## Status
 
-v0.1.0 is frozen. 2026-09-22 pre-freeze pass applies trusted-origin allowlist, DEGRADED-blocks-ACCEPTED, and the evaluator corrections in `CHANGELOG.md`. Architecture work is paused.
+v0.2.0 is current. Policy identity stays `reference-v1`. The 26 goldens are unchanged; the evaluator lock moved with scope binding, future-check-at-T, and adapter completeness. See `CHANGELOG.md`.
 
-New stores may reveal adapter bugs, retrieval loss, missing tests, or a genuine hole. They do not redefine warrant. A case v0.1.0 cannot represent is evidence for v0.2.
+New stores may reveal adapter bugs, retrieval loss, missing tests, or a genuine hole. They do not redefine warrant.
 
-Until then: stores keep evidence. Warrant is computed. Action is a later gate.
+Stores keep evidence. Warrant is computed. Action is a later gate.
 
 ---
 

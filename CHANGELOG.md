@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.0-docs — 2026-09-22
+
+Documentation alignment only. Protocol number, policy id, and lock hashes unchanged.
+
+- README freeze block, layout, OpenClaw, and status sections match EWP-0.2.0 and `RELEASE.lock.json`.
+- `docs/MCP_CONTRACT.md` is the shipped façade; historical sketch stays superseded.
+- `historical/README.md`, `docs/PLATFORMS.md` tool names, implementer intro, CONFORMANCE laundering list, and the v0.2 PDF agree with that split.
+
 ## 0.2.0 — 2026-09-22
 
 Protocol bump. Policy identity stays `reference-v1`. Frozen 26 goldens unchanged; evaluator hash changes.

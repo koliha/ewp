@@ -4,9 +4,11 @@ An adapter is not conformant because it serializes the schema. It must survive t
 
 The five axes are the interchange contract. `strength` is a non-normative convenience of `reference-v1`. See `docs/DESIGN_NOTE.md`.
 
-A second pack (`protocol/laundering.py`, `tests/test_laundering.py`) tries to break method-only “verification,” latest-row supersession, incomplete-view optimism, unused `check.result`, implied conflict, human-method laundering, and endogenous freshness refresh. It is not part of the frozen 26-golden lock.
+A second pack (`protocol/laundering.py`, `tests/test_laundering.py`) tries to break method-only “verification,” latest-row supersession, incomplete-view optimism, unused `check.result`, implied conflict, human-method laundering, endogenous freshness refresh, identifier-family scope mismatch (`customer-42` vs `customer-99`), and future-dated checks at T. It is not part of the frozen 26-golden lock.
 
 Live Graphiti / Mem0 mappings (`protocol/graphiti_client_adapter.py`, `protocol/mem0_adapter.py`, `tests/test_live_adapters.py`) are mapping tests. They are not a substitute for the 26-golden lock and do not validate `graphiti-core 0.30.2`.
+
+The MCP façade (`protocol/mcp_server.py`, `tests/test_mcp.py`) is an integration boundary. Conformance of warrant is still the five axes. The server must not persist a `WarrantView` as evidence and must not infer `may_act` without an action.
 
 ## Failure classes
 

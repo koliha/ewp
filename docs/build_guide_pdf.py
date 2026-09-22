@@ -204,7 +204,7 @@ def build():
     ], [2.15 * inch, 4.65 * inch]))
     story.append(p(s, "Body", "Dreaming may rewrite MEMORY.md. EWP treats that rewrite as a new assertion, not as verification. Compression must not turn \"X is disputed\" into \"X.\""))
     story.append(p(s, "H2", "Claude, Codex, other MCP clients"))
-    story.append(p(s, "Body", "Same planned contract. Prefer HTTP if several clients share one ledger. Fluency is not recollection. OPEN conflict is said out loud. DEGRADED means the view is incomplete. Store-native write tools stay disconnected. An EWP MCP server is planned, not shipped in v0.2.0. The tool-contract sketch lives in historical/docs/MCP_CONTRACT.md. docs/MCP_CONTRACT.md is only a pointer to that sketch. Neither file is required to evaluate warrant."))
+    story.append(p(s, "Body", "Same MCP surface. Prefer HTTP if several clients share one ledger. Fluency is not recollection. OPEN conflict is said out loud. DEGRADED means the view is incomplete. Store-native write tools stay disconnected. python3 -m protocol.mcp_server is the shipped facade (stdio or POST /mcp). docs/MCP_CONTRACT.md is the contract. historical/docs/MCP_CONTRACT.md is the superseded pre-freeze sketch. Warrant evaluation does not require MCP."))
     story.append(p(s, "H2", "Graphiti, Mem0, Particles, SQLite"))
     story.append(p(s, "Body", "Graphiti can be used as a temporal/entity evidence substrate or mirror. Inject lineage_id in episode metadata. invalid_at is store-local. valid_at is not a verification check. Search collapse marks the view DEGRADED. The frozen suite uses fake Graphiti-shaped records. Live Graphiti and Mem0 mappings live in protocol/graphiti_client_adapter.py and protocol/mem0_adapter.py; notes in docs/implementer/LIVE_ADAPTERS.md. Live graphiti-core 0.30.2 is not validated. Mem0 default origin is extract; retrieval score is not warrant. Particles is a good immutable substrate — agents write only through EWP. SQLite and JSON prove store neutrality."))
     story.append(p(s, "RuleLine", "Graphiti adapts to the protocol. The protocol does not adapt to Graphiti."))
@@ -223,7 +223,7 @@ def build():
         "python3 tests/ci.py\npython3 tests/report.py\npython3 tests/runner.py\npython3 tests/runner_pathological.py",
         s["CodeBlock"],
     ))
-    story.append(p(s, "Body", "CI enforces fixture, evaluator, and golden lock hashes, all 26 goldens, SQLite = JSON, fake-Graphiti isolation, and the laundering pack. Changing a golden or the evaluator requires a protocol or policy bump, then python3 tests/ci.py --write-lock."))
+    story.append(p(s, "Body", "CI enforces fixture, evaluator, and golden lock hashes, all 26 goldens, SQLite = JSON, fake-Graphiti isolation, the laundering pack, live mappings, MCP facade, and the third evaluator. Changing a golden or the evaluator requires a protocol or policy bump, then python3 tests/ci.py --write-lock."))
     story.append(table(s, ["Class", "Meaning"], [
         ["INGEST_LOSS", "Store dropped assertions, sources, lineage, checks, or conflicts."],
         ["ADAPTER_MAP_LOSS", "Store has the rows; EvidenceView is incomplete."],
@@ -243,7 +243,7 @@ def build():
         "Fixture set sha256:\n"
         "910b6e98bee3148460f15303810c8e4c447721252b02c7f4805f3c0ce75b98db\n"
         "Evaluator set sha256:\n"
-        "cd56535a1d51fc0a6b5a4e1c0cb64636361fcc27f0002a8a352ea62a47bb87b8\n"
+        "b791e6395a4c0272485c3c25d7f549e7ba832a50e50c21dc1923920713854d82\n"
         "Golden set sha256:\n"
         "95f26b124ac813ef7b6f895bd43c20832f2026bfb8a25513ce6bfd7302088dd3",
         s["CodeBlock"],

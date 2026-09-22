@@ -1,20 +1,20 @@
-# Historical sketches — not the v0.1 freeze
+# Historical sketches — not the current protocol
 
 These files belong to an earlier “warrantmem” design: a Postgres claim ledger, MCP write façade, and confidence caps on `claim_status`.
 
 They are kept so the design trail is inspectable. They are **not** the Epistemic Warrant Protocol.
 
-Normative for v0.1.0:
+Normative for EWP-0.2.0 (policy `reference-v1`):
 
-- `protocol/` — kernel, types, adapters, fixtures
-- `tests/` — conformance and goldens
-- `docs/PROTOCOL_v0.1.md`, `docs/DESIGN_NOTE.md`, `docs/implementer/`
-- `docs/PLATFORMS.md` — integration notes; treat MCP tool names there as planned, not shipped
+- `protocol/` — kernel, types, adapters, fixtures, MCP server
+- `tests/` — conformance, goldens, live mappings, MCP façade
+- `docs/PROTOCOL_v0.1.md` — current conceptual contract (v0.2 text; filename kept for links)
+- `docs/DESIGN_NOTE.md`, `docs/implementer/`, `docs/PLATFORMS.md`
+- `docs/MCP_CONTRACT.md` — shipped MCP façade (`python3 -m protocol.mcp_server`)
 
-Historical, not the freeze:
+Historical, not the protocol:
 
-- `historical/docs/MCP_CONTRACT.md` — MCP tool-contract sketch
-- `docs/MCP_CONTRACT.md` — pointer only, so old `docs/MCP_CONTRACT.md` links resolve here
+- `historical/docs/MCP_CONTRACT.md` — pre-freeze claim/confidence sketch (superseded)
 - `historical/src/ledger.py`, `historical/schema.sql`, `historical/docker-compose.yml` — warrantmem ledger sketches
 - `historical/SESSION_HANDOFF.json` — internal working note, not protocol text
 

@@ -6,6 +6,7 @@
 3. SQLite and JSON remain equivalent
 4. fake Graphiti remains epistemically isolated
 5. live Graphiti/Mem0 mappings keep origin/lineage/degraded rules
+6. MCP façade refuses unattested trusted origins and WarrantView persistence
 """
 
 from __future__ import annotations

@@ -2,6 +2,9 @@
 
 Status: current conceptual contract. Policy identity remains `reference-v1` with the v0.2 tightenings below. The 26 frozen goldens are unchanged; evaluator and adapter contracts are not.
 
+Filename kept as `PROTOCOL_v0.1.md` so existing links resolve. The text below is the EWP-0.2.0 conceptual contract.
+
+
 The core object is not memory, truth, or confidence. It is a reproducible answer to:
 
 > Given this bounded evidence view, at this time, under this versioned epistemic policy, what may the agent accept — and what evidence warrants that acceptance?

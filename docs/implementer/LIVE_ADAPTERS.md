@@ -1,6 +1,6 @@
 # Live Graphiti and Mem0 adapters
 
-v0.1.0 ships fake Graphiti + SQLite + JSON so the kernel can freeze without
+v0.2.0 ships fake Graphiti + SQLite + JSON so the kernel can freeze without
 Neo4j or a Mem0 key. These adapters are the production mapping.
 
 ```
@@ -44,7 +44,7 @@ writing `lineage_id` / `origin_type` into `source_description` as:
 
 Checks and conflicts are not `RELATES_TO` edges. `ingest_view_via_episodes`
 parks them on a `meta:{proposition_id}` episode. If Graphiti strips
-`source_description`, that is `INGEST_LOSS`, not a reason to change v0.1.
+`source_description`, that is `INGEST_LOSS`, not a reason to change the protocol.
 
 Live pin remains `graphiti-core 0.30.2`. The mapping is duck-typed so a
 newer client still works if `search` / edge listing stay recognizable.

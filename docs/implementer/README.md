@@ -6,7 +6,7 @@ You are asked to implement:
 warrant_now(view, policy, evaluated_at) -> five axes
 ```
 
-You are given this directory only: schema, policy prose (`POLICY.md`, `policy.json`), fixture JSON, expected five-axis JSON. Policy id and version are `reference-v1`. Check `result` and source `origin_type` are required inputs.
+You are given this directory only: schema, policy prose (`POLICY.md`, `policy.json`), fixture JSON, expected five-axis JSON. Policy id and version are `reference-v1`. EWP-0.2.0 tightened that policy: identifier-shaped scope tokens and optional `subjects[]` participate in class caps; a check with `observed_at` after `evaluated_at` is not available at T. Check `result` and source `origin_type` are required inputs.
 
 You are not given `protocol/warrant.py`, `protocol/warrant_b.py`, helper names, or the repository test assertions.
 

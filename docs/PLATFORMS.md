@@ -41,8 +41,8 @@ Keep OpenClaw’s own files as *inputs and working memory*, not as the system of
 
 Suggested OpenClaw loop:
 
-1. Session starts. Call `memory_context` with the user’s question and `lineage_id`.
-2. Agent works. Tool results become evidence via `evidence_record` / `check_record`.
+1. Session starts. Call `ewp_memory_context` with the proposition and `evaluated_at`.
+2. Agent works. Tool results become evidence via `ewp_evidence_record` / `ewp_check_record`.
 3. Agent may say “I remember.” EWP packet must still show inherited-from / verified / disputed.
 4. Session ends. Transcript is an event. Dreaming may propose a persona rewrite. EWP accepts the rewrite only as a new assertion, not as a verification.
 
@@ -82,7 +82,7 @@ Use Mem0 as an extract-and-retrieve store, not as warrant.
 
 ## Particles
 
-Particles is a good immutable claim substrate. Expose Particles MCP **read-only** to operators if needed. Agents write only through EWP (`claim_propose`, `check_record`, `dispute_open`). Otherwise Particles’ `particle_assert` bypasses policy.
+Particles is a good immutable claim substrate. Expose Particles MCP **read-only** to operators if needed. Agents write only through EWP (`ewp_evidence_view_put`, `ewp_evidence_record`, `ewp_check_record`). Otherwise Particles’ `particle_assert` bypasses policy.
 
 ## SQLite and JSON
 
