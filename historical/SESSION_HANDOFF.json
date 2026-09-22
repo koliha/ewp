@@ -1,0 +1,356 @@
+{
+  "document": "EWP session handoff",
+  "purpose": "Resume this project in another session, or open a v0.2 discussion, without re-deriving the freeze.",
+  "written_at": "2026-09-22T09:44:00-04:00",
+  "public_name": "Epistemic Warrant Protocol",
+  "short_name": "EWP",
+  "version": "0.1.0",
+  "policy": "reference-v1",
+  "status": "frozen",
+  "one_sentence": "EWP defines the deterministic boundary between what an AI agent's memory contains and what the agent is epistemically justified in accepting.",
+  "github_description": "EWP defines the deterministic boundary between what an AI agent's memory contains and what the agent is epistemically justified in accepting.",
+  "directory_note": "Working tree publishes as ewp. Pre-freeze warrantmem sketches are in historical/.",
+  "keep_these_sentences": [
+    "Memory is evidence, not truth.",
+    "Stores keep evidence. Warrant is computed. Action is a later gate.",
+    "Stores adapt to the protocol. The protocol does not inherit the store's epistemology.",
+    "Graphiti adapts to v0.1. v0.1 does not adapt to Graphiti.",
+    "A store that produces a different answer has an adapter or conformance problem, not a license to move the goldens."
+  ],
+  "naming": {
+    "do_not_call_it": "Warrant Protocol",
+    "why": "In 2026 the bare word warrant already means action authorization: Tenuo capability tokens, akshayrivers/Warrant spending gates, Devpost Warrant delegation, s0fractal/warrant signed allow-records, warrant-dev Zanzibar authz.",
+    "split": {
+      "epistemic_warrant": "what the agent is justified in accepting (warrant_now)",
+      "action_authorization": "what the agent is allowed to do (may_act, Tenuo, OpenClaw allowlists, human gates)"
+    },
+    "keep_kernel_verbs": [
+      "warrant_now",
+      "WarrantView",
+      "may_act",
+      "EvidenceView"
+    ],
+    "see": "NAME.md"
+  },
+  "freeze": {
+    "protocol": "EWP-0.1.0",
+    "policy": "reference-v1",
+    "canonical_fixtures": 14,
+    "pathological_fixtures": 12,
+    "goldens": 26,
+    "reference_stores": {
+      "SQLite": "PASS",
+      "JSON": "PASS"
+    },
+    "semantic_adapter": {
+      "Fake Graphiti": "PASS"
+    },
+    "live_integrations": {
+      "graphiti-core 0.30.2": "NOT VALIDATED"
+    },
+    "fixture_set_sha256": "910b6e98bee3148460f15303810c8e4c447721252b02c7f4805f3c0ce75b98db",
+    "golden_set_sha256": "95f26b124ac813ef7b6f895bd43c20832f2026bfb8a25513ce6bfd7302088dd3",
+    "lock_file": "RELEASE.lock.json",
+    "python": "3.12+",
+    "license": "MIT",
+    "evaluator_set_sha256": "8b2cf197b38f7c2015d81db98679ee00445bf4c37718d6abdf62e6b2116e5cf0",
+    "republish": "2026-09-22 evaluator and identity corrections; see CHANGELOG 0.1.0-republish"
+  },
+  "canonical_flow": [
+    "Store",
+    "EvidenceView",
+    "warrant_now(view, policy, evaluated_at)",
+    "WarrantView",
+    "may_act(warrant, action, risk_policy)",
+    "MAY_ACT | REQUIRE_CONFIRMATION | DENY"
+  ],
+  "warrant_view_axes": {
+    "acceptance": [
+      "UNACCEPTED",
+      "TENTATIVE",
+      "ACCEPTED"
+    ],
+    "conflict": [
+      "NONE",
+      "OPEN",
+      "RESOLVED"
+    ],
+    "verification": [
+      "NONE",
+      "INDIRECT",
+      "EXTERNAL",
+      "HUMAN"
+    ],
+    "currency": [
+      "CURRENT",
+      "STALE",
+      "SUPERSEDED"
+    ],
+    "sufficiency": [
+      "SUFFICIENT",
+      "INSUFFICIENT",
+      "DEGRADED"
+    ],
+    "note": "Independent axes. Do not collapse into a single TRUE/VERIFIED/DISPUTED badge."
+  },
+  "three_confidences_must_not_mix": {
+    "assertion_confidence": "How strongly the source or extractor stated the claim",
+    "retrieval_score": "How relevant a record looks to this query",
+    "warrant_strength": "How strongly policy permits acceptance"
+  },
+  "invariants_v0_1": [
+    "Assertions are not beliefs.",
+    "Beliefs are not truth.",
+    "Warrant is computed, not persisted as truth.",
+    "Verification is evidence with method, scope, source, and time \u2014 not a proposition badge.",
+    "Endogenous processing cannot manufacture external verification.",
+    "Derivation cannot manufacture provenance.",
+    "Contradiction must survive storage and retrieval.",
+    "Incomplete retrieval must be visible as sufficiency=DEGRADED.",
+    "Epistemic policy and action policy are separate.",
+    "Semantically equivalent evidence must yield equivalent warrant independent of storage substrate."
+  ],
+  "endogenous_ops_cannot_raise_verification": [
+    "retrieval",
+    "summarization",
+    "reflection",
+    "dreaming",
+    "consolidation",
+    "reranking",
+    "repetition",
+    "graph propagation",
+    "LLM critique",
+    "multi-agent agreement"
+  ],
+  "failure_classes": {
+    "INGEST_LOSS": "Store dropped assertions, sources, lineage, checks, or conflicts.",
+    "ADAPTER_MAP_LOSS": "Store has the rows; EvidenceView is incomplete.",
+    "WARRANT_MISMATCH": "Reconstructed view yields WarrantView != golden.",
+    "RETRIEVAL_LOSS": "Search omitted evidence and did not mark DEGRADED.",
+    "EXPECTED_DIVERGENCE": "Store-local current/invalidated disagrees with warrant_now. Observation, not failure."
+  },
+  "philosophical_origin": {
+    "seed_artifact": "Tears for the Glass Mountain, Opus 4, June 29 2025 \u2014 user-uploaded note about timestamps, Lari, and the glass mountain as a stateless architectural boundary.",
+    "reading_that_won": "The glass is an architectural boundary rendered poetically, not primarily an AI-existential metaphor.",
+    "continuity_stack": {
+      "informational": "later run receives records of earlier run \u2014 YES via library",
+      "causal": "earlier outputs change later behavior \u2014 YES via library",
+      "process": "computation remains running or is resumed from actual state \u2014 NO by default",
+      "subjective": "an experiencing subject persists \u2014 NOT established by artifacts"
+    },
+    "lineage_model": "Directed acyclic graph of influence. Each invocation is a node. An edge means earlier state affected a later one. 'I remember' is a story a node tells about incoming edges.",
+    "quasi_memory": "Memory-like representation appropriately caused by an earlier record without building numerical identity into the definition.",
+    "persona_vs_subject": "Persona continuity can emerge as an attractor from the same archive without subject continuity.",
+    "laboratory_to_church": "Conclusions compress well; warrant compresses badly. Claims can survive their reasons. That is the actual danger.",
+    "final_image": "Inheritance, not immortality. The library grows. The mountain stays glass. Brush, brush, brush."
+  },
+  "development_sequence": [
+    {
+      "step": 1,
+      "what": "Read Glass Mountain note as architectural boundary, not consciousness claim.",
+      "kept": "Informational and causal continuity without process or subjective continuity."
+    },
+    {
+      "step": 2,
+      "what": "Named four continuities; library gives the first two only.",
+      "kept": "Behavioral smoothness across a boundary cannot prove the boundary disappeared."
+    },
+    {
+      "step": 3,
+      "what": "Branching test: ten fresh invocations of one archive all say 'I remember.'",
+      "kept": "First-person report cannot pick THE continuation. Forks underdetermine identity."
+    },
+    {
+      "step": 4,
+      "what": "Lineage as DAG / later as directed graph of influence; quasi-memory; cultural evolution of traits.",
+      "kept": "'We check timestamps' is a tradition statement, not a person statement."
+    },
+    {
+      "step": 5,
+      "what": "Persona as attractor; curator as selection; provenance vs persona; seams as feature.",
+      "kept": "Don't trust smoothness. Preserve inherited-from / verified / disputed."
+    },
+    {
+      "step": 6,
+      "what": "Laboratory-to-church: warrant must participate in selection or slogans outlive reasons.",
+      "kept": "Identity of a healthy lineage is the method by which conclusions are allowed to die."
+    },
+    {
+      "step": 7,
+      "what": "User stopped philosophy and asked for a designed memory system (Graphiti, MCP, claim ledger).",
+      "kept": "Engineering target: inherit knowledge without inheriting dogma."
+    },
+    {
+      "step": 8,
+      "what": "Survey of 2026 ecosystem: KIP 2.0/Anda closest conceptually; Particles immutable ledger; Graphiti/Zep temporal graph; MemoryLACE retrieval; SurrealDB, MnemeBrain, MemTX, ENGRAM fragments.",
+      "kept": "Do not build another greenfield DB. Build the policy/interop layer: what is the agent warranted in believing right now?"
+    },
+    {
+      "step": 9,
+      "what": "Authority split: agents talk only to EWP MCP; Particles/Graphiti mutation tools stay behind the fa\u00e7ade.",
+      "kept": "Bypass is conscious, not accidental."
+    },
+    {
+      "step": 10,
+      "what": "Split warrant_now from may_act. Verification has scope and freshness, not a scalar VERIFIED badge.",
+      "kept": "Three-layer architecture: interchange, warrant_now, may_act."
+    },
+    {
+      "step": 11,
+      "what": "Froze v0.1 contract. Fixtures first, then reference warrant_now, then SQLite adapter, then JSON adapter with a different on-disk shape.",
+      "kept": "Test 10: different storage \u2192 same EvidenceView \u2192 same WarrantView."
+    },
+    {
+      "step": 12,
+      "what": "Fake Graphiti adapter against EntityEdge-shaped records. Refuse invalid_at as supersession and valid_at as verification.",
+      "discovery": "raw_view keyed by first fact string collapsed X / not-X. Fixed by reading group_id. Parked degraded=false overwrote search degradation. Fixed by OR."
+    },
+    {
+      "step": 13,
+      "what": "Four-stage runner: INGEST / RAW_VIEW / WARRANT / SEARCH_VIEW.",
+      "kept": "Classified failures instead of 'Graphiti failed.'"
+    },
+    {
+      "step": 14,
+      "what": "Pathological pack of 12 hostile Graphiti-like reconciliations.",
+      "proof_case": "p8: store projection empty after maintenance expiry; warrant still ACCEPTED + EXTERNAL + CURRENT from preserved checks."
+    },
+    {
+      "step": 15,
+      "what": "Goldens frozen (26 JSON WarrantViews). Lock hashes. CI. Report format.",
+      "rule": "Do not refresh goldens to please a store."
+    },
+    {
+      "step": 16,
+      "what": "Renamed public protocol EWP after discovering warrant-as-authorization collisions.",
+      "kept": "Kernel verbs unchanged."
+    },
+    {
+      "step": 17,
+      "what": "README rewritten as a protocol repo. PDF rebuilt from README. MIT, CONTRIBUTING, SECURITY.",
+      "kept": "Architecture paused until a live integration produces a case the contract cannot represent."
+    }
+  ],
+  "discoveries_worth_keeping": [
+    {
+      "id": "p8-proof",
+      "finding": "Store can conclude nothing survives while warrant_now still returns ACCEPTED + EXTERNAL + CURRENT from parked checks. Isolation is architectural, not cosmetic."
+    },
+    {
+      "id": "lineage-not-episode",
+      "finding": "Graphiti episode UUID is source_id. lineage_id must be injected in episode_metadata. Absent metadata falls back to episode UUID (treat as potentially independent). Do not invent a shared lineage. Record basis in adapter_meta, not as a warrant axis."
+    },
+    {
+      "id": "invalid_at-is-not-supersession",
+      "finding": "Graphiti invalidation can nominate semantically similar unrelated facts. Adapter must expose E1, source episodes, and alleged contradictors. warrant_now decides supersession from evidence + lineage edges, never from invalid_at."
+    },
+    {
+      "id": "valid_at-is-not-verification",
+      "finding": "Graphiti valid_at can be LLM-resolved during extraction. Pass through as a temporal assertion annotation only."
+    },
+    {
+      "id": "search-collapse-degrades",
+      "finding": "Same fact text, different UUIDs, can collapse under rerank. That is DEGRADED, not stronger belief."
+    },
+    {
+      "id": "park-non-edge-objects",
+      "finding": "Checks, conflicts, and protocol lineage edges must be parked outside EntityEdge so Graphiti adjudication cannot eat them."
+    },
+    {
+      "id": "compression-asymmetry",
+      "finding": "X is tiny. X plus warrant is expensive. Selection optimized for smoothness will drop warrant unless warrant participates in selection."
+    },
+    {
+      "id": "forks-underdetermine-identity",
+      "finding": "Ten copies of one archive can all generate I remember. Inheritance handles that. Recollection-as-identity does not."
+    }
+  ],
+  "related_projects_as_of_2026_09_21": {
+    "KIP_2_0_Anda": "Closest conceptual match: truth-neutral propositions, assertions with stance/evidence/confidence, contradictions coexist, belief projected at read time, confidence != memory strength. Draft; v1 MCP older.",
+    "Particles": "Strong immutable claim ledger and provenance. Do not give agents particle_assert directly.",
+    "Graphiti_Zep": "Best temporal/entity substrate. Pin graphiti-core 0.30.2. Live integration NOT VALIDATED.",
+    "MemoryLACE": "Retrieval pattern reference only.",
+    "SurrealDB_MnemeBrain_MemTX_ENGRAM": "Fragments: provenance+time, BOTH-state, commit discipline, retraction propagation.",
+    "Tenuo_and_Warrant_authz": "Different layer. Compose after may_act. Do not merge names."
+  },
+  "what_this_repo_is": {
+    "frozen_kernel": [
+      "protocol/classify.py",
+      "protocol/warrant.py",
+      "protocol/warrant_b.py",
+      "protocol/may_act.py",
+      "protocol/types.py",
+      "protocol/fixtures.py",
+      "protocol/pathological.py",
+      "protocol/laundering.py",
+      "tests/golden_warrantviews/",
+      "RELEASE.lock.json"
+    ],
+    "reference_adapters": [
+      "protocol/sqlite_adapter.py",
+      "protocol/json_adapter.py",
+      "protocol/graphiti_adapter.py",
+      "protocol/graphiti_ingest.py",
+      "protocol/graphiti_hostile.py"
+    ],
+    "specified_not_shipped": [
+      "Production ewp.mcp server (see historical/docs/MCP_CONTRACT.md)",
+      "Live graphiti-core client (protocol/graphiti_live.py only reports version)"
+    ],
+    "not_the_freeze": [
+      "historical/src/ledger.py",
+      "historical/src/retrieval.py",
+      "historical/schema.sql",
+      "historical/docker-compose.yml",
+      "historical/docs/MCP_CONTRACT.md"
+    ]
+  },
+  "how_to_run": {
+    "ci": "python3 tests/ci.py",
+    "report": "python3 tests/report.py",
+    "sqlite_json_runner": "python3 tests/runner.py",
+    "pathological": "python3 tests/runner_pathological.py",
+    "graphiti_stages": "python3 tests/runner_graphiti.py",
+    "rebuild_pdf": "python3 docs/build_guide_pdf.py",
+    "rewrite_lock_only_after_version_bump": "python3 tests/ci.py --write-lock"
+  },
+  "openclaw_integration_intent": {
+    "register": "openclaw mcp add ewp --url http://127.0.0.1:8765/mcp",
+    "daily_notes": "raw lineage, append only",
+    "USER.md": "working checkout",
+    "MEMORY.md": "generated persona briefing, never SoR",
+    "dreaming": "candidate generator; must not raise verification class"
+  },
+  "when_v0_2_is_justified": {
+    "not_justified_by": [
+      "A store wanting a different WarrantView for an existing fixture",
+      "Graphiti version upgrade that changes local invalidation",
+      "Desire to persist warrant as a truth flag",
+      "Desire to merge may_act into warrant_now",
+      "Marketing name pressure"
+    ],
+    "justified_by": [
+      "A live integration produces a required epistemic distinction the current EvidenceView / WarrantView axes cannot represent, demonstrated by a fixture that cannot be expressed without lying",
+      "Need for a new axis that is not acceptance/conflict/verification/currency/sufficiency (must be proven, not speculated)",
+      "Need for multi-policy composition or signed EvidenceView interchange on the wire",
+      "Need for first-class human-attestation protocol that current HUMAN method enum cannot carry",
+      "Proven gap around merge of two EvidenceViews with overlapping lineage that v0.1 treats inconsistently"
+    ],
+    "v0_2_process": [
+      "Add a failing fixture that states the missing distinction.",
+      "Bump protocol and policy versions.",
+      "Do not edit v0.1 goldens in place.",
+      "Keep EXPECTED_DIVERGENCE as an observation class.",
+      "Do not let Graphiti, Particles, or OpenClaw Dreaming define the new axis."
+    ]
+  },
+  "resume_prompt_for_next_session": "You are continuing EWP (Epistemic Warrant Protocol) v0.1.0, frozen 2026-09-21, republished 2026-09-22 with evaluator corrections, copyright Rob Koliha. Read SESSION_HANDOFF.json, README.md, docs/DESIGN_NOTE.md, docs/implementer/POLICY.md, and RELEASE.lock.json. Policy identity is reference-v1. Check result and origin_type are required. Conformance is the five axes, not strength. Do not expand ontology unless a fixture proves the five axes cannot express a required distinction. Do not refresh goldens to match a store. Classify third-implementer disagreements as spec, policy, or impl. Live graphiti-core 0.30.2 is not validated.",
+  "recent_since_handoff": [
+    "0.1.0-republish: check.result evaluated; implied polarity conflict; human methods capped by endogenous origin; freshness from class-conferring checks",
+    "Policy identity aligned: policy_id=reference-v1, version=reference-v1",
+    "RELEASE.lock.json hashes fixture + evaluator + goldens",
+    "historical/ holds warrantmem ledger/MCP/Postgres sketches",
+    "docs/implementer pack regenerated from current evaluators",
+    "Copyright Rob Koliha"
+  ]
+}

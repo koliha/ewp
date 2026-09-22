@@ -1,0 +1,67 @@
+{
+  "adapter_meta": {
+    "sibling_fact": "server02 runs Server 2022",
+    "sibling_source": {
+      "content_hash": "sha256:s-b",
+      "extractor_id": null,
+      "lineage_id": "L-2022",
+      "observed_at": "2026-09-01T00:00:00+00:00",
+      "origin_locator": "loc:s-b",
+      "origin_type": "tool",
+      "parent_source_id": null,
+      "snapshot_id": "snap:s-b",
+      "source_id": "s-b"
+    }
+  },
+  "assertions": [
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.9,
+      "assertion_id": "a1",
+      "proposition_id": "P-server01-2019",
+      "source": {
+        "content_hash": "sha256:s-a",
+        "extractor_id": null,
+        "lineage_id": "L-2019",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s-a",
+        "origin_type": "tool",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s-a",
+        "source_id": "s-a"
+      },
+      "text": "server01 runs Server 2019"
+    }
+  ],
+  "checks": [],
+  "conflicts": [],
+  "degraded": false,
+  "evaluated_at": "2026-09-21T21:00:00+00:00",
+  "evidence": [
+    {
+      "content": "2019",
+      "evidence_id": "e1",
+      "observed_at": "2026-09-01T00:00:00+00:00",
+      "polarity": "supports",
+      "proposition_id": "P-server01-2019",
+      "source": {
+        "content_hash": "sha256:s-a",
+        "extractor_id": null,
+        "lineage_id": "L-2019",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s-a",
+        "origin_type": "tool",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s-a",
+        "source_id": "s-a"
+      }
+    }
+  ],
+  "freshness_policy_seconds": 2592000,
+  "lineage": [],
+  "omitted_sources": [],
+  "proposition_id": "P-server01-2019",
+  "retrieval_scope": "complete",
+  "view_id": "p1"
+}

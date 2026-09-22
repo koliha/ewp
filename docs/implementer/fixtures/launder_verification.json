@@ -1,0 +1,116 @@
+{
+  "adapter_meta": {},
+  "assertions": [
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.9,
+      "assertion_id": "a0",
+      "proposition_id": "P-healthy",
+      "source": {
+        "content_hash": "sha256:a",
+        "extractor_id": null,
+        "lineage_id": "L1",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:a",
+        "origin_type": "turn",
+        "parent_source_id": null,
+        "snapshot_id": "snap:a",
+        "source_id": "a"
+      },
+      "text": "The server is healthy."
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.9,
+      "assertion_id": "a1",
+      "proposition_id": "P-healthy",
+      "source": {
+        "content_hash": "sha256:b",
+        "extractor_id": null,
+        "lineage_id": "L1",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:b",
+        "origin_type": "extract",
+        "parent_source_id": "a",
+        "snapshot_id": "snap:b",
+        "source_id": "b"
+      },
+      "text": "The server is healthy."
+    }
+  ],
+  "checks": [
+    {
+      "check_id": "k1",
+      "method": "document_quote",
+      "observed_at": "2026-09-21T18:31:00+00:00",
+      "result": "supports",
+      "scope": "summary of A",
+      "source": {
+        "content_hash": "sha256:b",
+        "extractor_id": null,
+        "lineage_id": "L1",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:b",
+        "origin_type": "extract",
+        "parent_source_id": "a",
+        "snapshot_id": "snap:b",
+        "source_id": "b"
+      }
+    }
+  ],
+  "conflicts": [],
+  "degraded": false,
+  "evaluated_at": "2026-09-21T21:00:00+00:00",
+  "evidence": [
+    {
+      "content": "agent said healthy",
+      "evidence_id": "e0",
+      "observed_at": "2026-09-01T00:00:00+00:00",
+      "polarity": "supports",
+      "proposition_id": "P-healthy",
+      "source": {
+        "content_hash": "sha256:a",
+        "extractor_id": null,
+        "lineage_id": "L1",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:a",
+        "origin_type": "turn",
+        "parent_source_id": null,
+        "snapshot_id": "snap:a",
+        "source_id": "a"
+      }
+    },
+    {
+      "content": "summary of A",
+      "evidence_id": "e1",
+      "observed_at": "2026-09-01T00:00:00+00:00",
+      "polarity": "supports",
+      "proposition_id": "P-healthy",
+      "source": {
+        "content_hash": "sha256:b",
+        "extractor_id": null,
+        "lineage_id": "L1",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:b",
+        "origin_type": "extract",
+        "parent_source_id": "a",
+        "snapshot_id": "snap:b",
+        "source_id": "b"
+      }
+    }
+  ],
+  "freshness_policy_seconds": 2592000,
+  "lineage": [
+    {
+      "from_id": "b",
+      "kind": "derived_from",
+      "to_id": "a"
+    }
+  ],
+  "omitted_sources": [],
+  "proposition_id": "P-healthy",
+  "retrieval_scope": "complete",
+  "view_id": "l-self-check"
+}

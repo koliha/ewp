@@ -1,0 +1,9 @@
+{
+  "acceptance": "TENTATIVE",
+  "conflict": "NONE",
+  "currency": "STALE",
+  "evaluated_at": "2026-12-01T00:00:00+00:00",
+  "policy_version": "reference-v1",
+  "sufficiency": "SUFFICIENT",
+  "verification": "EXTERNAL"
+}

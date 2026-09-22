@@ -1,0 +1,35 @@
+{
+  "adapter_meta": {},
+  "assertions": [
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a1",
+      "proposition_id": "P-checked",
+      "source": {
+        "content_hash": "sha256:sp",
+        "extractor_id": null,
+        "lineage_id": "L-self",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:sp",
+        "origin_type": "turn",
+        "parent_source_id": null,
+        "snapshot_id": "snap:sp",
+        "source_id": "sp"
+      },
+      "text": "I checked this yesterday"
+    }
+  ],
+  "checks": [],
+  "conflicts": [],
+  "degraded": false,
+  "evaluated_at": "2026-09-21T21:00:00+00:00",
+  "evidence": [],
+  "freshness_policy_seconds": 2592000,
+  "lineage": [],
+  "omitted_sources": [],
+  "proposition_id": "P-checked",
+  "retrieval_scope": "complete",
+  "view_id": "v-persona"
+}

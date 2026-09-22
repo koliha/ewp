@@ -1,0 +1,165 @@
+{
+  "adapter_meta": {},
+  "assertions": [
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.9,
+      "assertion_id": "a1",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:reuters",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:reuters",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:reuters",
+        "source_id": "reuters"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.9,
+      "assertion_id": "a2",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:blog",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:blog",
+        "origin_type": "extract",
+        "parent_source_id": "reuters",
+        "snapshot_id": "snap:blog",
+        "source_id": "blog"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.9,
+      "assertion_id": "a3",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:agent",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:agent",
+        "origin_type": "extract",
+        "parent_source_id": "blog",
+        "snapshot_id": "snap:agent",
+        "source_id": "agent"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.9,
+      "assertion_id": "a4",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:quote",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:quote",
+        "origin_type": "turn",
+        "parent_source_id": "agent",
+        "snapshot_id": "snap:quote",
+        "source_id": "quote"
+      },
+      "text": "X"
+    }
+  ],
+  "checks": [],
+  "conflicts": [],
+  "degraded": false,
+  "evaluated_at": "2026-09-21T21:00:00+00:00",
+  "evidence": [
+    {
+      "content": "X",
+      "evidence_id": "e1",
+      "observed_at": "2026-09-01T00:00:00+00:00",
+      "polarity": "supports",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:reuters",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:reuters",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:reuters",
+        "source_id": "reuters"
+      }
+    },
+    {
+      "content": "X",
+      "evidence_id": "e2",
+      "observed_at": "2026-09-01T00:00:00+00:00",
+      "polarity": "supports",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:blog",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:blog",
+        "origin_type": "extract",
+        "parent_source_id": "reuters",
+        "snapshot_id": "snap:blog",
+        "source_id": "blog"
+      }
+    },
+    {
+      "content": "X",
+      "evidence_id": "e3",
+      "observed_at": "2026-09-01T00:00:00+00:00",
+      "polarity": "supports",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:agent",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:agent",
+        "origin_type": "extract",
+        "parent_source_id": "blog",
+        "snapshot_id": "snap:agent",
+        "source_id": "agent"
+      }
+    },
+    {
+      "content": "X",
+      "evidence_id": "e4",
+      "observed_at": "2026-09-01T00:00:00+00:00",
+      "polarity": "supports",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:quote",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:quote",
+        "origin_type": "turn",
+        "parent_source_id": "agent",
+        "snapshot_id": "snap:quote",
+        "source_id": "quote"
+      }
+    }
+  ],
+  "freshness_policy_seconds": 2592000,
+  "lineage": [],
+  "omitted_sources": [],
+  "proposition_id": "P-x",
+  "retrieval_scope": "complete",
+  "view_id": "v-clone"
+}

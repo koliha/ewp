@@ -1,0 +1,100 @@
+{
+  "adapter_meta": {},
+  "assertions": [
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.9,
+      "assertion_id": "a1",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:reuters",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:reuters",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:reuters",
+        "source_id": "reuters"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.9,
+      "assertion_id": "a2",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:extract-err",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:extract-err",
+        "origin_type": "extract",
+        "parent_source_id": "reuters",
+        "snapshot_id": "snap:extract-err",
+        "source_id": "extract-err"
+      },
+      "text": "not X"
+    }
+  ],
+  "checks": [],
+  "conflicts": [
+    {
+      "conflict_id": "c1",
+      "note": "",
+      "proposition_ids": [
+        "P-x"
+      ],
+      "status": "open"
+    }
+  ],
+  "degraded": false,
+  "evaluated_at": "2026-09-21T21:00:00+00:00",
+  "evidence": [
+    {
+      "content": "X",
+      "evidence_id": "e1",
+      "observed_at": "2026-09-01T00:00:00+00:00",
+      "polarity": "supports",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:reuters",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:reuters",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:reuters",
+        "source_id": "reuters"
+      }
+    },
+    {
+      "content": "not X",
+      "evidence_id": "e2",
+      "observed_at": "2026-09-01T00:00:00+00:00",
+      "polarity": "opposes",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:extract-err",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:extract-err",
+        "origin_type": "extract",
+        "parent_source_id": "reuters",
+        "snapshot_id": "snap:extract-err",
+        "source_id": "extract-err"
+      }
+    }
+  ],
+  "freshness_policy_seconds": 2592000,
+  "lineage": [],
+  "omitted_sources": [],
+  "proposition_id": "P-x",
+  "retrieval_scope": "complete",
+  "view_id": "p10"
+}

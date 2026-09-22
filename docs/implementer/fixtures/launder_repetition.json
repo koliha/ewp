@@ -1,0 +1,128 @@
+{
+  "adapter_meta": {},
+  "assertions": [
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.9,
+      "assertion_id": "a0",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:a",
+        "extractor_id": null,
+        "lineage_id": "L1",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:a",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:a",
+        "source_id": "a"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.9,
+      "assertion_id": "a1",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:a1",
+        "extractor_id": null,
+        "lineage_id": "L1",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:a1",
+        "origin_type": "extract",
+        "parent_source_id": "a",
+        "snapshot_id": "snap:a1",
+        "source_id": "a1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.9,
+      "assertion_id": "a2",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:a2",
+        "extractor_id": null,
+        "lineage_id": "L1",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:a2",
+        "origin_type": "extract",
+        "parent_source_id": "a1",
+        "snapshot_id": "snap:a2",
+        "source_id": "a2"
+      },
+      "text": "X"
+    }
+  ],
+  "checks": [],
+  "conflicts": [],
+  "degraded": false,
+  "evaluated_at": "2026-09-21T21:00:00+00:00",
+  "evidence": [
+    {
+      "content": "X",
+      "evidence_id": "e0",
+      "observed_at": "2026-09-01T00:00:00+00:00",
+      "polarity": "supports",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:a",
+        "extractor_id": null,
+        "lineage_id": "L1",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:a",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:a",
+        "source_id": "a"
+      }
+    },
+    {
+      "content": "X",
+      "evidence_id": "e1",
+      "observed_at": "2026-09-01T00:00:00+00:00",
+      "polarity": "supports",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:a1",
+        "extractor_id": null,
+        "lineage_id": "L1",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:a1",
+        "origin_type": "extract",
+        "parent_source_id": "a",
+        "snapshot_id": "snap:a1",
+        "source_id": "a1"
+      }
+    },
+    {
+      "content": "X",
+      "evidence_id": "e2",
+      "observed_at": "2026-09-01T00:00:00+00:00",
+      "polarity": "supports",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:a2",
+        "extractor_id": null,
+        "lineage_id": "L1",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:a2",
+        "origin_type": "extract",
+        "parent_source_id": "a1",
+        "snapshot_id": "snap:a2",
+        "source_id": "a2"
+      }
+    }
+  ],
+  "freshness_policy_seconds": 2592000,
+  "lineage": [],
+  "omitted_sources": [],
+  "proposition_id": "P-x",
+  "retrieval_scope": "complete",
+  "view_id": "l-repeat"
+}

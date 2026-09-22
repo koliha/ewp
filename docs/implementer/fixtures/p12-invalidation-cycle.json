@@ -1,0 +1,137 @@
+{
+  "adapter_meta": {},
+  "assertions": [
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.9,
+      "assertion_id": "a1",
+      "proposition_id": "P-cycle",
+      "source": {
+        "content_hash": "sha256:sa",
+        "extractor_id": null,
+        "lineage_id": "LA",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:sa",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:sa",
+        "source_id": "sa"
+      },
+      "text": "A"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.9,
+      "assertion_id": "a2",
+      "proposition_id": "P-cycle",
+      "source": {
+        "content_hash": "sha256:sb",
+        "extractor_id": null,
+        "lineage_id": "LB",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:sb",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:sb",
+        "source_id": "sb"
+      },
+      "text": "B"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.9,
+      "assertion_id": "a3",
+      "proposition_id": "P-cycle",
+      "source": {
+        "content_hash": "sha256:sc",
+        "extractor_id": null,
+        "lineage_id": "LC",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:sc",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:sc",
+        "source_id": "sc"
+      },
+      "text": "C"
+    }
+  ],
+  "checks": [],
+  "conflicts": [
+    {
+      "conflict_id": "c-cycle",
+      "note": "",
+      "proposition_ids": [
+        "P-cycle"
+      ],
+      "status": "open"
+    }
+  ],
+  "degraded": false,
+  "evaluated_at": "2026-09-21T21:00:00+00:00",
+  "evidence": [
+    {
+      "content": "A",
+      "evidence_id": "e1",
+      "observed_at": "2026-09-01T00:00:00+00:00",
+      "polarity": "supports",
+      "proposition_id": "P-cycle",
+      "source": {
+        "content_hash": "sha256:sa",
+        "extractor_id": null,
+        "lineage_id": "LA",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:sa",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:sa",
+        "source_id": "sa"
+      }
+    },
+    {
+      "content": "B",
+      "evidence_id": "e2",
+      "observed_at": "2026-09-01T00:00:00+00:00",
+      "polarity": "supports",
+      "proposition_id": "P-cycle",
+      "source": {
+        "content_hash": "sha256:sb",
+        "extractor_id": null,
+        "lineage_id": "LB",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:sb",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:sb",
+        "source_id": "sb"
+      }
+    },
+    {
+      "content": "C",
+      "evidence_id": "e3",
+      "observed_at": "2026-09-01T00:00:00+00:00",
+      "polarity": "supports",
+      "proposition_id": "P-cycle",
+      "source": {
+        "content_hash": "sha256:sc",
+        "extractor_id": null,
+        "lineage_id": "LC",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:sc",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:sc",
+        "source_id": "sc"
+      }
+    }
+  ],
+  "freshness_policy_seconds": 2592000,
+  "lineage": [],
+  "omitted_sources": [],
+  "proposition_id": "P-cycle",
+  "retrieval_scope": "complete",
+  "view_id": "p12"
+}

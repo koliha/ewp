@@ -1,0 +1,52 @@
+# EWP Conformance
+
+An adapter is not conformant because it serializes the schema. It must survive the fixture packs and produce the golden `WarrantView`s for policy `reference-v1`.
+
+The five axes are the interchange contract. `strength` is a non-normative convenience of `reference-v1`. See `docs/DESIGN_NOTE.md`.
+
+A second pack (`protocol/laundering.py`, `tests/test_laundering.py`) tries to break method-only “verification,” latest-row supersession, incomplete-view optimism, unused `check.result`, implied conflict, human-method laundering, and endogenous freshness refresh. It is not part of the frozen 26-golden lock.
+
+## Failure classes
+
+| Class | Meaning |
+|---|---|
+| `INGEST_LOSS` | The store did not preserve assertions, sources, lineage, checks, or conflicts. |
+| `ADAPTER_MAP_LOSS` | The store has the records; the adapter did not reconstruct `EvidenceView`. |
+| `WARRANT_MISMATCH` | Reconstructed view yields a different normalized `WarrantView` than the golden. |
+| `RETRIEVAL_LOSS` | Search omitted evidence and did not mark `sufficiency=DEGRADED`. |
+| `EXPECTED_DIVERGENCE` | Observation, not a failure. Store-local “current fact” disagrees with `warrant_now`. That is the protocol working. |
+
+## Report shape
+
+```
+Epistemic Warrant Protocol EWP-0.1.0
+Policy reference-v1
+Fixture set sha256: …
+Evaluator set sha256: …
+Golden set sha256: …
+Adapter: graphiti-core 0.30.2
+Canonical: 14/14
+Pathological: 12/12
+Result: CONFORMANT
+```
+
+or:
+
+```
+Result: NONCONFORMANT
+p8-verify-survives-expiry
+stage: RAW_VIEW
+class: ADAPTER_MAP_LOSS
+field: verification.checks[0]
+expected: present
+actual: missing
+```
+
+## CI
+
+```
+python3 tests/ci.py
+python3 tests/report.py
+```
+
+Changing a golden or the evaluator requires a protocol or policy version bump, then `python3 tests/ci.py --write-lock`.

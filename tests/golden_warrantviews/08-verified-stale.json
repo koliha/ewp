@@ -1,0 +1,37 @@
+{
+  "checks": [
+    "k1"
+  ],
+  "derived_from": [],
+  "evaluated_at": "2026-12-01T00:00:00+00:00",
+  "falsification_conditions": [],
+  "freshest_check": "k1",
+  "independent_lineage_count": 1,
+  "omitted_sources": [],
+  "open_conflicts": [],
+  "opposing_evidence_ids": [],
+  "policy_id": "reference-v1",
+  "policy_version": "reference-v1",
+  "proposition_id": "P-win",
+  "resolved_conflicts": [],
+  "stale": true,
+  "superseded_by": [],
+  "supersedes": [],
+  "supporting_evidence_ids": [
+    "e1"
+  ],
+  "view_id": "v-ver",
+  "warrant": {
+    "acceptance": "TENTATIVE",
+    "conflict": "NONE",
+    "currency": "STALE",
+    "rationale_codes": [
+      "acceptance.tentative",
+      "currency.stale_check",
+      "verification.external"
+    ],
+    "strength": 0.4,
+    "sufficiency": "SUFFICIENT",
+    "verification": "EXTERNAL"
+  }
+}

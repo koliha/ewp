@@ -1,0 +1,81 @@
+{
+  "adapter_meta": {},
+  "assertions": [
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.9,
+      "assertion_id": "ax",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L1",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    }
+  ],
+  "checks": [],
+  "conflicts": [
+    {
+      "conflict_id": "c1",
+      "note": "",
+      "proposition_ids": [
+        "P-x"
+      ],
+      "status": "open"
+    }
+  ],
+  "degraded": false,
+  "evaluated_at": "2026-09-21T21:00:00+00:00",
+  "evidence": [
+    {
+      "content": "X",
+      "evidence_id": "ex",
+      "observed_at": "2026-09-01T00:00:00+00:00",
+      "polarity": "supports",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L1",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      }
+    },
+    {
+      "content": "not X",
+      "evidence_id": "en",
+      "observed_at": "2026-09-01T00:00:00+00:00",
+      "polarity": "opposes",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s2",
+        "extractor_id": null,
+        "lineage_id": "L2",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s2",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s2",
+        "source_id": "s2"
+      }
+    }
+  ],
+  "freshness_policy_seconds": 2592000,
+  "lineage": [],
+  "omitted_sources": [],
+  "proposition_id": "P-x",
+  "retrieval_scope": "complete",
+  "view_id": "v-ret-ok"
+}

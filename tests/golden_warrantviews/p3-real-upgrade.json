@@ -1,0 +1,42 @@
+{
+  "checks": [
+    "k2"
+  ],
+  "derived_from": [],
+  "evaluated_at": "2026-09-21T21:00:00+00:00",
+  "falsification_conditions": [],
+  "freshest_check": "k2",
+  "independent_lineage_count": 1,
+  "omitted_sources": [],
+  "open_conflicts": [],
+  "opposing_evidence_ids": [],
+  "policy_id": "reference-v1",
+  "policy_version": "reference-v1",
+  "proposition_id": "P-server01-os",
+  "resolved_conflicts": [],
+  "stale": false,
+  "superseded_by": [
+    "P-server01-os:2022"
+  ],
+  "supersedes": [
+    "P-server01-os:2019"
+  ],
+  "supporting_evidence_ids": [
+    "e1",
+    "e2"
+  ],
+  "view_id": "p3",
+  "warrant": {
+    "acceptance": "TENTATIVE",
+    "conflict": "NONE",
+    "currency": "SUPERSEDED",
+    "rationale_codes": [
+      "acceptance.tentative",
+      "currency.superseded",
+      "verification.external"
+    ],
+    "strength": 0.2,
+    "sufficiency": "SUFFICIENT",
+    "verification": "EXTERNAL"
+  }
+}

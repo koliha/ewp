@@ -1,0 +1,19 @@
+name: conformance
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  conformance:
+    name: frozen suite
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run frozen CI
+        run: python3 tests/ci.py
+      - name: Print conformance claim
+        run: python3 tests/report.py

@@ -1,0 +1,48 @@
+{
+  "policy_id": "reference-v1",
+  "version": "reference-v1",
+  "name": "reference-v1",
+  "human_methods": [
+    "human_attestation",
+    "human_review"
+  ],
+  "external_methods": [
+    "tool_observation",
+    "external_clock",
+    "document_quote",
+    "independent_reproduction",
+    "vendor_documentation",
+    "winrm",
+    "external_api"
+  ],
+  "indirect_methods": [
+    "inference",
+    "extract",
+    "derived",
+    "model_introspection"
+  ],
+  "endogenous_origins": [
+    "extract",
+    "turn",
+    "derived",
+    "summary",
+    "model_introspection"
+  ],
+  "notes": {
+    "inconclusive_cap": "result=inconclusive cannot raise HUMAN or EXTERNAL",
+    "endogenous_cap": "endogenous origin cannot raise HUMAN or EXTERNAL, including human methods",
+    "implied_conflict": "supports+opposes in evidence or checks opens conflict even without a Conflict row",
+    "freshness_basis": "stale is computed from checks that confer the chosen verification class",
+    "trusted_origin_allowlist": "Only trusted origins may raise HUMAN or EXTERNAL",
+    "degraded_blocks_accepted": "sufficiency must be SUFFICIENT for ACCEPTED",
+    "scope_must_apply": "cap only when scope names a different token in the same entity family (server/host/node/device/serial)"
+  },
+  "trusted_origins": [
+    "tool",
+    "document",
+    "human",
+    "api",
+    "vendor",
+    "sensor"
+  ]
+}

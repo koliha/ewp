@@ -1,0 +1,37 @@
+{
+  "checks": [],
+  "derived_from": [],
+  "evaluated_at": "2026-09-21T21:00:00+00:00",
+  "falsification_conditions": [],
+  "freshest_check": null,
+  "independent_lineage_count": 1,
+  "omitted_sources": [
+    "s2"
+  ],
+  "open_conflicts": [],
+  "opposing_evidence_ids": [],
+  "policy_id": "reference-v1",
+  "policy_version": "reference-v1",
+  "proposition_id": "P-x",
+  "resolved_conflicts": [],
+  "stale": false,
+  "superseded_by": [],
+  "supersedes": [],
+  "supporting_evidence_ids": [
+    "ex"
+  ],
+  "view_id": "v-ret-deg",
+  "warrant": {
+    "acceptance": "TENTATIVE",
+    "conflict": "NONE",
+    "currency": "CURRENT",
+    "rationale_codes": [
+      "acceptance.tentative",
+      "sufficiency.degraded",
+      "verification.none"
+    ],
+    "strength": 0.2,
+    "sufficiency": "DEGRADED",
+    "verification": "NONE"
+  }
+}

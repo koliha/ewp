@@ -1,0 +1,73 @@
+{
+  "adapter_meta": {},
+  "assertions": [
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.9,
+      "assertion_id": "a1",
+      "proposition_id": "P-win",
+      "source": {
+        "content_hash": "sha256:ep1",
+        "extractor_id": null,
+        "lineage_id": "L-g",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:ep1",
+        "origin_type": "episode",
+        "parent_source_id": null,
+        "snapshot_id": "snap:ep1",
+        "source_id": "ep1"
+      },
+      "text": "server01 runs Windows Server 2022"
+    }
+  ],
+  "checks": [
+    {
+      "check_id": "k1",
+      "method": "document_quote",
+      "observed_at": "2026-09-21T18:31:00+00:00",
+      "result": "supports",
+      "scope": "server01",
+      "source": {
+        "content_hash": "sha256:ep1",
+        "extractor_id": null,
+        "lineage_id": "L-g",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:ep1",
+        "origin_type": "episode",
+        "parent_source_id": null,
+        "snapshot_id": "snap:ep1",
+        "source_id": "ep1"
+      }
+    }
+  ],
+  "conflicts": [],
+  "degraded": false,
+  "evaluated_at": "2026-09-21T21:00:00+00:00",
+  "evidence": [
+    {
+      "content": "extracted fact",
+      "evidence_id": "e1",
+      "observed_at": "2026-09-01T00:00:00+00:00",
+      "polarity": "supports",
+      "proposition_id": "P-win",
+      "source": {
+        "content_hash": "sha256:ep1",
+        "extractor_id": null,
+        "lineage_id": "L-g",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:ep1",
+        "origin_type": "episode",
+        "parent_source_id": null,
+        "snapshot_id": "snap:ep1",
+        "source_id": "ep1"
+      }
+    }
+  ],
+  "freshness_policy_seconds": 2592000,
+  "lineage": [],
+  "omitted_sources": [],
+  "proposition_id": "P-win",
+  "retrieval_scope": "complete",
+  "view_id": "l-episode"
+}

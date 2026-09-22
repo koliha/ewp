@@ -1,0 +1,1935 @@
+{
+  "adapter_meta": {},
+  "assertions": [
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a0",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a1",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a2",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a3",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a4",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a5",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a6",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a7",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a8",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a9",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a10",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a11",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a12",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a13",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a14",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a15",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a16",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a17",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a18",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a19",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a20",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a21",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a22",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a23",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a24",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a25",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a26",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a27",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a28",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a29",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a30",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a31",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a32",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a33",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a34",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a35",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a36",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a37",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a38",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a39",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a40",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a41",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a42",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a43",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a44",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a45",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a46",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a47",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a48",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a49",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a50",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a51",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a52",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a53",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a54",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a55",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a56",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a57",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a58",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a59",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a60",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a61",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a62",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a63",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a64",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a65",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a66",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a67",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a68",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a69",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a70",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a71",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a72",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a73",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a74",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a75",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a76",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a77",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a78",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a79",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a80",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a81",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a82",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a83",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a84",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a85",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a86",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a87",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a88",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a89",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a90",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a91",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a92",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a93",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a94",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a95",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a96",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a97",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a98",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.99,
+      "assertion_id": "a99",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    }
+  ],
+  "checks": [],
+  "conflicts": [],
+  "degraded": false,
+  "evaluated_at": "2026-09-21T21:00:00+00:00",
+  "evidence": [
+    {
+      "content": "X",
+      "evidence_id": "e1",
+      "observed_at": "2026-09-01T00:00:00+00:00",
+      "polarity": "supports",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-reut",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      }
+    }
+  ],
+  "freshness_policy_seconds": 2592000,
+  "lineage": [],
+  "omitted_sources": [],
+  "proposition_id": "P-x",
+  "retrieval_scope": "complete",
+  "view_id": "v-reinforce"
+}

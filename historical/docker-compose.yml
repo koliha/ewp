@@ -1,0 +1,40 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: warrant
+      POSTGRES_PASSWORD: warrant
+      POSTGRES_DB: warrantmem
+    ports:
+      - "5433:5432"
+    volumes:
+      - warrant_pg:/var/lib/postgresql/data
+      - ./schema.sql:/docker-entrypoint-initdb.d/001_schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U warrant -d warrantmem"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # Optional Graphiti substrate. EWP remains the warrant layer.
+  # Uncomment when you want entity/temporal search behind evidence_refs.
+  # graphiti:
+  #   image: zepai/knowledge-graph-mcp:latest
+  #   environment:
+  #     OPENAI_API_KEY: ${OPENAI_API_KEY}
+  #   ports:
+  #     - "8000:8000"
+
+  # warrantmem:
+  #   build: .
+  #   environment:
+  #     DATABASE_URL: postgres://warrant:warrant@db:5432/warrantmem
+  #     GRAPHITI_MCP_URL: http://graphiti:8000/mcp
+  #   ports:
+  #     - "8765:8765"
+  #   depends_on:
+  #     db:
+  #       condition: service_healthy
+
+volumes:
+  warrant_pg:

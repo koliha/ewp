@@ -1,0 +1,100 @@
+{
+  "adapter_meta": {},
+  "assertions": [
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.9,
+      "assertion_id": "a1",
+      "proposition_id": "P-door",
+      "source": {
+        "content_hash": "sha256:s-open",
+        "extractor_id": null,
+        "lineage_id": "L-cam1",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s-open",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s-open",
+        "source_id": "s-open"
+      },
+      "text": "door is open"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.9,
+      "assertion_id": "a2",
+      "proposition_id": "P-door",
+      "source": {
+        "content_hash": "sha256:s-shut",
+        "extractor_id": null,
+        "lineage_id": "L-cam2",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s-shut",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s-shut",
+        "source_id": "s-shut"
+      },
+      "text": "door is closed"
+    }
+  ],
+  "checks": [],
+  "conflicts": [
+    {
+      "conflict_id": "c-door",
+      "note": "",
+      "proposition_ids": [
+        "P-door"
+      ],
+      "status": "open"
+    }
+  ],
+  "degraded": false,
+  "evaluated_at": "2026-09-21T21:00:00+00:00",
+  "evidence": [
+    {
+      "content": "open",
+      "evidence_id": "e1",
+      "observed_at": "2026-09-01T00:00:00+00:00",
+      "polarity": "supports",
+      "proposition_id": "P-door",
+      "source": {
+        "content_hash": "sha256:s-open",
+        "extractor_id": null,
+        "lineage_id": "L-cam1",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s-open",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s-open",
+        "source_id": "s-open"
+      }
+    },
+    {
+      "content": "closed",
+      "evidence_id": "e2",
+      "observed_at": "2026-09-01T00:00:00+00:00",
+      "polarity": "opposes",
+      "proposition_id": "P-door",
+      "source": {
+        "content_hash": "sha256:s-shut",
+        "extractor_id": null,
+        "lineage_id": "L-cam2",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s-shut",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s-shut",
+        "source_id": "s-shut"
+      }
+    }
+  ],
+  "freshness_policy_seconds": 2592000,
+  "lineage": [],
+  "omitted_sources": [],
+  "proposition_id": "P-door",
+  "retrieval_scope": "complete",
+  "view_id": "p2"
+}

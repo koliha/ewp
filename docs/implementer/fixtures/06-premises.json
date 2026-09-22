@@ -1,0 +1,60 @@
+{
+  "adapter_meta": {},
+  "assertions": [
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.9,
+      "assertion_id": "a1",
+      "proposition_id": "P-occ",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L1",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "turn",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "building is occupied"
+    }
+  ],
+  "checks": [],
+  "conflicts": [],
+  "degraded": false,
+  "evaluated_at": "2026-09-21T21:00:00+00:00",
+  "evidence": [
+    {
+      "content": "someone said occupied",
+      "evidence_id": "e1",
+      "observed_at": "2026-09-01T00:00:00+00:00",
+      "polarity": "supports",
+      "proposition_id": "P-occ",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L1",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "turn",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      }
+    }
+  ],
+  "freshness_policy_seconds": 2592000,
+  "lineage": [
+    {
+      "from_id": "P-hvac",
+      "kind": "derived_from",
+      "to_id": "P-occ"
+    }
+  ],
+  "omitted_sources": [],
+  "proposition_id": "P-occ",
+  "retrieval_scope": "complete",
+  "view_id": "v-prem"
+}

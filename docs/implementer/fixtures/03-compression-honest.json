@@ -1,0 +1,56 @@
+{
+  "adapter_meta": {},
+  "assertions": [
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.9,
+      "assertion_id": "ax",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L1",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "X"
+    }
+  ],
+  "checks": [],
+  "conflicts": [],
+  "degraded": true,
+  "evaluated_at": "2026-09-21T21:00:00+00:00",
+  "evidence": [
+    {
+      "content": "X",
+      "evidence_id": "ex",
+      "observed_at": "2026-09-01T00:00:00+00:00",
+      "polarity": "supports",
+      "proposition_id": "P-x",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L1",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "document",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      }
+    }
+  ],
+  "freshness_policy_seconds": 2592000,
+  "lineage": [],
+  "omitted_sources": [
+    "s2"
+  ],
+  "proposition_id": "P-x",
+  "retrieval_scope": "compressed",
+  "view_id": "v-comp-ok"
+}

@@ -1,0 +1,121 @@
+{
+  "adapter_meta": {},
+  "assertions": [
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.9,
+      "assertion_id": "a1",
+      "proposition_id": "P-server01-os",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-inv",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "tool",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      },
+      "text": "server01 runs Server 2019"
+    },
+    {
+      "asserted_at": "2026-09-01T00:00:00+00:00",
+      "asserted_by": "agent",
+      "assertion_confidence": 0.9,
+      "assertion_id": "a2",
+      "proposition_id": "P-server01-os",
+      "source": {
+        "content_hash": "sha256:s2",
+        "extractor_id": null,
+        "lineage_id": "L-inv",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s2",
+        "origin_type": "tool",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s2",
+        "source_id": "s2"
+      },
+      "text": "server01 runs Server 2022"
+    }
+  ],
+  "checks": [
+    {
+      "check_id": "k2",
+      "method": "tool_observation",
+      "observed_at": "2026-09-21T19:00:00+00:00",
+      "result": "supports",
+      "scope": "server01",
+      "source": {
+        "content_hash": "sha256:s2",
+        "extractor_id": null,
+        "lineage_id": "L-inv",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s2",
+        "origin_type": "tool",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s2",
+        "source_id": "s2"
+      }
+    }
+  ],
+  "conflicts": [],
+  "degraded": false,
+  "evaluated_at": "2026-09-21T21:00:00+00:00",
+  "evidence": [
+    {
+      "content": "inventory T1",
+      "evidence_id": "e1",
+      "observed_at": "2026-09-01T00:00:00+00:00",
+      "polarity": "supports",
+      "proposition_id": "P-server01-os",
+      "source": {
+        "content_hash": "sha256:s1",
+        "extractor_id": null,
+        "lineage_id": "L-inv",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s1",
+        "origin_type": "tool",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s1",
+        "source_id": "s1"
+      }
+    },
+    {
+      "content": "inventory T2 after upgrade",
+      "evidence_id": "e2",
+      "observed_at": "2026-09-01T00:00:00+00:00",
+      "polarity": "supports",
+      "proposition_id": "P-server01-os",
+      "source": {
+        "content_hash": "sha256:s2",
+        "extractor_id": null,
+        "lineage_id": "L-inv",
+        "observed_at": "2026-09-01T00:00:00+00:00",
+        "origin_locator": "loc:s2",
+        "origin_type": "tool",
+        "parent_source_id": null,
+        "snapshot_id": "snap:s2",
+        "source_id": "s2"
+      }
+    }
+  ],
+  "freshness_policy_seconds": 2592000,
+  "lineage": [
+    {
+      "from_id": "P-server01-os:2019",
+      "kind": "superseded_by",
+      "to_id": "P-server01-os:2022"
+    },
+    {
+      "from_id": "P-server01-os:2022",
+      "kind": "supersedes",
+      "to_id": "P-server01-os:2019"
+    }
+  ],
+  "omitted_sources": [],
+  "proposition_id": "P-server01-os",
+  "retrieval_scope": "complete",
+  "view_id": "p3"
+}

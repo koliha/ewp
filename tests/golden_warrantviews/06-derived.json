@@ -1,0 +1,36 @@
+{
+  "checks": [],
+  "derived_from": [
+    "P-occ"
+  ],
+  "evaluated_at": "2026-09-21T21:00:00+00:00",
+  "falsification_conditions": [],
+  "freshest_check": null,
+  "independent_lineage_count": 1,
+  "omitted_sources": [],
+  "open_conflicts": [],
+  "opposing_evidence_ids": [],
+  "policy_id": "reference-v1",
+  "policy_version": "reference-v1",
+  "proposition_id": "P-hvac",
+  "resolved_conflicts": [],
+  "stale": false,
+  "superseded_by": [],
+  "supersedes": [],
+  "supporting_evidence_ids": [
+    "e2"
+  ],
+  "view_id": "v-derived",
+  "warrant": {
+    "acceptance": "TENTATIVE",
+    "conflict": "NONE",
+    "currency": "CURRENT",
+    "rationale_codes": [
+      "acceptance.tentative",
+      "verification.none"
+    ],
+    "strength": 0.35,
+    "sufficiency": "SUFFICIENT",
+    "verification": "NONE"
+  }
+}
