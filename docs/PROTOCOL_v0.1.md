@@ -220,6 +220,7 @@ Additional behavioral pack: `protocol/laundering.py`. It is not part of the 26-g
 - Agent persona / MEMORY.md format
 - Action-policy contents (thresholds, auth, reversibility)
 - Graphiti / MindGraph / KIP as transition authorities
+- A shipped MCP server (sketch only: `historical/docs/MCP_CONTRACT.md`)
 - Any operation that writes epistemic truth back into a store
 
 ## Reference implementation
@@ -228,7 +229,13 @@ Additional behavioral pack: `protocol/laundering.py`. It is not part of the 26-g
 2. `protocol/classify.py` — shared check classification
 3. `protocol/warrant.py` / `protocol/warrant_b.py` — two control flows, same five axes
 4. `protocol/sqlite_adapter.py` / `protocol/json_adapter.py` — substrates (warrant is never written back)
-5. `tests/test_conformance.py` — tests 1–10 plus separate `may_act`
+5. `protocol/graphiti_adapter.py` — fake Graphiti-shaped records for the frozen suite
+6. `tests/test_conformance.py` — tests 1–10 plus separate `may_act`
+
+Live, not part of the 26-golden lock:
+
+- `protocol/graphiti_client_adapter.py` / `protocol/mem0_adapter.py`
+- notes: `docs/implementer/LIVE_ADAPTERS.md`
 
 Gate: `python3 tests/test_conformance.py && python3 tests/test_goldens.py`
 

@@ -5,6 +5,7 @@
 2. all 26 fixtures pass reference-v1
 3. SQLite and JSON remain equivalent
 4. fake Graphiti remains epistemically isolated
+5. live Graphiti/Mem0 mappings keep origin/lineage/degraded rules
 """
 
 from __future__ import annotations
@@ -62,6 +63,7 @@ def main() -> int:
         [sys.executable, "tests/test_graphiti_adapter.py"],
         [sys.executable, "tests/test_pathological.py"],
         [sys.executable, "tests/test_laundering.py"],
+        [sys.executable, "tests/test_live_adapters.py"],
         [sys.executable, "docs/implementer/third_eval.py"],
     ]
     for cmd in steps:
@@ -69,7 +71,7 @@ def main() -> int:
         if rc != 0:
             print("CI FAIL", cmd)
             return rc
-    print("CI PASS — goldens, 26 fixtures, SQLite=JSON, fake Graphiti isolated, laundering pack, third evaluator")
+    print("CI PASS — goldens, 26 fixtures, SQLite=JSON, fake Graphiti isolated, laundering pack, live mappings, third evaluator")
     print(json.dumps(metadata(), indent=2))
     return 0
 

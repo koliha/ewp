@@ -11,6 +11,11 @@ Normative for v0.1.0:
 - `docs/PROTOCOL_v0.1.md`, `docs/DESIGN_NOTE.md`, `docs/implementer/`
 - `docs/PLATFORMS.md` — integration notes; treat MCP tool names there as planned, not shipped
 
-Do not implement `claims.status = current` as stored epistemic truth. Warrant is computed.
+Historical, not the freeze:
 
-`SESSION_HANDOFF.json` is an internal working note, not protocol text.
+- `historical/docs/MCP_CONTRACT.md` — MCP tool-contract sketch
+- `docs/MCP_CONTRACT.md` — pointer only, so old `docs/MCP_CONTRACT.md` links resolve here
+- `historical/src/ledger.py`, `historical/schema.sql`, `historical/docker-compose.yml` — warrantmem ledger sketches
+- `historical/SESSION_HANDOFF.json` — internal working note, not protocol text
+
+Do not implement `claims.status = current` as stored epistemic truth. Warrant is computed.

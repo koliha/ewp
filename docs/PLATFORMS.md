@@ -23,7 +23,9 @@ Agents never get store mutation tools directly. If someone wires an agent straig
 OpenClaw already consumes outbound MCP servers. That is the integration.
 
 ```bash
-# planned process (not shipped in v0.1.0 — see historical/docs/MCP_CONTRACT.md)
+# planned process (not shipped in v0.1.0)
+# sketch: historical/docs/MCP_CONTRACT.md
+# pointer: docs/MCP_CONTRACT.md
 python3 -m ewp.mcp --http 127.0.0.1:8765
 
 openclaw mcp add ewp --url http://127.0.0.1:8765/mcp
@@ -64,9 +66,21 @@ Rules that belong in the client system prompt, not in the store:
 Use Graphiti as a temporal/entity mirror, not as warrant.
 
 - Ingest episodes with `episode_metadata.lineage_id` set by EWP.
+- The frozen suite uses fake Graphiti-shaped records (`protocol/graphiti_adapter.py`).
+- The live client mapping is `protocol/graphiti_client_adapter.py` — see `docs/implementer/LIVE_ADAPTERS.md`.
 - Adapter maps edges → `EvidenceView`. `invalid_at` is store-local. `valid_at` is not a verification check.
 - Search collapse must mark the view `DEGRADED`.
-- Live pin: `graphiti-core 0.30.2`. Graphiti adapts to EWP. EWP does not adapt to Graphiti.
+- Live pin: `graphiti-core 0.30.2`. Live `graphiti-core` is **not** validated. Graphiti adapts to EWP. EWP does not adapt to Graphiti.
+
+## Mem0
+
+Use Mem0 as an extract-and-retrieve store, not as warrant.
+
+- Default `origin_type` is `extract` (endogenous). That cannot raise `EXTERNAL` / `HUMAN`.
+- Put `lineage_id` and a trusted `origin_type` in `metadata.ewp` at write time, or ten extracts of one transcript look independent.
+- Retrieval `score` is adapter metadata, never warrant strength.
+- `search` that drops memories the store still holds must mark the view `DEGRADED`.
+- Live mapping: `protocol/mem0_adapter.py`. Notes: `docs/implementer/LIVE_ADAPTERS.md`.
 
 ## Particles
 

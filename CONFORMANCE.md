@@ -6,6 +6,8 @@ The five axes are the interchange contract. `strength` is a non-normative conven
 
 A second pack (`protocol/laundering.py`, `tests/test_laundering.py`) tries to break method-only “verification,” latest-row supersession, incomplete-view optimism, unused `check.result`, implied conflict, human-method laundering, and endogenous freshness refresh. It is not part of the frozen 26-golden lock.
 
+Live Graphiti / Mem0 mappings (`protocol/graphiti_client_adapter.py`, `protocol/mem0_adapter.py`, `tests/test_live_adapters.py`) are mapping tests. They are not a substitute for the 26-golden lock and do not validate `graphiti-core 0.30.2`.
+
 ## Failure classes
 
 | Class | Meaning |

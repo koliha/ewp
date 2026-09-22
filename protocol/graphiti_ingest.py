@@ -76,7 +76,7 @@ def ingest_view(store: FakeGraphitiStore, view: EvidenceView) -> dict:
     store.add_episode(
         FakeEpisode(
             uuid=f"meta:{view.proposition_id}",
-            content="warrantmem-parked",
+            content="ewp-parked",
             created_at="1970-01-01T00:00:00+00:00",
             metadata={
                 "checks": [c.__dict__ | {"source": c.source.__dict__} for c in view.checks],

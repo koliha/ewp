@@ -6,7 +6,7 @@ EWP evaluates evidence. It does not authenticate callers, sign tokens, or author
 
 - Agent tool execution
 - Secret storage
-- Prompt injection against an MCP client
+- Prompt injection against an MCP client (no MCP server ships in v0.1.0; see `historical/docs/MCP_CONTRACT.md`)
 - Store credentials
 
 Those belong in the platform (OpenClaw allowlists, Tenuo-style action warrants, ordinary IAM).

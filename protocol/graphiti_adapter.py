@@ -28,16 +28,22 @@ def lineage_of(ep: FakeEpisode) -> tuple[str, str]:
 
 def _source(ep: FakeEpisode, observed_at: str) -> SourceRef:
     lid, _basis = lineage_of(ep)
+    origin = str(ep.metadata.get("origin_type") or "episode")
+    locator = str(ep.metadata.get("origin_locator") or f"graphiti:episode:{ep.uuid}")
+    digest = str(ep.metadata.get("content_hash") or f"episode:{ep.uuid}")
+    extractor = ep.metadata.get("extractor_id") or "graphiti.extract"
+    parent = ep.metadata.get("parent_source_id")
+    snapshot = str(ep.metadata.get("snapshot_id") or ep.uuid)
     return SourceRef(
         source_id=ep.uuid,
         lineage_id=lid,
-        origin_type="episode",
-        origin_locator=f"graphiti:episode:{ep.uuid}",
-        snapshot_id=ep.uuid,
-        content_hash=f"episode:{ep.uuid}",
+        origin_type=origin,
+        origin_locator=locator,
+        snapshot_id=snapshot,
+        content_hash=digest,
         observed_at=observed_at,
-        extractor_id="graphiti.extract",
-        parent_source_id=None,
+        extractor_id=str(extractor) if extractor else None,
+        parent_source_id=str(parent) if parent else None,
     )
 
 

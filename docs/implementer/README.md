@@ -12,6 +12,8 @@ You are not given `protocol/warrant.py`, `protocol/warrant_b.py`, helper names, 
 
 `third_eval.py` in this directory is a clean evaluator: policy.json + fixture JSON only, no `protocol.*` imports. Gate: `python3 docs/implementer/third_eval.py`.
 
+`LIVE_ADAPTERS.md` in this directory documents live Graphiti and Mem0 mappings. It is not part of the third-implementation pack and is not needed to emit the five axes.
+
 ## What conformance means
 
 Conformance is defined over the normative WarrantView axes, not over reference-policy convenience fields.

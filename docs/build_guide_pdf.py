@@ -204,9 +204,9 @@ def build():
     ], [2.15 * inch, 4.65 * inch]))
     story.append(p(s, "Body", "Dreaming may rewrite MEMORY.md. EWP treats that rewrite as a new assertion, not as verification. Compression must not turn \"X is disputed\" into \"X.\""))
     story.append(p(s, "H2", "Claude, Codex, other MCP clients"))
-    story.append(p(s, "Body", "Same contract. Prefer HTTP if several clients share one ledger. Fluency is not recollection. OPEN conflict is said out loud. DEGRADED means the view is incomplete. Store-native write tools stay disconnected. An EWP MCP server is planned, not shipped. The sketch lives in historical/docs/MCP_CONTRACT.md. It is not required to evaluate warrant."))
-    story.append(p(s, "H2", "Graphiti, Particles, SQLite"))
-    story.append(p(s, "Body", "Graphiti can be used as a temporal/entity evidence substrate or mirror. Inject lineage_id in episode metadata. invalid_at is store-local. valid_at is not a verification check. Search collapse marks the view DEGRADED. Particles is a good immutable substrate — agents write only through EWP. SQLite and JSON prove store neutrality."))
+    story.append(p(s, "Body", "Same planned contract. Prefer HTTP if several clients share one ledger. Fluency is not recollection. OPEN conflict is said out loud. DEGRADED means the view is incomplete. Store-native write tools stay disconnected. An EWP MCP server is planned, not shipped in v0.1.0. The tool-contract sketch lives in historical/docs/MCP_CONTRACT.md. docs/MCP_CONTRACT.md is only a pointer to that sketch. Neither file is required to evaluate warrant."))
+    story.append(p(s, "H2", "Graphiti, Mem0, Particles, SQLite"))
+    story.append(p(s, "Body", "Graphiti can be used as a temporal/entity evidence substrate or mirror. Inject lineage_id in episode metadata. invalid_at is store-local. valid_at is not a verification check. Search collapse marks the view DEGRADED. The frozen suite uses fake Graphiti-shaped records. Live Graphiti and Mem0 mappings live in protocol/graphiti_client_adapter.py and protocol/mem0_adapter.py; notes in docs/implementer/LIVE_ADAPTERS.md. Live graphiti-core 0.30.2 is not validated. Mem0 default origin is extract; retrieval score is not warrant. Particles is a good immutable substrate — agents write only through EWP. SQLite and JSON prove store neutrality."))
     story.append(p(s, "RuleLine", "Graphiti adapts to v0.1. v0.1 does not adapt to Graphiti."))
 
     story.append(PageBreak())

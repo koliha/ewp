@@ -13,7 +13,7 @@ Memory is evidence, not truth.
 
 Stores adapt to the protocol. The protocol does not inherit the store’s epistemology.
 
-See `NAME.md`, `docs/PROTOCOL_v0.1.md`, `docs/DESIGN_NOTE.md`, `docs/implementer/`, `docs/PLATFORMS.md`, `CONFORMANCE.md`.
+See `NAME.md`, `docs/PROTOCOL_v0.1.md`, `docs/DESIGN_NOTE.md`, `docs/implementer/`, `docs/PLATFORMS.md`, `docs/implementer/LIVE_ADAPTERS.md`, `CONFORMANCE.md`. The MCP tool-contract sketch is `historical/docs/MCP_CONTRACT.md` (not shipped; `docs/MCP_CONTRACT.md` is only a pointer).
 
 Boundary. Policy. Observations. Permission. Four things. None gets to wear the others' clothes.
 
@@ -228,10 +228,11 @@ The v0.1.0 *reference kernel*:
 - 14 canonical fixtures + 12 pathological fixtures + laundering pack
 - 26 pinned golden `WarrantView`s
 - SQLite and JSON reference adapters
-- Graphiti-*shaped* semantic adapter (fake records; live `graphiti-core 0.30.2` is **not** validated)
+- Graphiti-*shaped* semantic adapter (fake records used by the frozen suite)
+- live Graphiti and Mem0 *mappings* (`protocol/graphiti_client_adapter.py`, `protocol/mem0_adapter.py`) — not validated against goldens; live `graphiti-core 0.30.2` is **not** validated
 - four-stage runners and field-level diffs
 
-The MCP tool contract is specified in `historical/docs/MCP_CONTRACT.md` (sketch; not the freeze). A production `ewp.mcp` server is the integration façade those tools describe; it is not required to evaluate warrant. Persona files (`MEMORY.md`) are a generated checkout, not the system of record.
+There is no MCP server in this freeze. The tool-contract sketch lives in `historical/docs/MCP_CONTRACT.md`. `docs/MCP_CONTRACT.md` exists only so old links resolve to that sketch. A production `ewp.mcp` server would be an integration façade; it is not required to evaluate warrant. Persona files (`MEMORY.md`) are a generated checkout, not the system of record.
 
 Earlier sketches live in `historical/`. They are not the frozen kernel.
 
@@ -261,11 +262,11 @@ Dreaming may rewrite `MEMORY.md`. EWP treats that rewrite as a new assertion, no
 
 Same contract. Prefer HTTP if several clients share one ledger. Prompt rules: fluency is not recollection; `conflict=OPEN` is said out loud; `DEGRADED` means the view is incomplete; store-native write tools stay disconnected.
 
-### Graphiti / Particles / SQLite
+### Graphiti / Mem0 / Particles / SQLite
 
-Graphiti can be used as a temporal/entity evidence substrate or mirror. Inject `lineage_id` in episode metadata. `invalid_at` is store-local. `valid_at` is not a verification check. Search collapse marks the view `DEGRADED`. Particles is a good immutable substrate — agents write only through EWP. SQLite and JSON prove store neutrality.
+Graphiti can be used as a temporal/entity evidence substrate or mirror. Inject `lineage_id` in episode metadata. `invalid_at` is store-local. `valid_at` is not a verification check. Search collapse marks the view `DEGRADED`. Mem0 is an extract-and-retrieve store: default origin is `extract`; retrieval score is not warrant. Particles is a good immutable substrate — agents write only through EWP. SQLite and JSON prove store neutrality.
 
-Full notes: `docs/PLATFORMS.md`.
+Full notes: `docs/PLATFORMS.md`. Live client mappings: `docs/implementer/LIVE_ADAPTERS.md`.
 
 Compose EWP with action gates (OpenClaw allowlists, Tenuo, human approval). Do not merge those layers because they share the word *warrant*.
 
@@ -333,9 +334,12 @@ A store that produces a different answer has an adapter or conformance problem, 
 
 ```
 protocol/          frozen kernel (classify, warrant, adapters, fixtures)
-tests/             conformance, goldens, runners, CI
+                   plus live Graphiti/Mem0 mappings (not part of the 26-golden lock)
+tests/             conformance, goldens, runners, CI, live-adapter mapping tests
 docs/              PROTOCOL, design note, platforms, implementer pack, PDF
+                   docs/MCP_CONTRACT.md → pointer to the historical sketch
 historical/        pre-freeze warrantmem ledger/MCP/Postgres sketches
+                   including historical/docs/MCP_CONTRACT.md
 RELEASE.lock.json  fixture + evaluator + golden hashes
 pyproject.toml     package metadata (no published install yet)
 ```

@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.0-docs — 2026-09-22
+
+Documentation alignment only. Protocol number and goldens unchanged.
+
+- `docs/MCP_CONTRACT.md` is a pointer. The MCP sketch is `historical/docs/MCP_CONTRACT.md` and is not shipped.
+- README, `docs/PLATFORMS.md`, `docs/PROTOCOL_v0.1.md`, implementer README, historical README, and the v0.1.0 PDF agree on that split.
+- Live Graphiti / Mem0 mappings documented in `docs/implementer/LIVE_ADAPTERS.md`.
+
 ## 0.1.0-prefreeze — 2026-09-22
 
 Not a protocol-number bump. Tightens `reference-v1` before any public freeze.
@@ -11,7 +19,7 @@ Not a protocol-number bump. Tightens `reference-v1` before any public freeze.
 - SQLite lineage edges filtered to the requested proposition.
 - `may_act`: high-risk + not `ACCEPTED` is `DENY`; any `OPEN` is `REQUIRE_CONFIRMATION` for lower risk.
 - Golden comparison ignores `strength`.
-- `SESSION_HANDOFF.json` moved to `historical/`.
+- `SESSION_HANDOFF.json` moved to `historical/SESSION_HANDOFF.json`.
 - `docs/implementer/third_eval.py` matches all 42 implementer expected axis files without importing `protocol.*`.
 
 ## 0.1.0-republish — 2026-09-22
@@ -25,7 +33,7 @@ Corrects evaluator holes found on first publish. Protocol number stays `EWP-0.1.
 - Independent lineage counts assertions, evidence, and checks.
 - Lock now hashes the evaluator, not only fixtures and goldens.
 - Pre-freeze warrantmem ledger/MCP/Postgres sketches moved to `historical/`.
-- `tests/test_3` uses verification rank, not string comparison.
+- `tests/test_conformance.py` (`test_3_compression_monotonicity`) uses verification rank, not string comparison.
 
 Goldens regenerated after the policy-identity and evaluator corrections.
 
