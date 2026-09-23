@@ -8,7 +8,7 @@ warrant_now(view, policy, evaluated_at) -> five axes
 
 You are given this directory only: schema, policy prose (`POLICY.md`, `policy.json`), fixture JSON, expected five-axis JSON. Protocol is `EWP-0.2.0`; policy id and version are `reference-v2`. Check `result` and source `origin_type` are required inputs. Subject binding uses declared `subjects[]` as exact ids; records not available at `evaluated_at` (later, missing, or unparsable instants) do not count; values outside the closed enums are refused.
 
-There are 51 fixtures: 14 canonical, 12 pathological, and 25 in the hardening pack (laundering, subject binding, time, supersession scope, zero freshness). `invalid/` holds 23 views your evaluator must refuse rather than evaluate, one per input rule in `POLICY.md`. All of it is hashed into `RELEASE.lock.json`.
+There are 52 fixtures: 14 canonical, 12 pathological, and 26 in the hardening pack (laundering, subject binding, time, supersession scope, zero freshness, variant record propositions). `invalid/` holds 24 views your evaluator must refuse rather than evaluate, one per input rule in `POLICY.md`. All of it is hashed into `RELEASE.lock.json`.
 
 You are not given `ewp/warrant.py`, `ewp/warrant_b.py`, helper names, or the repository test assertions.
 

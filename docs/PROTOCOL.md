@@ -239,7 +239,7 @@ A store adapter is not conforming because it serializes the schema. It MUST pass
 9. Policy reproducibility — same protocol + view + policy + `evaluated_at` ⇒ same normative `WarrantView`.
 10. Store independence — every fixture (canonical, pathological, hardening) loaded through a conforming adapter yields the same normative axes.
 
-Test 10 runs all 51 fixtures in `docs/implementer/fixtures/` through each adapter and compares both the normative axes and every `SCHEMA.md` field (`tests/test_adapter_roundtrip.py`). A difference means a lost field or an underspecified interchange.
+Test 10 runs all 52 fixtures in `docs/implementer/fixtures/` through each adapter and compares both the normative axes and every `SCHEMA.md` field (`tests/test_adapter_roundtrip.py`). A difference means a lost field or an underspecified interchange.
 
 ## Out of scope for 0.2
 

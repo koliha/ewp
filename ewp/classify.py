@@ -7,6 +7,7 @@ observed_at is after evaluated_at is not available at T.
 
 from __future__ import annotations
 
+import math
 from datetime import datetime, timezone
 
 from .types import (
@@ -93,6 +94,8 @@ def validate_view(view: EvidenceView) -> None:
         problems.append(f"source_id {sid!r} carries different SourceRefs (lineage, origin, time, ...) within one view")
 
     for a in view.assertions:
+        if not (isinstance(a.assertion_confidence, (int, float)) and math.isfinite(a.assertion_confidence)):
+            problems.append(f"assertion {a.assertion_id}: assertion_confidence={a.assertion_confidence!r} must be a finite number")
         if not about_proposition(a.proposition_id, pid):
             problems.append(f"assertion {a.assertion_id}: proposition_id={a.proposition_id!r} is not {pid!r}")
     for e in view.evidence:

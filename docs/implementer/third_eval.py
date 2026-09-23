@@ -92,9 +92,11 @@ def check_required(view: dict) -> None:
                     raise InvalidView(f"{part} record has an incomplete source")
             if part == "assertions":
                 try:
-                    float(r["assertion_confidence"])
+                    confidence = float(r["assertion_confidence"])
                 except (TypeError, ValueError):
                     raise InvalidView("assertion_confidence is not a number") from None
+                if confidence != confidence or confidence in (float("inf"), float("-inf")):
+                    raise InvalidView("assertion_confidence must be finite")
 
 
 def validate(view: dict) -> None:
@@ -166,12 +168,12 @@ def scope_caps_check(check: dict, view: dict) -> bool:
 
 def available_at(observed_at: str, evaluated_at: str | None) -> bool:
     """Missing or unparsable instants are not available at T."""
-    if not observed_at:
+    if observed_at is None or observed_at == "":
         return False
     if not evaluated_at:
         return True
     try:
-        return instant(observed_at) <= instant(evaluated_at)
+        return instant(str(observed_at)) <= instant(evaluated_at)
     except ValueError:
         return False
 
@@ -336,7 +338,7 @@ def main() -> int:
             continue
         expected = json.loads(exp_path.read_text(encoding="utf-8"))
         if expected.get("protocol_version") != POLICY["protocol"] or expected.get("policy_version") != POLICY["version"]:
-            rows.append((path.stem, "—", "IDENTITY", "expected file names a different ewp/policy"))
+            rows.append((path.stem, "—", "IDENTITY", "expected file names a different protocol/policy"))
             failed += 1
             continue
         got = warrant_now(view)

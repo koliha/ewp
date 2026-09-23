@@ -26,6 +26,7 @@ import dataclasses
 import hmac
 import json
 import os
+import sqlite3
 import sys
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -73,6 +74,7 @@ REFUSE_INVALID_ACTION = "EWP_REFUSE_INVALID_ACTION"
 REFUSE_INVALID_VIEW = "EWP_REFUSE_INVALID_EVIDENCE_VIEW"
 REFUSE_IMMUTABLE_RECORD = "EWP_REFUSE_IMMUTABLE_RECORD"
 REFUSE_INVALID_ARGUMENTS = "EWP_REFUSE_INVALID_ARGUMENTS"
+REFUSE_LEDGER = "EWP_REFUSE_LEDGER_UNAVAILABLE"
 
 # JSON-RPC error codes for non-tool methods (MCP: resource not found is -32002).
 _RPC_CODES = {"EWP_UNKNOWN_RESOURCE": -32002, REFUSE_MISSING_VIEW: -32002}
@@ -233,6 +235,8 @@ class EwpMcp:
                 raise McpError(REFUSE_IMMUTABLE_RECORD, str(exc)) from exc
             except MissingViewError as exc:
                 raise McpError(REFUSE_MISSING_VIEW, str(exc.args[0] if exc.args else exc)) from exc
+            except (sqlite3.Error, LedgerError) as exc:
+                raise McpError(REFUSE_LEDGER, f"ledger error: {exc}") from exc
             except KeyError as exc:
                 raise McpError(REFUSE_INVALID_ARGUMENTS, f"missing required argument {exc}") from exc
             except (TypeError, ValueError, AttributeError) as exc:

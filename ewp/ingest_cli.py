@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import sqlite3
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -88,7 +89,7 @@ def _ingest(store: SQLiteAdapter, args: argparse.Namespace) -> int:
                     )
                 store.load_view(view)
                 w = warrant_now(view, Policy(), evaluated_at).warrant
-            except (InvalidEvidenceView, ImmutableRecordError, PermissionError, KeyError, TypeError, ValueError) as exc:
+            except (InvalidEvidenceView, ImmutableRecordError, PermissionError, KeyError, TypeError, ValueError, sqlite3.Error) as exc:
                 reason = f"missing field {exc}" if isinstance(exc, KeyError) else str(exc)
                 print(f"FAIL {label}: {reason}", file=sys.stderr)
                 failures += 1

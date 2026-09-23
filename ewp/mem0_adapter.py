@@ -191,7 +191,9 @@ def items_to_view(
             )
             continue
 
-        prop = str(blob.get("proposition_id") or proposition_id)
+        # The record's own proposition (may be a variant pid:<suffix>); the
+        # tag `proposition_id` is the view the memory belongs to.
+        prop = str(blob.get("record_proposition_id") or blob.get("proposition_id") or proposition_id)
         text = _item_text(item)
         polarity = blob.get("polarity") or "supports"
         if kind in {"memory", "assertion"}:
@@ -456,6 +458,7 @@ class Mem0Adapter:
             metadata = {
                 EWP_META_KEY: {
                     **source_meta(assertion.source),
+                    "record_proposition_id": assertion.proposition_id,
                     "kind": "assertion",
                     "assertion_id": assertion.assertion_id,
                     "asserted_by": assertion.asserted_by,
@@ -470,6 +473,7 @@ class Mem0Adapter:
             metadata = {
                 EWP_META_KEY: {
                     **source_meta(ev.source),
+                    "record_proposition_id": ev.proposition_id,
                     "kind": "evidence",
                     "evidence_id": ev.evidence_id,
                     "polarity": ev.polarity,

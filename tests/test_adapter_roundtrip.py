@@ -49,6 +49,7 @@ GRAPHITI_FIELD_LOSSES = {
     "asserted_by / assertion_confidence": "an extracted fact edge has no asserter or confidence",
     "evidence content": "evidence is the episode body plus store-local temporal notes",
     "duplicate assertions": "identical text from one source collapses to one fact edge",
+    "record proposition_id": "a record naming a variant pid:<suffix> reads back as the view's proposition",
 }
 
 
@@ -115,8 +116,8 @@ def _source_key(s) -> tuple:
 def graphiti_comparable(view: EvidenceView) -> dict:
     """Everything except GRAPHITI_FIELD_LOSSES, keyed by content."""
     return {
-        "assertions": {(a.proposition_id, a.text, a.asserted_at) + _source_key(a.source) for a in view.assertions},
-        "evidence": {(e.proposition_id, e.polarity, e.observed_at) + _source_key(e.source) for e in view.evidence},
+        "assertions": {(a.text, a.asserted_at) + _source_key(a.source) for a in view.assertions},
+        "evidence": {(e.polarity, e.observed_at) + _source_key(e.source) for e in view.evidence},
         "checks": canonical(view)["checks"],
         "conflicts": canonical(view)["conflicts"],
         "lineage": canonical(view)["lineage"],

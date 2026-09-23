@@ -473,6 +473,20 @@ def test_opposing_warning_names_the_opposing_class():
     print("PASS opposing-check warning names the opposing check's class, not the strongest class")
 
 
+def test_ledger_errors_are_tool_errors():
+    import sqlite3
+
+    server = seeded()
+
+    def locked(*_a, **_k):
+        raise sqlite3.OperationalError("database is locked")
+
+    server.store.get_view = locked
+    result = tool(server, "ewp_warrant_now", {"proposition_id": "P-win", "evaluated_at": EVAL})
+    assert error_code(result) == "EWP_REFUSE_LEDGER_UNAVAILABLE", result
+    print("PASS a busy or broken ledger is an isError tool result, not a JSON-RPC crash")
+
+
 def test_null_id_and_resource_templates():
     server = EwpMcp()
     reply = server.handle({"jsonrpc": "2.0", "id": None, "method": "tools/list"})
@@ -507,6 +521,7 @@ def main() -> int:
     test_read_only_agent_server()
     test_memory_context_flags_contradicting_check()
     test_opposing_warning_names_the_opposing_class()
+    test_ledger_errors_are_tool_errors()
     test_null_id_and_resource_templates()
     print("MCP SUITE PASS")
     return 0

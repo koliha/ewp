@@ -10,14 +10,14 @@ The five axes are the interchange contract, compared under the same `protocol_ve
 |---|---|---|---|
 | Canonical | `ewp/fixtures.py` | 14 | goldens + implementer pack |
 | Pathological | `ewp/pathological.py` | 12 | goldens + implementer pack |
-| Hardening | `ewp/laundering.py` | 25 | implementer pack |
-| Invalid (must be refused) | `ewp/laundering.py` `INVALID_PACK` | 23 | implementer pack |
+| Hardening | `ewp/laundering.py` | 26 | implementer pack |
+| Invalid (must be refused) | `ewp/laundering.py` `INVALID_PACK` | 24 | implementer pack |
 
-The hardening pack tries to break method-only “verification,” latest-row supersession, incomplete-view optimism, unused `check.result`, implied conflict, human-method laundering, endogenous freshness refresh, subject binding (`customer-42` vs `customer-99`, `customer-42` vs `invoice-999`, `server01` vs `customer-42`, omitted check subjects, a shared subject that should verify), future-dated and unparsable check times at T, `freshness_policy_seconds=0`, and a `superseded_by` edge between unrelated propositions.
+The hardening pack tries to break method-only “verification,” latest-row supersession, incomplete-view optimism, unused `check.result`, implied conflict, human-method laundering, endogenous freshness refresh, subject binding (`customer-42` vs `customer-99`, `customer-42` vs `invoice-999`, `server01` vs `customer-42`, omitted check subjects, a shared subject that should verify), future-dated and unparsable check times at T, `freshness_policy_seconds=0`, records that name a variant `proposition_id:<suffix>`, and a `superseded_by` edge between unrelated propositions.
 
-The invalid pack is one view per input rule: records about another proposition, a conflict that does not name the proposition, duplicate assertion/evidence/check/conflict ids, one `source_id` with two different `SourceRef`s, string `subjects` / `omitted_sources` / conflict participants, a lineage edge without an endpoint, negative or boolean freshness, a string `degraded`, each unknown enum value, an unparsable `evaluated_at`, a missing required field, and a non-numeric confidence. The only conforming output is a refusal.
+The invalid pack is one view per input rule: records about another proposition, a conflict that does not name the proposition, duplicate assertion/evidence/check/conflict ids, one `source_id` with two different `SourceRef`s, string `subjects` / `omitted_sources` / conflict participants, a lineage edge without an endpoint, negative or boolean freshness, a string `degraded`, each unknown enum value, an unparsable `evaluated_at`, a missing required field, and a non-numeric or non-finite confidence. The only conforming output is a refusal.
 
-All 51 fixtures and their expected axes, and the 23 invalid views, live in `docs/implementer/`. The reference evaluator, the second evaluator (`ewp/warrant_b.py`), and an independent third evaluator (`docs/implementer/third_eval.py`, written from `POLICY.md` / `policy.json` only) must all agree on the axes and all refuse the invalid views.
+All 52 fixtures and their expected axes, and the 24 invalid views, live in `docs/implementer/`. The reference evaluator, the second evaluator (`ewp/warrant_b.py`), and an independent third evaluator (`docs/implementer/third_eval.py`, written from `POLICY.md` / `policy.json` only) must all agree on the axes and all refuse the invalid views.
 
 ## Store independence
 
@@ -59,8 +59,8 @@ implementer_pack_sha256: …
 Adapter: graphiti-core 0.30.2 — NOT VALIDATED
 Canonical: 14/14
 Pathological: 12/12
-Hardening: 25/25
-Invalid refused: 23/23
+Hardening: 26/26
+Invalid refused: 24/24
 Result: CONFORMANT
 ```
 

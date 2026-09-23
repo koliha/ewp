@@ -124,7 +124,7 @@ def build():
     story.append(p(s, "CoverKicker", "EPISTEMIC WARRANT PROTOCOL"))
     story.append(p(s, "CoverTitle", "What an agent is justified<br/>in accepting — and why"))
     story.append(p(s, "CoverSub", f"{LOCK['protocol']}  ·  Policy {LOCK['policy']}"))
-    story.append(p(s, "CoverSub", "MIT  ·  Python 3.12+  ·  Canonical 14  ·  Pathological 12  ·  Hardening 25  ·  Goldens 26"))
+    story.append(p(s, "CoverSub", "MIT  ·  Python 3.12+  ·  Canonical 14  ·  Pathological 12  ·  Hardening 26  ·  Goldens 26"))
     story.append(Spacer(1, 0.12 * inch))
     story.append(p(s, "Lead", "EWP defines the deterministic boundary between what an AI agent's memory contains and what the agent is epistemically justified in accepting."))
     story.append(p(s, "RuleLine", "Memory is evidence, not truth."))
@@ -238,7 +238,7 @@ def build():
         "python3 tests/ci.py\npython3 tests/report.py\npython3 tests/runner.py\npython3 tests/runner_pathological.py",
         s["CodeBlock"],
     ))
-    story.append(p(s, "Body", "CI enforces the fixture, evaluator, policy, golden, and implementer-pack lock hashes; all 26 goldens; all 51 fixtures through the codec, SQLite, JSON, Mem0, and fake Graphiti with identical axes and fields (Graphiti's listed losses aside); 23 invalid views refused; the hardening pack; the MCP façade; and an independent third evaluator. Changing a golden, the pack, the policy text, or the evaluator requires a protocol or policy version change, then python3 tests/ci.py --write-lock."))
+    story.append(p(s, "Body", "CI enforces the fixture, evaluator, policy, golden, and implementer-pack lock hashes; all 26 goldens; all 52 fixtures through the codec, SQLite, JSON, Mem0, and fake Graphiti with identical axes and fields (Graphiti's listed losses aside); 24 invalid views refused; the hardening pack; the MCP façade; and an independent third evaluator. Changing a golden, the pack, the policy text, or the evaluator requires a protocol or policy version change, then python3 tests/ci.py --write-lock."))
     story.append(table(s, ["Class", "Meaning"], [
         ["INGEST_LOSS", "Store dropped assertions, sources, lineage, checks, or conflicts."],
         ["ADAPTER_MAP_LOSS", "Store has the rows; EvidenceView is incomplete."],
@@ -252,7 +252,7 @@ def build():
     story.append(Preformatted(
         f"Epistemic Warrant Protocol {LOCK['protocol']}\n"
         f"Policy: {LOCK['policy']}\n"
-        "Canonical: 14/14   Pathological: 12/12   Hardening: 25/25   Invalid refused: 23/23\n"
+        "Canonical: 14/14   Pathological: 12/12   Hardening: 26/26   Invalid refused: 24/24\n"
         "SQLite PASS    JSON PASS    Fake Graphiti PASS    Mem0 (fake client) PASS\n"
         f"graphiti-core {LOCK['graphiti_pin']} — NOT VALIDATED\n"
         + "".join(f"{key}:\n{LOCK[key]}\n" for key in LOCK_KEYS).rstrip("\n"),

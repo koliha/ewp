@@ -410,6 +410,22 @@ def zero_freshness_is_stale() -> EvidenceView:
     )
 
 
+def variant_record_propositions() -> EvidenceView:
+    """Records may name a variant of the proposition (pid:<suffix>). Stores must keep it."""
+    s = src("inv", "L-inv", "tool")
+    return EvidenceView(
+        "l-variant-records",
+        "P-os",
+        assertions=[
+            assertion("a19", "P-os:2019", "server01 ran Server 2019", s),
+            assertion("a22", "P-os:2022", "server01 runs Server 2022", s),
+        ],
+        evidence=[ev("e22", "P-os:2022", "supports", s, "inventory after upgrade")],
+        checks=[VerificationCheck("k1", "tool_observation", "server01", s, T1, "supports")],
+        freshness_policy_seconds=86400 * 7,
+    )
+
+
 PACK = [
     ("launder_repetition", launder_repetition),
     ("launder_summary", launder_summary),
@@ -436,6 +452,7 @@ PACK = [
     ("garbage_timestamp_is_not_available", garbage_timestamp_is_not_available),
     ("unrelated_supersession_is_not_superseded", unrelated_supersession_is_not_superseded),
     ("zero_freshness_is_stale", zero_freshness_is_stale),
+    ("variant_record_propositions", variant_record_propositions),
 ]
 
 EVAL_AT = {
@@ -495,6 +512,7 @@ INVALID_PACK = [
     ("unparsable_evaluated_at", lambda: _mutated(_base, lambda d: d.__setitem__("evaluated_at", "not-a-time"))),
     ("missing_required_field", lambda: _mutated(_base, lambda d: d["evidence"][0].pop("content"))),
     ("non_numeric_confidence", lambda: _mutated(_base, lambda d: d["assertions"][0].__setitem__("assertion_confidence", "high"))),
+    ("non_finite_confidence", lambda: _mutated(_base, lambda d: d["assertions"][0].__setitem__("assertion_confidence", "nan"))),
 ]
 
 

@@ -2,7 +2,7 @@
 
 ## [Unreleased] — EWP-0.2.0
 
-Not yet released. Protocol `EWP-0.2.0`, policy `reference-v2`. The development iterations previously listed as 0.2.0, 0.2.0-docs, 0.2.1, and 0.2.2 are folded into this entry; none of them was a release. The 26 golden axes are unchanged from 0.1.0 (only their identity fields changed); the hardening pack grew to 25 fixtures, a 23-view invalid pack was added, and all of it is locked.
+Not yet released. Protocol `EWP-0.2.0`, policy `reference-v2`. The development iterations previously listed as 0.2.0, 0.2.0-docs, 0.2.1, and 0.2.2 are folded into this entry; none of them was a release. The 26 golden axes are unchanged from 0.1.0 (only their identity fields changed); the hardening pack grew to 26 fixtures, a 24-view invalid pack was added, and all of it is locked.
 
 ### Identity
 
@@ -24,7 +24,7 @@ Not yet released. Protocol `EWP-0.2.0`, policy `reference-v2`. The development i
 - Checks whose subjects do not bind still count toward implied conflict (stated explicitly in `POLICY.md`).
 - Identity is unambiguous: repeated assertion/evidence/check/conflict ids in one view are refused (even identical repeats), and one `source_id` must carry one `SourceRef`. Previously one source with two `lineage_id`s counted as two independent lineages in memory while SQLite refused the same view.
 - `omitted_sources` and conflict `proposition_ids` must be lists of strings (a string was iterated as characters); lineage endpoints must be non-empty strings (a missing endpoint was stored as `"None"`).
-- A missing or null required field, a record that is not an object, or a non-numeric confidence is refused as an invalid view with a clear message (the codec used to raise a bare `KeyError`/`TypeError`, and turned a null id into the string `"None"`); the third evaluator checks the same required fields.
+- A missing or null required field, a record that is not an object, or a non-numeric or non-finite (`nan`, `inf`) confidence is refused as an invalid view with a clear message (the codec used to raise a bare `KeyError`/`TypeError`, and turned a null id into the string `"None"`); the third evaluator checks the same required fields.
 - An unparsable `evaluated_at` is refused with a clear message by both reference evaluators and the third evaluator (the third evaluator used to return `UNACCEPTED`).
 
 ### Action gate
@@ -57,6 +57,9 @@ Not yet released. Protocol `EWP-0.2.0`, policy `reference-v2`. The development i
 - Graphiti sources take their `observed_at` from the episode, not from whichever edge cites it, so one episode behind two facts is one consistent `SourceRef`.
 - `ewp-ingest` reports an unusable ledger (older schema) with a message instead of a traceback.
 - Record ids are stable across a proposition's snapshots in every store: the JSON store and Mem0 now refuse a later snapshot that reuses an assertion/evidence/check/source id for different content or changes a conflict's participants, as SQLite's ledger already did (one shared check, `codec.record_identity_conflicts`). SQLite stores check subjects sorted, so reordered subjects are not a change. A cross-store test runs one sequence of writes against all three.
+- The JSON codec normalizes optional source ids (`extractor_id`, `parent_source_id`) with `str()` like required ones (a number came back from SQLite as text, so an identical re-put was refused).
+- Mem0 keeps each record's own `proposition_id` (a variant `pid:<suffix>` was overwritten with the view's, and a later snapshot with the same record was then falsely refused). Graphiti lists the collapse as a named, warrant-neutral field loss.
+- `ewp-ingest` and the MCP server report SQLite errors (busy, locked, corrupt) as `EWP_REFUSE_LEDGER_UNAVAILABLE` / a per-view failure instead of a traceback or generic `-32000`.
 - The JSON codec reads lineage endpoints from `from_id` / `to_id` only (undocumented `from` / `to` aliases were accepted by the codec but not by the third evaluator).
 - Mem0: memories tagged with a `view_id` but no sidecar (an interrupted ingest) are never read, including when the proposition has no completed snapshot yet.
 
@@ -89,7 +92,7 @@ Not yet released. Protocol `EWP-0.2.0`, policy `reference-v2`. The development i
 - `tests/test_mcp.py` drives the real server over stdio as a subprocess and, when the `mcp` package is installed, through the official MCP Python SDK client (verified against `mcp` 2.2.0, negotiating `2025-06-18`). The GitHub workflow installs `mcp` so this runs in CI.
 - Removed `protocol/pathological_fixtures.py`, which was not valid Python and was not imported.
 - `tests/test_adapter_roundtrip.py` also compares every `SCHEMA.md` field: the codec, SQLite, JSON, and Mem0 must return views unchanged; fake Graphiti may lose only the fields listed in `GRAPHITI_FIELD_LOSSES`.
-- Hardening fixture `zero_freshness_is_stale`; invalid pack of 23 views (one per input rule) in `docs/implementer/invalid/`, refused by the kernel, the codec, and the third evaluator.
+- Hardening fixtures `zero_freshness_is_stale` and `variant_record_propositions`; invalid pack of 24 views (one per input rule) in `docs/implementer/invalid/`, refused by the kernel, the codec, and the third evaluator.
 - The CI stamp carries `ci_surface_sha256` over every file CI exercises (kernel, adapters, MCP, tests, implementer pack, examples, workflow), hashed before the run; `tests/report.py` requires it to match. Report counts come from the packs.
 - CI runs `runner_pathological.py` and `test_ingest_cli.py`, and a tester-path job: `pip install .`, `ewp-ingest` on the example, and an `ewp-mcp` handshake.
 - `RELEASE.lock.json` and the CI stamp are written atomically (temp file + replace, with a short retry), so a Windows scanner briefly holding the file no longer fails `--write-lock`. Unused `SQLiteAdapter.has_proposition` removed.

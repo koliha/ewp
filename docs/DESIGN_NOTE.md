@@ -90,7 +90,7 @@ identical axes
 
 `ewp/warrant.py` and `ewp/warrant_b.py` are two control flows. `tests/test_laundering.py` compares them. A naive evaluator that trusts `method` alone must *disagree* on `launder_verification`.
 
-Until independent implementations agree on all 51 fixtures (canonical, pathological, hardening) and refuse all 23 invalid views, EWP is an architecture plus a reference function. Agreement on the five axes is what earns the word protocol. `docs/implementer/third_eval.py` is the first such implementation, written from the pack alone.
+Until independent implementations agree on all 52 fixtures (canonical, pathological, hardening) and refuse all 24 invalid views, EWP is an architecture plus a reference function. Agreement on the five axes is what earns the word protocol. `docs/implementer/third_eval.py` is the first such implementation, written from the pack alone.
 
 The third implementation is the experiment. Give it only schema, policy prose, fixture inputs, and expected five-axis outputs. Do not give it `warrant.py`, helper names, or fixture-specific hints. Capture disagreements. Classify each:
 

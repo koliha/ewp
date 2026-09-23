@@ -10,8 +10,9 @@ What decoding does and does not do:
 * A falsy value is kept: freshness 0 stays 0, an empty retrieval_scope stays
   empty and reads as not complete. Only a missing or null field takes its
   schema default.
-* Identifier and text fields are normalized with str(), and
-  assertion_confidence with float().
+* Identifier and text fields (required and optional) are normalized with
+  str(), and assertion_confidence with float(); a non-finite confidence is
+  refused by validate_view.
 
 `canonical_dict` is the one order-independent form of a view. Content ids,
 snapshot comparison in the stores, and adapter conformance all use it.
@@ -146,6 +147,12 @@ def _req(d: dict[str, Any], key: str) -> Any:
     return value
 
 
+def _opt_str(d: dict[str, Any], key: str) -> str | None:
+    """An optional id: absent or null stays None; any other value is normalized with str()."""
+    value = d.get(key)
+    return None if value is None else str(value)
+
+
 def source_from_dict(d: dict[str, Any]) -> SourceRef:
     return SourceRef(
         source_id=str(_req(d, "source_id")),
@@ -155,8 +162,8 @@ def source_from_dict(d: dict[str, Any]) -> SourceRef:
         snapshot_id=str(_req(d, "snapshot_id")),
         content_hash=str(_req(d, "content_hash")),
         observed_at=str(_req(d, "observed_at")),
-        extractor_id=d.get("extractor_id"),
-        parent_source_id=d.get("parent_source_id"),
+        extractor_id=_opt_str(d, "extractor_id"),
+        parent_source_id=_opt_str(d, "parent_source_id"),
     )
 
 
@@ -241,6 +248,7 @@ def _decode_view(d: dict[str, Any]) -> EvidenceView:
         subjects=subjects_from(d.get("subjects")),
     )
     return view
+
 
 def warrant_from_dict(d: dict[str, Any]) -> WarrantView:
     w = d.get("warrant") or {}

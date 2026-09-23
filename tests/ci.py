@@ -49,7 +49,7 @@ def check_lock() -> None:
                 f"SILENT DRIFT on {key}\n"
                 f"  lock:    {pinned.get(key)}\n"
                 f"  current: {current[key]}\n"
-                "Bump ewp/policy version explicitly. Do not refresh goldens to please a store."
+                "Bump the protocol or policy version explicitly. Do not refresh goldens to please a store."
             )
     print("lock hashes match")
     print(json.dumps({k: pinned[k] for k in ("protocol", "policy", *LOCK_KEYS)}, indent=2))

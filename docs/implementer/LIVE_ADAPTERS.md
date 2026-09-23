@@ -9,7 +9,7 @@ which fields survive.
 Graphiti and Mem0 paths and requires identical axes. Mem0 must also return
 every field unchanged; fake Graphiti may lose only the fields listed in
 `GRAPHITI_FIELD_LOSSES` (record ids, asserter, confidence, evidence content,
-duplicate identical assertions).
+duplicate identical assertions, record-level variant proposition ids).
 
 ```
 store client  →  EvidenceView  →  warrant_now(view, policy, evaluated_at)

@@ -493,6 +493,21 @@ def test_conflict_ids_are_per_proposition_and_order_is_not_content():
     print("PASS conflict ids are per proposition; record order is not content (ids, SQLite)")
 
 
+def test_codec_normalizes_optional_ids():
+    raw = fixture_verified_current().to_dict()
+    for part in ("assertions", "evidence", "checks"):
+        for record in raw[part]:
+            record["source"]["extractor_id"] = 7
+            record["source"]["parent_source_id"] = 12
+    view = view_from_dict(raw)
+    assert view.assertions[0].source.extractor_id == "7" and view.checks[0].source.parent_source_id == "12"
+    db = SQLiteAdapter()
+    db.load_view(view)
+    db.load_view(view_from_dict(raw))  # identical re-put: a no-op, not a "change"
+    assert db.get_view("P-win").assertions[0].source.extractor_id == "7"
+    print("PASS codec normalizes optional source ids; identical re-put through SQLite is a no-op")
+
+
 def main() -> int:
     test_future_assertion_and_evidence_not_available_at_t()
     test_naive_and_aware_timestamps_compare()
@@ -512,6 +527,7 @@ def main() -> int:
     test_sqlite_concurrent_processes_do_not_lose_appends()
     test_sqlite_read_only_ledger()
     test_conflict_ids_are_per_proposition_and_order_is_not_content()
+    test_codec_normalizes_optional_ids()
     print("HARDENING SUITE PASS")
     return 0
 

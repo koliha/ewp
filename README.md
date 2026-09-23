@@ -231,8 +231,8 @@ The v0.2.0 *reference kernel*:
 - deterministic `warrant_now()` — no network, no LLM, no hidden writes
 - shared `ewp/classify.py` used by both reference evaluators
 - separate `may_act()`
-- 14 canonical + 12 pathological + 25 hardening fixtures (laundering, subject binding, time at T, supersession scope, zero freshness), plus 23 invalid views that must be refused
-- 26 pinned golden `WarrantView`s; all 51 fixtures' expected axes pinned in `docs/implementer/`
+- 14 canonical + 12 pathological + 26 hardening fixtures (laundering, subject binding, time at T, supersession scope, zero freshness), plus 24 invalid views that must be refused
+- 26 pinned golden `WarrantView`s; all 52 fixtures' expected axes pinned in `docs/implementer/`
 - an independent third evaluator (`docs/implementer/third_eval.py`) written from the policy text alone
 - SQLite and JSON reference adapters (immutable snapshots; SQLite over an append-only ledger)
 - `ewp-ingest` to load your own evidence from JSON, and `ewp-mcp` to serve it read-only to Claude (`QUICKSTART.md`)
@@ -308,7 +308,7 @@ python3 tests/runner.py
 python3 tests/runner_pathological.py
 ```
 
-CI enforces the fixture, evaluator, policy, golden, and implementer-pack lock hashes; all 26 goldens; all 51 fixtures through the codec, SQLite, JSON, Mem0, and fake Graphiti with identical axes and fields; 23 invalid views refused by all three evaluators; fake-Graphiti isolation; the hardening pack; live-adapter mappings; the MCP façade; and the third evaluator. Changing a golden, the pack, the policy text, or the evaluator requires an explicit version change, then `python3 tests/ci.py --write-lock`. `tests/report.py` only says `CONFORMANT` for a CI stamp taken on the exact CI surface it is run on (kernel, adapters, MCP server, tests, implementer pack, examples, workflow).
+CI enforces the fixture, evaluator, policy, golden, and implementer-pack lock hashes; all 26 goldens; all 52 fixtures through the codec, SQLite, JSON, Mem0, and fake Graphiti with identical axes and fields; 24 invalid views refused by all three evaluators; fake-Graphiti isolation; the hardening pack; live-adapter mappings; the MCP façade; and the third evaluator. Changing a golden, the pack, the policy text, or the evaluator requires an explicit version change, then `python3 tests/ci.py --write-lock`. `tests/report.py` only says `CONFORMANT` for a CI stamp taken on the exact CI surface it is run on (kernel, adapters, MCP server, tests, implementer pack, examples, workflow).
 
 Failure classes: `INGEST_LOSS`, `ADAPTER_MAP_LOSS`, `WARRANT_MISMATCH`, `RETRIEVAL_LOSS`, `EXPECTED_DIVERGENCE`.
 
@@ -327,8 +327,8 @@ Epistemic Warrant Protocol EWP-0.2.0
 Policy: reference-v2
 Canonical: 14/14
 Pathological: 12/12
-Hardening: 25/25
-Invalid refused: 23/23
+Hardening: 26/26
+Invalid refused: 24/24
 SQLite PASS
 JSON PASS
 Fake Graphiti PASS
@@ -336,15 +336,15 @@ Mem0 (fake client) PASS
 graphiti-core 0.30.2 — NOT VALIDATED
 
 fixture_set_sha256:
-b87f3c5f6f4032c390cf31067d5c425685cd0f9eec990f6ea7a3848e3fb7bfb9
+8ce13da7d39cf8e82633f62e0a069bb15d60de32a5c5d60a324c73a9bf5b865f
 evaluator_set_sha256:
-fc7085c7014d13139f2d39635bc46a0e29334c5b4e2bf743c1a4450064ebaf0b
+8601420fde07c974f15b792f64eb86f549b8c0e7af677f55d2100f2cc389c1ca
 policy_set_sha256:
-8056fb34a42546166a21554a16af87cb78127540e1c0616dd7d9f681b56dc66a
+b454db46f6a94a6d97e750a803168b62d8493519ff9d348a6f931b23467e5d3f
 golden_set_sha256:
 1db7cab34639a87ce35c36635d4b6cffa46ba08855107fc9a04a4b89348a81c8
 implementer_pack_sha256:
-2abab1f3d426166d1cea8eed052def4fb7d5cc4262e1dd11e57c3817f061f2df
+76dee67e5408cd7aab08628367b1e2fdf8488e7016d26b4bbb852f970dfbec20
 ```
 
 A store that produces a different answer has an adapter or conformance problem, not a license to move the goldens.
@@ -382,7 +382,7 @@ That answer can be reproduced, tested, inspected, and challenged.
 
 ## Status
 
-EWP-0.2.0 under policy `reference-v2` is not yet released and is still changing in review. The 26 golden axes are unchanged from 0.1.0; their identity fields now read `reference-v2` and `EWP-0.2.0`. The hardening pack (25) and the invalid pack (23) are locked. Known limits: conflict rows and lineage edges carry no timestamp, so they are not filtered by availability at T; assertions carry no polarity. See `CHANGELOG.md`.
+EWP-0.2.0 under policy `reference-v2` is not yet released and is still changing in review. The 26 golden axes are unchanged from 0.1.0; their identity fields now read `reference-v2` and `EWP-0.2.0`. The hardening pack (26) and the invalid pack (24) are locked. Known limits: conflict rows and lineage edges carry no timestamp, so they are not filtered by availability at T; assertions carry no polarity. See `CHANGELOG.md`.
 
 New stores may reveal adapter bugs, retrieval loss, missing tests, or a genuine hole. They do not redefine warrant.
 

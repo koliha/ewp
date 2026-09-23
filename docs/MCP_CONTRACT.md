@@ -102,6 +102,7 @@ The two proposition URIs are listed by `resources/templates/list`.
 | `EWP_REFUSE_UNATTESTED_TRUSTED_ORIGIN` | Trusted origin without `ingest_attestation=true` |
 | `EWP_REFUSE_IMMUTABLE_RECORD` | A stored record id re-sent with different content |
 | `EWP_REFUSE_INVALID_EVIDENCE_VIEW` | A value outside a closed enum, a record about another proposition, a conflict that does not name the proposition, or a mistyped field (`subjects` not a list, bad freshness, non-boolean `degraded`) |
+| `EWP_REFUSE_LEDGER_UNAVAILABLE` | The ledger could not be read or written (busy beyond the timeout, locked, corrupt) |
 | `EWP_REFUSE_INVALID_ARGUMENTS` | A required tool argument is missing or has the wrong type (e.g. `evidence.polarity`) |
 | `EWP_REFUSE_PERSIST_WARRANT` | Caller tried to store a WarrantView |
 | `EWP_REFUSE_CLIENT_SUPPLIED_WARRANT` | `ewp_may_act` was handed a WarrantView |
