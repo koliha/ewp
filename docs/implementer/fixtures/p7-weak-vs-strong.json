@@ -57,7 +57,8 @@
         "parent_source_id": null,
         "snapshot_id": "snap:s-strong",
         "source_id": "s-strong"
-      }
+      },
+      "subjects": []
     }
   ],
   "conflicts": [
@@ -115,5 +116,6 @@
   "omitted_sources": [],
   "proposition_id": "P-x",
   "retrieval_scope": "complete",
+  "subjects": [],
   "view_id": "p7"
 }

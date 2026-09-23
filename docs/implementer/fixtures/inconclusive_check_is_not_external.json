@@ -38,7 +38,8 @@
         "parent_source_id": null,
         "snapshot_id": "snap:probe",
         "source_id": "probe"
-      }
+      },
+      "subjects": []
     }
   ],
   "conflicts": [],
@@ -69,5 +70,6 @@
   "omitted_sources": [],
   "proposition_id": "P-win",
   "retrieval_scope": "complete",
+  "subjects": [],
   "view_id": "l-inconclusive"
 }

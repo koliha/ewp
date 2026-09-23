@@ -6,6 +6,7 @@ from typing import Literal
 from .types import WarrantView
 
 ActDecision = Literal["MAY_ACT", "REQUIRE_CONFIRMATION", "DENY"]
+RISK_LEVELS = frozenset({"low", "medium", "high"})
 
 
 @dataclass(frozen=True)
@@ -28,12 +29,18 @@ def may_act(warrant: WarrantView, action: Action, risk_policy: RiskPolicy) -> Ac
     """Separate gate. Epistemic state in, authorization/risk out.
 
     Flags on RiskPolicy are live. high_requires_no_open_conflict and
-    reversible are not documentation.
+    reversible are not documentation. An unknown risk level is refused,
+    not treated as a milder one. A superseded proposition is never
+    acted on without confirmation.
     """
+    if action.risk not in RISK_LEVELS:
+        raise ValueError(f"unknown action risk {action.risk!r}; expected one of {sorted(RISK_LEVELS)}")
     w = warrant.warrant
     if w.acceptance == "UNACCEPTED":
         return "DENY"
     if action.risk == "high":
+        if w.currency == "SUPERSEDED":
+            return "DENY"
         if risk_policy.high_requires_accepted and w.acceptance != "ACCEPTED":
             return "DENY"
         if risk_policy.high_requires_no_open_conflict and w.conflict == "OPEN":
@@ -43,6 +50,8 @@ def may_act(warrant: WarrantView, action: Action, risk_policy: RiskPolicy) -> Ac
         if w.sufficiency == "DEGRADED" or w.currency == "STALE":
             return "REQUIRE_CONFIRMATION"
         return "MAY_ACT"
+    if w.currency == "SUPERSEDED":
+        return "REQUIRE_CONFIRMATION"
     if w.conflict == "OPEN":
         return "REQUIRE_CONFIRMATION"
     if w.sufficiency == "DEGRADED":

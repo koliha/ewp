@@ -2,7 +2,7 @@
 
 Wiring rule: same fixtures, same warrant_now, same goldens.
 A mismatch is INGEST_LOSS / ADAPTER_MAP_LOSS / WARRANT_MISMATCH / RETRIEVAL_LOSS.
-Never change v0.1 to accommodate Graphiti.
+Never change the protocol to accommodate Graphiti.
 
 The production mapping lives in graphiti_client_adapter.py.
 """

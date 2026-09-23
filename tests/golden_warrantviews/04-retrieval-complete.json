@@ -12,9 +12,10 @@
   "opposing_evidence_ids": [
     "en"
   ],
-  "policy_id": "reference-v1",
-  "policy_version": "reference-v1",
+  "policy_id": "reference-v2",
+  "policy_version": "reference-v2",
   "proposition_id": "P-x",
+  "protocol_version": "EWP-0.2.0",
   "resolved_conflicts": [],
   "stale": false,
   "superseded_by": [],

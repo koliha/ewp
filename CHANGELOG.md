@@ -1,48 +1,72 @@
 # Changelog
 
-## 0.2.2 — 2026-09-22
+## [Unreleased] — EWP-0.2.0
 
-Policy tightening + adapter completeness. Protocol identity stays `EWP-0.2.0` / `reference-v1`. Frozen 26 goldens unchanged; evaluator lock moves.
+Not yet released. Protocol `EWP-0.2.0`, policy `reference-v2`. The development iterations previously listed as 0.2.0, 0.2.0-docs, 0.2.1, and 0.2.2 are folded into this entry; none of them was a release. The 26 golden axes are unchanged from 0.1.0 (only their identity fields changed); the hardening pack grew to 24 fixtures and all 50 fixtures are locked.
 
-- Scope caps use declared `subjects[]` only. The `scope` string is not scraped for identifiers. A check with no subjects does not cap; a check that names subjects the view did not declare cannot raise `EXTERNAL`/`HUMAN`.
-- Graphiti ingest emits an edge for evidence whose text is not already an assertion, so opposing evidence-only lineages survive `raw_view` (`runner_graphiti` fixture 04).
-- Guide PDF rebuilt against the shipped MCP façade (framed stdio, ingest token, `subjects[]`).
+### Identity
 
-## 0.2.1 — 2026-09-22
+- Policy is `reference-v2`. Subject binding, supersession scope, availability, and input validation changed, so `reference-v1` no longer names this evaluator's judgments. `warrant_now` refuses `reference-v1` and any other identity it does not implement.
+- `WarrantView` carries `protocol_version` (`EWP-0.2.0`). Reproducibility is stated over protocol version + view + policy + `evaluated_at`.
+- `WarrantView.normative()` is `protocol_version`, `proposition_id`, `view_id`, `policy_id`, `policy_version`, `evaluated_at`, and the five axes. `rationale_codes` and `strength` are diagnostic, not part of the equality contract. `docs/PROTOCOL.md`, `docs/implementer/SCHEMA.md`, and the code now agree on this.
 
-Operational hardening. Protocol identity stays `EWP-0.2.0` / `reference-v1`. Frozen 26 goldens unchanged; evaluator lock moves.
+### Evaluator (`reference-v2`)
 
-- MCP stdio speaks Content-Length framed JSON-RPC. Line-delimited JSON is not MCP.
-- HTTP writes require `--ingest-token`. `ingest_attestation` is not authentication; trusted origins also need `--allow-ingest` on stdio.
-- `ewp_may_act` refuses a caller-built `WarrantView`. It evaluates the stored or inline view.
-- `warrant_now` rejects unknown `policy_id` / `policy_version` instead of echoing them onto ACCEPTED.
-- `available_at` applies to assertions and evidence, not only checks. Naive timestamps are UTC. Unparsable timestamps degrade instead of crashing.
-- `may_act` reads `high_requires_no_open_conflict` and `reversible`.
-- SQLite uses a lock + `check_same_thread=False`. Lineage rows are unique.
-- Graphiti parked sidecars require a matching `proposition_id`. Edges may carry `polarity=opposes`.
-- Incremental MCP records must supply `content_hash` and `observed_at`.
+- Subject binding uses declared `subjects[]` as exact ids. `scope` is never scraped. There is no family inference: a check about `invoice-999` or `printer-7` no longer verifies a `customer-42` or `server01` proposition. A check that omits subjects cannot verify a view that declares them.
+- A `superseded_by` edge supersedes the proposition only if its `from_id` is the `proposition_id` or a variant `proposition_id:<suffix>`. Unrelated edges in the bounded view no longer mark it `SUPERSEDED`.
+- Records whose instant is after `evaluated_at`, missing, or unparsable are not available at T. This covers assertions, evidence, and checks. Naive timestamps are UTC; instants are compared, not strings.
+- Selecting `freshest_check` no longer crashes on an unparsable timestamp; it considers only checks available at T.
+- Closed enums fail closed: `polarity`, `result`, conflict `status`, and lineage `kind` outside their enums make the view invalid (`InvalidEvidenceView`). Previously `result: "pending"` verified like `supports`, `status: "Open"` read as no conflict, and `polarity: "oppose"` was silently dropped.
+- Origin trust: only `tool|document|human|api|vendor|sensor` may raise `EXTERNAL`/`HUMAN`; endogenous and unknown origins cap at `INDIRECT`. `result=opposes` opens conflict and blocks `ACCEPTED`; `result=inconclusive` cannot raise the class.
 
-## 0.2.0-docs — 2026-09-22
+### Action gate
 
-Documentation alignment only. Protocol number, policy id, and lock hashes unchanged.
+- `may_act` returns `DENY` for a `SUPERSEDED` proposition at high risk and at least `REQUIRE_CONFIRMATION` otherwise (low risk used to return `MAY_ACT`).
+- `may_act` refuses an unknown risk level instead of treating it as medium.
+- `high_requires_no_open_conflict` and `reversible` are live.
 
-- README freeze block, layout, OpenClaw, and status sections match EWP-0.2.0 and `RELEASE.lock.json`.
-- `docs/MCP_CONTRACT.md` is the shipped façade; historical sketch stays superseded.
-- `historical/README.md`, `docs/PLATFORMS.md` tool names, implementer intro, CONFORMANCE laundering list, and the v0.2 PDF agree with that split.
+### Store and adapters
 
-## 0.2.0 — 2026-09-22
-
-Protocol bump. Policy identity stays `reference-v1`. Frozen 26 goldens unchanged; evaluator hash changes.
-
-- Generic verification scope binding: identifier-shaped tokens (`customer-42`, `contract-123`) participate, not only `server|host|node|device|serial`. Optional `subjects[]` on the view and on each check is the store-neutral identity primitive; empty falls back to token extraction.
-- A check with `observed_at` after `evaluated_at` is not available at T. It cannot confer class, refresh currency, open conflict, or produce `ACCEPTED`.
-- SQLite persists view completeness (`omitted_sources`, `retrieval_scope`, `degraded`, freshness, subjects). Reconstructing a degraded view no longer defaults to `SUFFICIENT`.
-- `WarrantView.normative()` is identity + time + five axes. The nested protocol-doc object is labeled conceptual; `docs/implementer/SCHEMA.md` is the serialization.
-- `tests/report.py` is a claim printer. It requires `tests/.last_ci.json` from `tests/ci.py` before it will say `CONFORMANT`.
-- Security: origin metadata is assumed established at the ingestion/adapter boundary. EWP does not authenticate evidence entering the ledger.
-- Live Graphiti parked sidecar is found by `kind=ewp_parked` / `ewp-parked` content / `meta:{pid}` name, not by Graphiti's assigned episode UUID.
+- SQLite partitions every record by `proposition_id`. View metadata is one row per proposition, read by exact key. Previously two propositions sharing a `view_id` (e.g. `mcp`), or sharing record ids like `a1`/`k1`/`s1`, could overwrite each other's completeness, subjects, freshness, or records.
+- SQLite is append-only for sources, assertions, evidence, and checks: rewriting an existing id with different content raises `ImmutableRecordError`. Conflict participants are fixed; status and note may change. Writes are transactional. Databases from earlier development schemas are refused with a clear message.
+- SQLite persists view completeness (`omitted_sources`, `retrieval_scope`, `degraded`, freshness, subjects).
+- Mem0 and Graphiti (fake ingest and live client) park and restore the view's `subjects[]` and each check's `subjects[]`. A Mem0 round trip used to turn a `customer-42`/`customer-99` mismatch into `EXTERNAL`/`ACCEPTED`.
+- Mem0 ingest writes each assertion and each evidence item as its own memory with its own polarity and original timestamp. Previously it kept one memory per source, forced `polarity=supports`, and used Mem0's `created_at` (ingest time) as observation time, which dropped opposition and could make evidence look future-dated.
+- Graphiti ingest emits an edge for evidence whose text is not already an assertion, so opposing evidence-only lineages survive `raw_view`. Edges may carry `polarity=opposes`. Parked sidecars need a matching `proposition_id` and are found by kind/content/name, not by Graphiti's assigned UUID.
 - Mem0 memories without `metadata.ewp.proposition_id` do not enter a proposition view.
-- MCP façade ships: `python3 -m protocol.mcp_server`. Tools evaluate warrant, persist EvidenceViews, record checks, and gate `may_act`. Trusted origins require `ingest_attestation`. The pre-freeze claim/confidence sketch stays in `historical/docs/MCP_CONTRACT.md`.
+
+### MCP façade
+
+- Stdio uses the MCP stdio transport: newline-delimited JSON-RPC, one message per line. (A development iteration shipped Content-Length framing, which no MCP client speaks.) Protocol revisions `2025-06-18`, `2025-03-26`, and `2024-11-05` are negotiated. Notifications are never answered.
+- Every write needs the server-side ingest role (`--allow-ingest` on stdio, the token on HTTP), including conflict, lineage, and view-metadata writes. Without it the server is evaluate-only. Previously an anonymous caller could resolve an open conflict, clear `degraded`, or stretch freshness and turn a stale, degraded view into `ACCEPTED`. Trusted origins also need `ingest_attestation=true`.
+- Inline views are hypothetical. `ewp_warrant_now` demotes their trusted origins to `inline:<origin>` unless the caller holds the ingest role and attests; `ewp_may_act` refuses them. Previously any caller could send a made-up view and get `MAY_ACT` on a high-risk, irreversible action.
+- `ewp_may_act` evaluates stored evidence at server time (supplied `evaluated_at` must be within 300 s), requires `action.risk` in `low|medium|high` and a boolean `action.reversible` (a missing risk used to default to `low`; `"false"` used to read as reversible), and accepts `risk_policy` only from a caller with the ingest role, honoring its flags.
+- `ewp_memory_context` defaults `evaluated_at` to server time. `ewp_may_act` refuses a caller-built `WarrantView`. Incremental records must supply `content_hash` and `observed_at`.
+- HTTP: `--allow-ingest` is refused with `--http` (it would grant every caller the ingest role). The token comes from `EWP_INGEST_TOKEN` or `--ingest-token-file`, not argv, and is compared in constant time. Bodies over 1 MiB get `413` from headers alone. Notifications get `202`. HTTP remains plain JSON-RPC, not MCP Streamable HTTP.
+- The pre-freeze claim/confidence sketch stays in `historical/docs/MCP_CONTRACT.md`.
+
+### Conformance and release
+
+- Hardening pack (`protocol/laundering.py`) adds subject-binding cases (`customer-42`/`invoice-999`, `server01`/`customer-42`, omitted check subjects, a shared subject that verifies), an unparsable check time, and an unrelated `superseded_by` edge: 24 fixtures.
+- `tests/test_adapter_roundtrip.py` runs all 50 fixtures through SQLite, JSON, fake Graphiti, and Mem0 and requires identical normative axes. It found the Mem0 polarity and timestamp losses above.
+- `RELEASE.lock.json` hashes fixtures (now including the hardening pack), evaluator (now including `versions.py`), the policy text (`POLICY.md`, `policy.json`), goldens, and the implementer pack. Hashes are over LF-normalized content; `.gitattributes` keeps checkouts LF.
+- `tests/report.py` prints `CONFORMANT` only for a CI stamp whose hashes match the current tree; a stale stamp reports `CLAIM_ONLY`.
+- `docs/implementer/third_eval.py` implements `reference-v2` from `POLICY.md` / `policy.json` only and matches all 50 expected files. `tests/test_goldens.py` checks the reference evaluator against the same 50.
+- `tests/test_mcp.py` drives the real server over stdio as a subprocess and, when the `mcp` package is installed, through the official MCP Python SDK client (verified against `mcp` 2.2.0, negotiating `2025-06-18`). The GitHub workflow installs `mcp` so this runs in CI.
+- Removed `protocol/pathological_fixtures.py`, which was not valid Python and was not imported.
+
+### Documentation
+
+- `docs/PROTOCOL_v0.1.md` is now `docs/PROTOCOL.md` and states the 0.2.0 contract.
+- `docs/EWP_v0.2.0.pdf` is rebuilt; `docs/build_guide_pdf.py` reads identity and hashes from `RELEASE.lock.json` so the guide cannot drift from the lock.
+- README, CONFORMANCE, CONTRIBUTING, SECURITY, VERSION, `docs/MCP_CONTRACT.md`, `docs/PLATFORMS.md`, `docs/DESIGN_NOTE.md`, and the implementer pack describe `reference-v2`, the ingest role, stdio framing, and the lock.
+- Security: origin metadata is assumed established at the ingestion/adapter boundary. EWP does not authenticate evidence entering the ledger.
+
+### Known limits
+
+- Conflict rows and lineage edges carry no timestamp, so they are not filtered by availability at T: an edge recorded later still applies when replaying an earlier T.
+- Live `graphiti-core 0.30.2` is not validated.
+- HTTP is not MCP Streamable HTTP.
 
 ## 0.1.0-docs — 2026-09-22
 

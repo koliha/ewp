@@ -13,6 +13,11 @@ Mem0 stores extracted memories, not EWP records. Mapping rules:
   unless metadata supplies a trusted origin.
 * Retrieval score is adapter_meta only. Never warrant strength.
 * `search` vs `get_all` length mismatch ⇒ `degraded=True`.
+* EWP ingest writes assertions (`kind=assertion`) and evidence
+  (`kind=evidence`) as separate memories. Each keeps its own polarity and
+  its original asserted_at / observed_at; Mem0's created_at is ingest
+  time, not observation time. A plain memory (`kind=memory`, written
+  outside EWP) maps to an assertion plus supporting evidence.
 * Checks / conflicts are parked as sibling memories with
   `metadata.ewp.kind` in {ewp_check, ewp_conflict, ewp_parked}.
 """
@@ -39,6 +44,14 @@ from .types import (
     SourceRef,
     VerificationCheck,
 )
+
+
+# Kinds that carry evidence text (as opposed to parked sidecars).
+MEMORY_KINDS = frozenset({"memory", "assertion", "evidence"})
+
+
+def _kind(item: Any) -> str:
+    return str(ewp_blob(item).get("kind") or "memory")
 
 
 def _item_id(item: Any) -> str:
@@ -98,6 +111,7 @@ def items_to_view(
     parked_omitted: list[str] = []
     degraded = False
     freshness = 86400 * 30
+    subjects: tuple[str, ...] = ()
     scores: dict[str, float] = {}
     scope = retrieval_scope
 
@@ -121,6 +135,7 @@ def items_to_view(
                 scope = str(blob["retrieval_scope"])
             if blob.get("freshness_policy_seconds") is not None:
                 freshness = int(blob["freshness_policy_seconds"])
+            subjects = tuple(str(x) for x in as_list(blob.get("subjects")))
             continue
 
         if kind == "ewp_check":
@@ -132,6 +147,7 @@ def items_to_view(
                     source=src,
                     observed_at=str(blob.get("observed_at") or when),
                     result=blob.get("result") or "inconclusive",  # type: ignore[arg-type]
+                    subjects=tuple(str(x) for x in as_list(blob.get("subjects"))),
                 )
             )
             continue
@@ -160,30 +176,32 @@ def items_to_view(
         prop = str(blob.get("proposition_id") or proposition_id)
         text = _item_text(item)
         polarity = blob.get("polarity") or "supports"
-        assertions.append(
-            Assertion(
-                assertion_id=f"{mid}:a",
-                proposition_id=prop,
-                text=text,
-                asserted_by=str(blob.get("asserted_by") or "mem0.extract"),
-                assertion_confidence=float(blob.get("assertion_confidence") or 0.5),
-                source=src,
-                asserted_at=when,
+        if kind in {"memory", "assertion"}:
+            assertions.append(
+                Assertion(
+                    assertion_id=str(blob.get("assertion_id") or f"{mid}:a"),
+                    proposition_id=prop,
+                    text=text,
+                    asserted_by=str(blob.get("asserted_by") or "mem0.extract"),
+                    assertion_confidence=float(blob.get("assertion_confidence") or 0.5),
+                    source=src,
+                    asserted_at=str(blob.get("asserted_at") or when),
+                )
             )
-        )
-        evidence.append(
-            EvidenceItem(
-                evidence_id=f"{mid}:e",
-                proposition_id=prop,
-                polarity=polarity,  # type: ignore[arg-type]
-                source=src,
-                content=text,
-                observed_at=when,
+        if kind in {"memory", "evidence"}:
+            evidence.append(
+                EvidenceItem(
+                    evidence_id=str(blob.get("evidence_id") or f"{mid}:e"),
+                    proposition_id=prop,
+                    polarity=polarity,  # type: ignore[arg-type]
+                    source=src,
+                    content=text,
+                    observed_at=str(blob.get("observed_at") or when),
+                )
             )
-        )
 
     if raw_count is not None and raw_count > len(
-        [it for it in items if str(ewp_blob(it).get("kind") or "memory") == "memory"]
+        [it for it in items if _kind(it) in MEMORY_KINDS]
     ):
         degraded = True
         scope = "mem0.search"
@@ -201,6 +219,7 @@ def items_to_view(
         degraded=degraded,
         freshness_policy_seconds=freshness,
         adapter_meta={"store": "mem0", "retrieval_scores": scores},
+        subjects=subjects,
     )
 
 
@@ -217,6 +236,7 @@ def _checks_from_blob(blob: dict[str, Any]) -> list[VerificationCheck]:
                 source=SourceRef(**{k: src[k] for k in fields}),
                 observed_at=c["observed_at"],
                 result=c["result"],
+                subjects=tuple(str(x) for x in as_list(c.get("subjects"))),
             )
         )
     return out
@@ -324,13 +344,13 @@ class Mem0Adapter:
         raw = self._for_proposition(self._all_items(), proposition_id)
         hits = self._for_proposition(self._search_items(query, limit), proposition_id)
         hit_ids = {_item_id(h) for h in hits}
-        raw_ids = {_item_id(r) for r in raw if str(ewp_blob(r).get("kind") or "memory") == "memory"}
+        raw_ids = {_item_id(r) for r in raw if _kind(r) in MEMORY_KINDS}
         omitted = sorted(raw_ids - hit_ids)
         # Keep parked sidecar records so checks/conflicts survive search.
         parked = [
             it
             for it in raw
-            if str(ewp_blob(it).get("kind") or "memory").startswith("ewp_")
+            if _kind(it).startswith("ewp_")
         ]
         combined = list(hits) + parked
         view = items_to_view(
@@ -346,50 +366,47 @@ class Mem0Adapter:
         return view
 
     def ingest_view(self, view: EvidenceView) -> dict[str, Any]:
-        """Write assertions as Mem0 memories + one parked sidecar.
+        """Write assertions and evidence as Mem0 memories + one parked sidecar.
 
-        Uses infer=False by default so Mem0 does not rewrite the text.
+        One memory per record, so polarity and timestamps survive. Uses
+        infer=False by default so Mem0 does not rewrite the text.
         """
         report = {"memories": 0, "checks_parked": 0, "conflicts_parked": 0, "infer": self.infer}
-        seen: set[str] = set()
+
+        def source_meta(src: SourceRef) -> dict[str, Any]:
+            return {
+                "proposition_id": view.proposition_id,
+                "lineage_id": src.lineage_id,
+                "origin_type": src.origin_type,
+                "origin_locator": src.origin_locator,
+                "content_hash": src.content_hash,
+                "parent_source_id": src.parent_source_id,
+                "extractor_id": src.extractor_id,
+                "snapshot_id": src.snapshot_id,
+            }
+
         for assertion in view.assertions:
-            src = assertion.source
-            if src.source_id in seen:
-                continue
-            seen.add(src.source_id)
             metadata = {
                 EWP_META_KEY: {
-                    "kind": "memory",
-                    "proposition_id": view.proposition_id,
-                    "lineage_id": src.lineage_id,
-                    "origin_type": src.origin_type,
-                    "origin_locator": src.origin_locator,
-                    "content_hash": src.content_hash,
-                    "parent_source_id": src.parent_source_id,
-                    "extractor_id": src.extractor_id,
-                    "snapshot_id": src.snapshot_id,
+                    **source_meta(assertion.source),
+                    "kind": "assertion",
+                    "assertion_id": assertion.assertion_id,
                     "asserted_by": assertion.asserted_by,
                     "assertion_confidence": assertion.assertion_confidence,
-                    "polarity": "supports",
+                    "asserted_at": assertion.asserted_at,
                 }
             }
             self._add(assertion.text, metadata)
             report["memories"] += 1
 
         for ev in view.evidence:
-            if ev.source.source_id in seen:
-                continue
-            seen.add(ev.source.source_id)
             metadata = {
                 EWP_META_KEY: {
-                    "kind": "memory",
-                    "proposition_id": view.proposition_id,
-                    "lineage_id": ev.source.lineage_id,
-                    "origin_type": ev.source.origin_type,
-                    "origin_locator": ev.source.origin_locator,
-                    "content_hash": ev.source.content_hash,
-                    "parent_source_id": ev.source.parent_source_id,
+                    **source_meta(ev.source),
+                    "kind": "evidence",
+                    "evidence_id": ev.evidence_id,
                     "polarity": ev.polarity,
+                    "observed_at": ev.observed_at,
                 }
             }
             self._add(ev.content, metadata)
@@ -399,7 +416,10 @@ class Mem0Adapter:
             EWP_META_KEY: {
                 "kind": "ewp_parked",
                 "proposition_id": view.proposition_id,
-                "checks": [{**c.__dict__, "source": c.source.__dict__} for c in view.checks],
+                "checks": [
+                    {**c.__dict__, "source": c.source.__dict__, "subjects": list(c.subjects)}
+                    for c in view.checks
+                ],
                 "conflicts": [
                     {
                         "conflict_id": c.conflict_id,
@@ -416,6 +436,7 @@ class Mem0Adapter:
                 "degraded": view.degraded,
                 "retrieval_scope": view.retrieval_scope,
                 "freshness_policy_seconds": view.freshness_policy_seconds,
+                "subjects": list(view.subjects),
             }
         }
         self._add(f"ewp-parked:{view.proposition_id}", park)

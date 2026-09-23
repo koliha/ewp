@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass, field
 from typing import Any, Literal
 
+from .versions import POLICY, PROTOCOL
+
 
 Acceptance = Literal["UNACCEPTED", "TENTATIVE", "ACCEPTED"]
 ConflictAxis = Literal["NONE", "OPEN", "RESOLVED"]
@@ -32,6 +34,13 @@ ENDOGENOUS_ORIGINS = frozenset(
 TRUSTED_ORIGINS = frozenset(
     {"tool", "document", "human", "api", "vendor", "sensor"}
 )
+
+# Closed input enums. A view carrying any other value is invalid and is
+# refused, never evaluated: unknown values must not fail open.
+POLARITIES = frozenset({"supports", "opposes"})
+CHECK_RESULTS = frozenset({"supports", "opposes", "inconclusive"})
+CONFLICT_STATUSES = frozenset({"open", "resolved"})
+LINEAGE_KINDS = frozenset({"derived_from", "supersedes", "superseded_by", "parent_source"})
 
 
 @dataclass(frozen=True)
@@ -76,7 +85,7 @@ class VerificationCheck:
     source: SourceRef
     observed_at: str
     result: Literal["supports", "opposes", "inconclusive"]
-    # Optional v0.2 subject binding. Empty → evaluator uses scope-string tokens.
+    # Declared subject ids. Identity for scope binding; `scope` is never scraped.
     subjects: tuple[str, ...] = ()
 
 
@@ -109,7 +118,8 @@ class EvidenceView:
     degraded: bool = False
     freshness_policy_seconds: int = 86400 * 30
     adapter_meta: dict[str, Any] = field(default_factory=dict)
-    # Optional v0.2 subject binding. Empty → evaluator uses text tokens.
+    # Declared subject ids. When non-empty, only checks naming one of these
+    # subjects may raise EXTERNAL/HUMAN. Text is never scraped for identity.
     subjects: tuple[str, ...] = field(default_factory=tuple)
 
     def to_dict(self) -> dict[str, Any]:
@@ -118,8 +128,8 @@ class EvidenceView:
 
 @dataclass
 class Policy:
-    policy_id: str = "reference-v1"
-    version: str = "reference-v1"
+    policy_id: str = POLICY
+    version: str = POLICY
 
 
 @dataclass
@@ -154,6 +164,7 @@ class WarrantView:
     supersedes: list[str]
     superseded_by: list[str]
     falsification_conditions: list[str] = field(default_factory=list)
+    protocol_version: str = PROTOCOL
 
     def normalized(self) -> dict[str, Any]:
         d = asdict(self)
@@ -172,12 +183,13 @@ class WarrantView:
     def normative(self) -> dict[str, Any]:
         """Serialized interchange contract: identity + time + five axes.
 
-        Diagnostic arrays live on the reference object and on normalized().
-        The nested object in docs/PROTOCOL_v0.1.md is a conceptual view;
-        this dict is the normative serialization — see docs/implementer/SCHEMA.md.
+        rationale_codes, strength, and the diagnostic arrays are not part of
+        the equality contract; they live on normalized(). See
+        docs/implementer/SCHEMA.md.
         """
         d = self.normalized()
         return {
+            "protocol_version": d["protocol_version"],
             "proposition_id": d["proposition_id"],
             "view_id": d["view_id"],
             "policy_id": d["policy_id"],
@@ -189,6 +201,5 @@ class WarrantView:
                 "verification": d["warrant"]["verification"],
                 "currency": d["warrant"]["currency"],
                 "sufficiency": d["warrant"]["sufficiency"],
-                "rationale_codes": d["warrant"]["rationale_codes"],
             },
         }

@@ -1,4 +1,4 @@
-"""Canonical evidence bundles for the v0.1 conformance suite."""
+"""Canonical evidence bundles for the EWP conformance suite."""
 
 from __future__ import annotations
 

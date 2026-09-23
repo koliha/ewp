@@ -7,7 +7,7 @@ This module is the production mapping:
     Graphiti EntityEdge + EpisodicNode  →  Fake* records  →  EvidenceView
                                                        →  warrant_now()
 
-Rules (v0.1.0, not negotiable):
+Rules (EWP-0.2.0, not negotiable):
 * `valid_at` / `invalid_at` / `expired_at` are store-local notes, never warrant.
 * Graphiti search that drops edges must set `degraded=True`.
 * `origin_type` defaults to `episode` (untrusted). EXTERNAL/HUMAN checks
@@ -355,7 +355,8 @@ class GraphitiClientAdapter:
                 "stable_name": f"meta:{view.proposition_id}",
                 "proposition_id": view.proposition_id,
                 "checks": [
-                    {**c.__dict__, "source": c.source.__dict__} for c in view.checks
+                    {**c.__dict__, "source": c.source.__dict__, "subjects": list(c.subjects)}
+                    for c in view.checks
                 ],
                 "conflicts": [
                     {
@@ -373,6 +374,7 @@ class GraphitiClientAdapter:
                 "degraded": view.degraded,
                 "retrieval_scope": view.retrieval_scope,
                 "freshness_policy_seconds": view.freshness_policy_seconds,
+                "subjects": list(view.subjects),
             }
         }
         parked = await self.client.add_episode(

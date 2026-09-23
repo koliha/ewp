@@ -38,7 +38,8 @@
         "parent_source_id": null,
         "snapshot_id": "snap:winrm",
         "source_id": "winrm"
-      }
+      },
+      "subjects": []
     }
   ],
   "conflicts": [],
@@ -71,5 +72,6 @@
   ],
   "proposition_id": "P-win",
   "retrieval_scope": "topk",
+  "subjects": [],
   "view_id": "l-deg-ext"
 }

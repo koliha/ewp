@@ -38,7 +38,8 @@
         "parent_source_id": "a",
         "snapshot_id": "snap:sum",
         "source_id": "sum"
-      }
+      },
+      "subjects": []
     }
   ],
   "conflicts": [],
@@ -69,5 +70,6 @@
   "omitted_sources": [],
   "proposition_id": "P-x",
   "retrieval_scope": "complete",
+  "subjects": [],
   "view_id": "l-human-extract"
 }

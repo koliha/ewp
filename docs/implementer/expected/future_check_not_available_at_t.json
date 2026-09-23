@@ -3,7 +3,8 @@
   "conflict": "NONE",
   "currency": "CURRENT",
   "evaluated_at": "2026-09-21T10:00:00+00:00",
-  "policy_version": "reference-v1",
+  "policy_version": "reference-v2",
+  "protocol_version": "EWP-0.2.0",
   "sufficiency": "SUFFICIENT",
   "verification": "NONE"
 }

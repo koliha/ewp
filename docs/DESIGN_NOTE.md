@@ -1,6 +1,6 @@
 # EWP design / conformance note
 
-Written for the v0.1 freeze and still accurate for the boundary/policy split. v0.2.0 did not add axes. It tightened scope binding, availability-at-T, and adapter completeness. This note separates what must stay still from what `reference-v1` happens to do.
+Written for the v0.1 freeze and still accurate for the boundary/policy split. EWP-0.2.0 did not add axes. It made subject binding exact, scoped supersession to the proposition, made unavailable and malformed input explicit, and required adapters to round-trip every field. Those judgments changed, so the policy is now `reference-v2`. This note separates what must stay still from what `reference-v2` happens to do.
 
 Boundary. Policy. Observations. Permission. Four things. None gets to wear the others' clothes.
 
@@ -22,30 +22,31 @@ An implementation of EWP must:
 
 1. Accept an `EvidenceView`, a named policy version, and `evaluated_at`.
 2. Emit the five axes: `acceptance`, `conflict`, `verification`, `currency`, `sufficiency`.
-3. Carry `policy_version` and `evaluated_at` on the result.
+3. Carry `protocol_version`, `policy_id`, `policy_version`, and `evaluated_at` on the result, and refuse a policy identity it does not implement.
 4. Count unique `lineage_id` values on assertions, evidence, and checks — not repetitions or summaries.
-5. Refuse to let untrusted or endogenous origins raise `verification` to `EXTERNAL` or `HUMAN`. Only `tool|document|human|api|vendor|sensor` may. Check `result` and `scope` participate.
+5. Refuse to let untrusted or endogenous origins raise `verification` to `EXTERNAL` or `HUMAN`. Only `tool|document|human|api|vendor|sensor` may. Check `result` and declared `subjects[]` participate.
 6. Mark incomplete retrieval `sufficiency=DEGRADED`.
 7. Treat later timestamps as evidence of order, not as supersession.
 8. Leave action authorization to a later gate.
+9. Refuse input outside the closed enums instead of evaluating it. An unknown value must fail closed.
 
-Same view + same policy version + same `evaluated_at` → same five axes.
+Same protocol version + same view + same policy identity + same `evaluated_at` → same five axes.
 
-Incomplete retrieval (`sufficiency=DEGRADED`) cannot yield `acceptance=ACCEPTED` under `reference-v1`.
+Incomplete retrieval (`sufficiency=DEGRADED`) cannot yield `acceptance=ACCEPTED` under `reference-v2`.
 
-## Reference policy (`reference-v1`)
+## Reference policy (`reference-v2`)
 
-`protocol/warrant.py` is one function from those inputs to those axes. It may change without the protocol number changing, provided the normative fixtures still pass and any acceptance-rule change is called out as a policy revision.
+`protocol/warrant.py` is one function from those inputs to those axes. Its implementation may change without the protocol number changing, provided the locked fixtures still pass. Any change to a judgment mints a new policy name: a policy name never changes meaning.
 
 Today it also computes a scalar `strength`. That field is **not** part of the interchange contract.
 
 ## Non-normative conveniences
 
 - `strength` — derived commentary. A conforming implementation may omit it. Clients must not branch on `if strength > 0.8`.
-- `rationale_codes` — debugging aids.
+- `rationale_codes` — debugging aids. Two conforming implementations may name their reasons differently.
 - Adapter metadata such as `lineage_basis=claimed_by_ingest`.
 
-The interchange contract is the five axes plus policy identity and time.
+The interchange contract is the five axes plus protocol and policy identity and time.
 
 Conformance is defined over the normative WarrantView axes, not over reference-policy convenience fields.
 
@@ -89,14 +90,14 @@ identical axes
 
 `protocol/warrant.py` and `protocol/warrant_b.py` are two control flows. `tests/test_laundering.py` compares them. A naive evaluator that trusts `method` alone must *disagree* on `launder_verification`.
 
-Until independent implementations agree on the frozen *and* laundering packs, EWP is an architecture plus a reference function. Agreement on the five axes is what earns the word protocol.
+Until independent implementations agree on all 50 fixtures (canonical, pathological, hardening), EWP is an architecture plus a reference function. Agreement on the five axes is what earns the word protocol. `docs/implementer/third_eval.py` is the first such implementation, written from the pack alone.
 
 The third implementation is the experiment. Give it only schema, policy prose, fixture inputs, and expected five-axis outputs. Do not give it `warrant.py`, helper names, or fixture-specific hints. Capture disagreements. Classify each:
 
 | Kind | Meaning | What moves |
 |---|---|---|
 | Specification failure | The docs permit two reasonable readings | Clarify the boundary text. Protocol number stays unless a new primitive is required. |
-| Reference-policy failure | The judgment is specified, and we no longer want it | Change `reference-v1` or mint `reference-v2`. Protocol number stays. |
+| Reference-policy failure | The judgment is specified, and we no longer want it | Mint a new policy name (`reference-v3`). Protocol number stays. |
 | Implementation failure | The docs and policy are clear; the code missed them | Fix that evaluator. |
 
 The proposition under test is not “EWP is true.” It is: given the same evidence, the same declared policy, and the same time, independent implementations cannot quietly invent different epistemic realities.

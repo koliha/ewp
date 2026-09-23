@@ -37,7 +37,27 @@ def test_pathological_goldens():
         assert got == expected, name
 
 
+def test_implementer_pack_matches_reference():
+    """Every fixture in docs/implementer (canonical, pathological, hardening)
+    has expected axes equal to the reference evaluator's, under this identity."""
+    from protocol.codec import view_from_dict
+    from protocol.versions import PROTOCOL
+
+    pack = Path(__file__).resolve().parents[1] / "docs" / "implementer"
+    fixtures = sorted((pack / "fixtures").glob("*.json"))
+    assert len(fixtures) == 50, len(fixtures)
+    for path in fixtures:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+        expected = json.loads((pack / "expected" / path.name).read_text(encoding="utf-8"))
+        got = warrant_now(view_from_dict(raw), POLICY, raw["evaluated_at"]).normative()
+        assert expected["protocol_version"] == PROTOCOL == got["protocol_version"], path.name
+        assert expected["policy_version"] == POLICY.version == got["policy_version"], path.name
+        for axis in ("acceptance", "conflict", "verification", "currency", "sufficiency"):
+            assert got["warrant"][axis] == expected[axis], (path.name, axis)
+
+
 if __name__ == "__main__":
     test_canonical_goldens()
     test_pathological_goldens()
-    print("PASS goldens")
+    test_implementer_pack_matches_reference()
+    print("PASS goldens + implementer pack")

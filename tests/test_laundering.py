@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Break reference-v1. Do not touch the frozen 26 goldens."""
+"""Break reference-v2 with the hardening pack. The 26 goldens are a separate lock."""
 
 from __future__ import annotations
 
@@ -29,6 +29,12 @@ from protocol.laundering import (
     scope_mismatch_is_not_external,
     customer_scope_mismatch,
     future_check_not_available_at_t,
+    disjoint_subject_families_do_not_verify,
+    cross_domain_subjects_do_not_verify,
+    unsubjected_check_on_subjected_view,
+    shared_subject_verifies,
+    garbage_timestamp_is_not_available,
+    unrelated_supersession_is_not_superseded,
     EVAL_AT,
 )
 from protocol.types import Policy
@@ -186,6 +192,35 @@ def test_timestamp_formats_pick_later_instant():
     assert w.warrant.verification == "EXTERNAL"
     print("PASS Z vs offset timestamps compare as instants")
 
+def test_subjects_are_exact_ids_not_families():
+    for factory in (
+        disjoint_subject_families_do_not_verify,
+        cross_domain_subjects_do_not_verify,
+        unsubjected_check_on_subjected_view,
+    ):
+        a = axes_a(factory())
+        assert a["verification"] == "INDIRECT", (factory.__name__, a)
+        assert a["acceptance"] == "TENTATIVE", (factory.__name__, a)
+    a = axes_a(shared_subject_verifies())
+    assert a["verification"] == "EXTERNAL", a
+    assert a["acceptance"] == "ACCEPTED", a
+    print("PASS subject binding: exact shared id verifies; other families and omitted subjects do not")
+
+
+def test_garbage_timestamp_does_not_crash():
+    w = warrant_now(garbage_timestamp_is_not_available(), POLICY, EVAL)
+    assert w.warrant.verification == "NONE", w.warrant
+    assert w.freshest_check is None, w.freshest_check
+    print("PASS unparsable check time is unavailable at T and does not crash")
+
+
+def test_unrelated_supersession_ignored():
+    w = warrant_now(unrelated_supersession_is_not_superseded(), POLICY, EVAL)
+    assert w.warrant.currency == "CURRENT", w.warrant
+    assert w.superseded_by == [], w.superseded_by
+    print("PASS superseded_by edge between other propositions does not supersede P")
+
+
 def test_two_evaluators_match_on_axes():
     rows = []
     for name, factory in PACK:
@@ -222,6 +257,9 @@ def main() -> int:
     test_customer_scope_mismatch_caps_class()
     test_future_check_not_available_at_t()
     test_timestamp_formats_pick_later_instant()
+    test_subjects_are_exact_ids_not_families()
+    test_garbage_timestamp_does_not_crash()
+    test_unrelated_supersession_ignored()
     test_two_evaluators_match_on_axes()
     print("LAUNDERING SUITE PASS")
     return 0

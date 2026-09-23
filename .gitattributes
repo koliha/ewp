@@ -1,0 +1,5 @@
+# Lock hashes are computed over LF-normalized content, but keep the working
+# tree LF everywhere so a fresh checkout on any OS matches the repository.
+* text=auto eol=lf
+*.pdf binary
+*.png binary

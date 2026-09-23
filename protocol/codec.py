@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from .classify import validate_view
 from .types import (
     Assertion,
     Conflict,
@@ -45,7 +46,8 @@ def check_from_dict(d: dict[str, Any]) -> VerificationCheck:
 
 
 def view_from_dict(d: dict[str, Any]) -> EvidenceView:
-    return EvidenceView(
+    """Decode and validate. Raises InvalidEvidenceView on unknown enum values."""
+    view = EvidenceView(
         view_id=str(d.get("view_id") or "mcp"),
         proposition_id=str(d["proposition_id"]),
         assertions=[
@@ -92,6 +94,8 @@ def view_from_dict(d: dict[str, Any]) -> EvidenceView:
         adapter_meta=dict(d.get("adapter_meta") or {}),
         subjects=tuple(str(x) for x in (d.get("subjects") or ())),
     )
+    validate_view(view)
+    return view
 
 
 def warrant_from_dict(d: dict[str, Any]) -> WarrantView:
@@ -99,8 +103,8 @@ def warrant_from_dict(d: dict[str, Any]) -> WarrantView:
     return WarrantView(
         proposition_id=str(d["proposition_id"]),
         view_id=str(d.get("view_id") or ""),
-        policy_id=str(d.get("policy_id") or "reference-v1"),
-        policy_version=str(d.get("policy_version") or "reference-v1"),
+        policy_id=str(d["policy_id"]),
+        policy_version=str(d["policy_version"]),
         evaluated_at=str(d["evaluated_at"]),
         warrant=WarrantAxes(
             acceptance=w["acceptance"],
@@ -124,4 +128,5 @@ def warrant_from_dict(d: dict[str, Any]) -> WarrantView:
         supersedes=list(d.get("supersedes") or []),
         superseded_by=list(d.get("superseded_by") or []),
         falsification_conditions=list(d.get("falsification_conditions") or []),
+        protocol_version=str(d["protocol_version"]),
     )

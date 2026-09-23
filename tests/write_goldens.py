@@ -21,7 +21,7 @@ POLICY = Policy()
 def dump(name: str, view, evaluated_at: str) -> None:
     w = warrant_now(view, POLICY, evaluated_at).normalized()
     path = ROOT / f"{name}.json"
-    path.write_text(json.dumps(w, indent=2, sort_keys=True) + "\n")
+    path.write_text(json.dumps(w, indent=2, sort_keys=True) + "\n", encoding="utf-8", newline="\n")
     print(path.name)
 
 

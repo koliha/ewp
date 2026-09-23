@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 """CI gate for EWP.
 
-1. goldens never drift silently
-2. all 26 fixtures pass reference-v1
-3. SQLite and JSON remain equivalent
-4. fake Graphiti remains epistemically isolated
-5. live Graphiti/Mem0 mappings keep origin/lineage/degraded rules
-6. MCP façade refuses unattested trusted origins and WarrantView persistence
+1. lock hashes (fixtures, evaluator, policy, goldens, implementer pack) match
+2. goldens and the implementer pack match the reference evaluator
+3. canonical, pathological, and hardening packs pass
+4. every fixture survives every adapter with the same axes
+5. fake Graphiti remains epistemically isolated
+6. live Graphiti/Mem0 mappings keep origin/lineage/degraded rules
+7. MCP façade: ingest role on every write, inline views hypothetical, stdio framing
+8. an independent third evaluator agrees from the written policy alone
 """
 
 from __future__ import annotations
@@ -19,13 +21,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from protocol.release import (
-    evaluator_set_hash,
-    fixture_set_hash,
-    golden_set_hash,
-    metadata,
-    write_lock,
-)
+from protocol.release import LOCK_KEYS, current_hashes, metadata, write_lock
+from protocol.versions import POLICY, PROTOCOL
+
+STAMP = ROOT / "tests" / ".last_ci.json"
 
 
 def run(cmd: list[str]) -> int:
@@ -35,24 +34,30 @@ def run(cmd: list[str]) -> int:
 
 def check_lock() -> None:
     lock = ROOT / "RELEASE.lock.json"
-    current = {
-        "fixture_set_sha256": fixture_set_hash(),
-        "evaluator_set_sha256": evaluator_set_hash(),
-        "golden_set_sha256": golden_set_hash(),
-    }
     if not lock.exists():
-        raise SystemExit("RELEASE.lock.json missing — run python3 -m protocol.release")
-    pinned = json.loads(lock.read_text())
-    for key, value in current.items():
-        if pinned.get(key) != value:
+        raise SystemExit("RELEASE.lock.json missing: run python3 tests/ci.py --write-lock")
+    pinned = json.loads(lock.read_text(encoding="utf-8"))
+    if (pinned.get("protocol"), pinned.get("policy")) != (PROTOCOL, POLICY):
+        raise SystemExit(
+            f"lock identity {pinned.get('protocol')}/{pinned.get('policy')} "
+            f"!= code identity {PROTOCOL}/{POLICY}"
+        )
+    current = current_hashes()
+    for key in LOCK_KEYS:
+        if pinned.get(key) != current[key]:
             raise SystemExit(
                 f"SILENT DRIFT on {key}\n"
                 f"  lock:    {pinned.get(key)}\n"
-                f"  current: {value}\n"
+                f"  current: {current[key]}\n"
                 "Bump protocol/policy version explicitly. Do not refresh goldens to please a store."
             )
     print("lock hashes match")
-    print(json.dumps({k: pinned[k] for k in ("protocol", "policy", "fixture_set_sha256", "evaluator_set_sha256", "golden_set_sha256")}, indent=2))
+    print(json.dumps({k: pinned[k] for k in ("protocol", "policy", *LOCK_KEYS)}, indent=2))
+
+
+def write_stamp(ok: bool, **extra) -> None:
+    body = {"ok": ok, "protocol": PROTOCOL, "policy": POLICY, **current_hashes(), **extra}
+    STAMP.write_text(json.dumps(body, indent=2) + "\n", encoding="utf-8", newline="\n")
 
 
 def main() -> int:
@@ -61,9 +66,11 @@ def main() -> int:
         [sys.executable, "tests/test_goldens.py"],
         [sys.executable, "tests/test_conformance.py"],
         [sys.executable, "tests/runner.py"],
+        [sys.executable, "tests/runner_graphiti.py"],
         [sys.executable, "tests/test_graphiti_adapter.py"],
         [sys.executable, "tests/test_pathological.py"],
         [sys.executable, "tests/test_laundering.py"],
+        [sys.executable, "tests/test_adapter_roundtrip.py"],
         [sys.executable, "tests/test_live_adapters.py"],
         [sys.executable, "tests/test_mcp.py"],
         [sys.executable, "tests/test_hardening.py"],
@@ -73,11 +80,14 @@ def main() -> int:
         rc = run(cmd)
         if rc != 0:
             print("CI FAIL", cmd)
-            (ROOT / "tests" / ".last_ci.json").write_text(json.dumps({"ok": False, "failed": cmd}, indent=2) + "\n")
+            write_stamp(False, failed=cmd[1:])
             return rc
-    print("CI PASS — goldens, 26 fixtures, SQLite=JSON, fake Graphiti isolated, laundering pack, live mappings, MCP façade, third evaluator")
+    print(
+        "CI PASS: lock, goldens, implementer pack, hardening pack, adapter round trips, "
+        "fake Graphiti isolation, live mappings, MCP façade, third evaluator"
+    )
     print(json.dumps(metadata(), indent=2))
-    (ROOT / "tests" / ".last_ci.json").write_text(json.dumps({"ok": True, "protocol": metadata()["protocol"], "policy": metadata()["policy"]}, indent=2) + "\n")
+    write_stamp(True)
     return 0
 
 

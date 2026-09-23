@@ -182,6 +182,7 @@ class GraphitiAdapter:
         view.freshness_policy_seconds = int(
             meta.get("freshness_policy_seconds", view.freshness_policy_seconds)
         )
+        view.subjects = tuple(str(x) for x in (meta.get("subjects") or ()))
         return view
 
     def raw_view(self, proposition_id: str, fact_text: str | None = None, view_id: str = "graphiti-raw") -> EvidenceView:

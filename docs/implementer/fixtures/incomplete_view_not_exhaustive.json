@@ -52,5 +52,6 @@
   ],
   "proposition_id": "P-x",
   "retrieval_scope": "topk",
+  "subjects": [],
   "view_id": "l-incomplete"
 }

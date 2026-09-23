@@ -1,7 +1,8 @@
 {
-  "policy_id": "reference-v1",
-  "version": "reference-v1",
-  "name": "reference-v1",
+  "protocol": "EWP-0.2.0",
+  "policy_id": "reference-v2",
+  "version": "reference-v2",
+  "name": "reference-v2",
   "human_methods": [
     "human_attestation",
     "human_review"
@@ -28,16 +29,6 @@
     "summary",
     "model_introspection"
   ],
-  "notes": {
-    "inconclusive_cap": "result=inconclusive cannot raise HUMAN or EXTERNAL",
-    "endogenous_cap": "endogenous origin cannot raise HUMAN or EXTERNAL, including human methods",
-    "implied_conflict": "supports+opposes in evidence or checks opens conflict even without a Conflict row",
-    "freshness_basis": "stale is computed from checks that confer the chosen verification class",
-    "trusted_origin_allowlist": "Only trusted origins may raise HUMAN or EXTERNAL",
-    "degraded_blocks_accepted": "sufficiency must be SUFFICIENT for ACCEPTED",
-    "scope_must_apply": "cap when scope or subjects names a different identifier in the same family (server01 vs server02, customer-42 vs customer-99)",
-    "not_available_at_t": "a check observed_at after evaluated_at cannot confer class or warrant acceptance"
-  },
   "trusted_origins": [
     "tool",
     "document",
@@ -45,5 +36,23 @@
     "api",
     "vendor",
     "sensor"
-  ]
+  ],
+  "enums": {
+    "polarity": ["supports", "opposes"],
+    "result": ["supports", "opposes", "inconclusive"],
+    "conflict_status": ["open", "resolved"],
+    "lineage_kind": ["derived_from", "supersedes", "superseded_by", "parent_source"]
+  },
+  "notes": {
+    "closed_enums": "a value outside the enums makes the view invalid; refuse it, do not evaluate it",
+    "inconclusive_cap": "result=inconclusive cannot raise HUMAN or EXTERNAL",
+    "endogenous_cap": "endogenous origin cannot raise HUMAN or EXTERNAL, including human methods",
+    "implied_conflict": "supports+opposes in evidence or checks opens conflict even without a Conflict row",
+    "freshness_basis": "stale is computed from checks that confer the chosen verification class",
+    "trusted_origin_allowlist": "Only trusted origins may raise HUMAN or EXTERNAL",
+    "degraded_blocks_accepted": "sufficiency must be SUFFICIENT for ACCEPTED",
+    "subject_binding": "subjects[] compared as exact ids: a check may raise HUMAN or EXTERNAL only if neither check nor view declares subjects, or they share one. No family inference; scope text is never scraped",
+    "supersession_scope": "only superseded_by edges whose from_id is the proposition_id or a variant proposition_id:<suffix> supersede it",
+    "not_available_at_t": "a record observed after evaluated_at, or with a missing or unparsable instant, is not available at T"
+  }
 }

@@ -1,7 +1,7 @@
 """Second evaluator. Same normative rules, different control flow.
 
 Compares on the five axes only. Does not emit strength.
-Used to test that the interchange contract is the axes, not reference-v1 internals.
+Used to test that the interchange contract is the axes, not reference-evaluator internals.
 """
 
 from __future__ import annotations
@@ -15,7 +15,9 @@ from .classify import (
     opposing_high_check,
     opposing_items,
     parse_ts,
+    superseding_edges,
     supporting_items,
+    validate_view,
     visible_assertions,
     visible_checks,
 )
@@ -35,8 +37,9 @@ def axes_only(view: EvidenceView, policy: Policy, evaluated_at: str) -> dict[str
     if (policy.policy_id, policy.version) != REFERENCE_POLICY:
         raise ValueError(
             f"unknown policy {policy.policy_id}/{policy.version}; "
-            "this evaluator implements reference-v1 only"
+            f"this evaluator implements {REFERENCE_POLICY[0]} only"
         )
+    validate_view(view)
     eval_dt = parse_ts(evaluated_at)
     assertions = visible_assertions(view, evaluated_at)
     supporting = supporting_items(view, evaluated_at)
@@ -61,7 +64,7 @@ def axes_only(view: EvidenceView, policy: Policy, evaluated_at: str) -> dict[str
         age = (eval_dt - parse_ts(newest.observed_at)).total_seconds()
         stale = age > view.freshness_policy_seconds
 
-    superseded = any(e.kind == "superseded_by" for e in view.lineage)
+    superseded = bool(superseding_edges(view))
     if superseded:
         currency = "SUPERSEDED"
     elif stale:

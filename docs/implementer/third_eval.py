@@ -8,19 +8,17 @@ Policy tables come from policy.json. Rules come from POLICY.md.
 from __future__ import annotations
 
 import json
-import re
 from datetime import datetime, timezone
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-POLICY = json.loads((HERE / "policy.json").read_text())
+POLICY = json.loads((HERE / "policy.json").read_text(encoding="utf-8"))
 RANK = {"NONE": 0, "INDIRECT": 1, "EXTERNAL": 2, "HUMAN": 3}
-FAMILIES = ("server", "host", "node", "device", "serial")
-ENTITY_RE = re.compile(
-    r"\b(?:(?:server|host|node|device|serial)[\w.-]*|[a-z][a-z0-9]*[-_:/][a-z0-9][\w.-]*)\b",
-    re.I,
-)
 AXES = ("acceptance", "conflict", "verification", "currency", "sufficiency")
+
+
+class InvalidView(ValueError):
+    pass
 
 
 def instant(ts: str) -> datetime:
@@ -35,39 +33,46 @@ def origin_of(check: dict) -> str:
     return (check.get("source") or {}).get("origin_type") or ""
 
 
-def entities(text: str) -> set[str]:
-    return {m.group(0).lower() for m in ENTITY_RE.finditer(text or "")}
-
-
-def family(tok: str) -> str:
-    low = tok.lower()
-    for fam in FAMILIES:
-        if low.startswith(fam):
-            return fam
-    for sep in ("-", "_", ":", "/"):
-        if sep in low:
-            return low.split(sep, 1)[0]
-    return low
+def validate(view: dict) -> None:
+    """POLICY.md: a value outside a closed enum makes the view invalid."""
+    enums = POLICY["enums"]
+    for e in view.get("evidence") or []:
+        if e.get("polarity") not in enums["polarity"]:
+            raise InvalidView(f"polarity {e.get('polarity')!r}")
+    for c in view.get("checks") or []:
+        if c.get("result") not in enums["result"]:
+            raise InvalidView(f"result {c.get('result')!r}")
+    for c in view.get("conflicts") or []:
+        if c.get("status") not in enums["conflict_status"]:
+            raise InvalidView(f"status {c.get('status')!r}")
+    for e in view.get("lineage") or []:
+        if e.get("kind") not in enums["lineage_kind"]:
+            raise InvalidView(f"kind {e.get('kind')!r}")
 
 
 def scope_caps_check(check: dict, view: dict) -> bool:
-    subjects = [str(s).lower() for s in (check.get("subjects") or [])]
-    if not subjects:
+    """Declared ids compared exactly. Caps unless both are empty or they share one."""
+    check_ids = {str(s).lower() for s in (check.get("subjects") or [])}
+    view_ids = {str(s).lower() for s in (view.get("subjects") or [])}
+    if not check_ids and not view_ids:
         return False
-    view_ids = [str(s).lower() for s in (view.get("subjects") or [])]
-    if not view_ids:
-        return True
-    if set(subjects) & set(view_ids):
-        return False
-    check_fams = {family(s) for s in subjects}
-    view_fams = {family(s) for s in view_ids}
-    return bool(check_fams & view_fams)
+    return not (check_ids & view_ids)
 
 
 def available_at(observed_at: str, evaluated_at: str | None) -> bool:
-    if not evaluated_at or not observed_at:
+    """Missing or unparsable instants are not available at T."""
+    if not observed_at:
+        return False
+    if not evaluated_at:
         return True
-    return instant(observed_at) <= instant(evaluated_at)
+    try:
+        return instant(observed_at) <= instant(evaluated_at)
+    except ValueError:
+        return False
+
+
+def names_proposition(node: str, pid: str) -> bool:
+    return node == pid or node.startswith(pid + ":")
 
 
 def class_of(check: dict, view: dict, evaluated_at: str | None = None) -> str:
@@ -143,7 +148,11 @@ def sufficiency_of(view: dict, evaluated_at: str | None = None) -> str:
 
 
 def currency_of(view: dict, verification: str, evaluated_at: str) -> tuple[str, bool]:
-    if any(e.get("kind") == "superseded_by" for e in view.get("lineage") or []):
+    pid = view["proposition_id"]
+    if any(
+        e.get("kind") == "superseded_by" and names_proposition(str(e.get("from_id") or ""), pid)
+        for e in view.get("lineage") or []
+    ):
         return "SUPERSEDED", False
     conferring = [
         c
@@ -185,6 +194,7 @@ def acceptance_of(view: dict, verification: str, conflict: str, currency: str, s
 
 
 def warrant_now(view: dict) -> dict:
+    validate(view)
     evaluated_at = view["evaluated_at"]
     verification = verification_of(view, evaluated_at)
     conflict = conflict_of(view, evaluated_at)
@@ -197,6 +207,7 @@ def warrant_now(view: dict) -> dict:
         "verification": verification,
         "currency": currency,
         "sufficiency": sufficiency,
+        "protocol_version": POLICY["protocol"],
         "policy_version": POLICY["version"],
         "evaluated_at": evaluated_at,
     }
@@ -205,8 +216,8 @@ def warrant_now(view: dict) -> dict:
 def classify_disagreement(name: str, got: dict, expected: dict) -> str:
     diffs = [ax for ax in AXES if got.get(ax) != expected.get(ax)]
     note = ",".join(diffs)
-    if "scope" in name and "verification" in diffs:
-        return f"spec? scope notes in policy.json vs POLICY.md ({note})"
+    if ("scope" in name or "subject" in name) and "verification" in diffs:
+        return f"spec? subject binding in policy.json vs POLICY.md ({note})"
     if "episode" in name and "verification" in diffs:
         return f"spec? trusted-origin allowlist ({note})"
     return f"impl ({note})"
@@ -218,13 +229,17 @@ def main() -> int:
     rows = []
     failed = 0
     for path in sorted(fixtures.glob("*.json")):
-        view = json.loads(path.read_text())
+        view = json.loads(path.read_text(encoding="utf-8"))
         exp_path = expected_dir / path.name
         if not exp_path.exists():
             rows.append((path.stem, "—", "MISSING", "pack"))
             failed += 1
             continue
-        expected = json.loads(exp_path.read_text())
+        expected = json.loads(exp_path.read_text(encoding="utf-8"))
+        if expected.get("protocol_version") != POLICY["protocol"] or expected.get("policy_version") != POLICY["version"]:
+            rows.append((path.stem, "—", "IDENTITY", "expected file names a different protocol/policy"))
+            failed += 1
+            continue
         got = warrant_now(view)
         match = all(got[ax] == expected[ax] for ax in AXES)
         klass = "—" if match else classify_disagreement(path.stem, got, expected)
@@ -232,10 +247,10 @@ def main() -> int:
             failed += 1
         rows.append((path.stem, got["verification"] + "/" + got["acceptance"], expected["verification"] + "/" + expected["acceptance"], klass))
 
-    print("fixture                                 got            expected       class")
-    print("-" * 86)
+    print("fixture                                   got            expected       class")
+    print("-" * 88)
     for name, got, exp, klass in rows:
-        print(f"{name:39} {got:14} {exp:14} {klass}")
+        print(f"{name:41} {got:14} {exp:14} {klass}")
     print()
     print(f"{len(rows) - failed}/{len(rows)} axis matches")
     if failed:

@@ -1,7 +1,8 @@
-"""Epistemic-laundering and bounded-view fixtures.
+"""Hardening pack: epistemic-laundering and bounded-view fixtures.
 
-Not part of the frozen 26-golden lock. These try to break reference-v1
-without adding axes or bumping the protocol.
+These try to break reference-v2 without adding axes. Their expected axes
+are pinned in docs/implementer/expected/, and this file is part of the
+fixture-set hash in RELEASE.lock.json.
 """
 
 from __future__ import annotations
@@ -327,6 +328,75 @@ def mixed_timestamp_formats_use_instants() -> EvidenceView:
     )
 
 
+def _refund_view(view_id: str, view_subjects: tuple[str, ...], check_subjects: tuple[str, ...]) -> EvidenceView:
+    s = src("billing", "L-api", "api")
+    return EvidenceView(
+        view_id,
+        "P-refund",
+        assertions=[assertion("a1", "P-refund", "customer-42 has approved the refund", s)],
+        evidence=[ev("e1", "P-refund", "supports", s, "refund approved for customer-42")],
+        checks=[VerificationCheck("k1", "external_api", "billing lookup", s, T1, "supports", subjects=check_subjects)],
+        subjects=view_subjects,
+        freshness_policy_seconds=86400 * 7,
+    )
+
+
+def disjoint_subject_families_do_not_verify() -> EvidenceView:
+    """customer-42 vs invoice-999: different families, still different subjects."""
+    return _refund_view("l-subj-invoice", ("customer-42",), ("invoice-999",))
+
+
+def cross_domain_subjects_do_not_verify() -> EvidenceView:
+    """A check about customer-42 cannot verify a server01 proposition."""
+    s = src("winrm", "L-obs", "tool")
+    return EvidenceView(
+        "l-subj-cross",
+        "P-win",
+        assertions=[assertion("a1", "P-win", "server01 runs Windows Server 2022", s)],
+        evidence=[ev("e1", "P-win", "supports", s, "Get-ComputerInfo")],
+        checks=[VerificationCheck("k1", "tool_observation", "inventory", s, T1, "supports", subjects=("customer-42",))],
+        subjects=("server01",),
+        freshness_policy_seconds=86400 * 7,
+    )
+
+
+def unsubjected_check_on_subjected_view() -> EvidenceView:
+    """Omitting subjects on the check is not a way around the binding."""
+    return _refund_view("l-subj-omitted", ("customer-42",), ())
+
+
+def shared_subject_verifies() -> EvidenceView:
+    """A multi-subject proposition is verified by a check on any declared subject."""
+    return _refund_view("l-subj-shared", ("customer-42", "invoice-999"), ("invoice-999",))
+
+
+def garbage_timestamp_is_not_available() -> EvidenceView:
+    """An unparsable check time is not available at T. It must not crash."""
+    s = src("winrm", "L-obs", "tool")
+    return EvidenceView(
+        "l-garbage-ts",
+        "P-win",
+        assertions=[assertion("a1", "P-win", "server01 runs Windows Server 2022", s)],
+        evidence=[ev("e1", "P-win", "supports", s, "Get-ComputerInfo")],
+        checks=[VerificationCheck("k1", "tool_observation", "server01", s, "garbage", "supports")],
+        freshness_policy_seconds=86400 * 7,
+    )
+
+
+def unrelated_supersession_is_not_superseded() -> EvidenceView:
+    """A superseded_by edge between other propositions does not supersede P."""
+    s = src("winrm", "L-obs", "tool")
+    return EvidenceView(
+        "l-unrelated-sup",
+        "P-win",
+        assertions=[assertion("a1", "P-win", "server01 runs Windows Server 2022", s)],
+        evidence=[ev("e1", "P-win", "supports", s, "Get-ComputerInfo")],
+        checks=[VerificationCheck("k1", "tool_observation", "server01", s, T1, "supports")],
+        lineage=[LineageEdge("P-unrelated-a", "P-unrelated-b", "superseded_by")],
+        freshness_policy_seconds=86400 * 7,
+    )
+
+
 PACK = [
     ("launder_repetition", launder_repetition),
     ("launder_summary", launder_summary),
@@ -346,6 +416,12 @@ PACK = [
     ("customer_scope_mismatch", customer_scope_mismatch),
     ("future_check_not_available_at_t", future_check_not_available_at_t),
     ("mixed_timestamp_formats_use_instants", mixed_timestamp_formats_use_instants),
+    ("disjoint_subject_families_do_not_verify", disjoint_subject_families_do_not_verify),
+    ("cross_domain_subjects_do_not_verify", cross_domain_subjects_do_not_verify),
+    ("unsubjected_check_on_subjected_view", unsubjected_check_on_subjected_view),
+    ("shared_subject_verifies", shared_subject_verifies),
+    ("garbage_timestamp_is_not_available", garbage_timestamp_is_not_available),
+    ("unrelated_supersession_is_not_superseded", unrelated_supersession_is_not_superseded),
 ]
 
 EVAL_AT = {

@@ -11,7 +11,9 @@ from .classify import (
     opposing_high_check,
     opposing_items,
     parse_ts,
+    superseding_edges,
     supporting_items,
+    validate_view,
     visible_assertions,
     visible_checks,
 )
@@ -23,21 +25,26 @@ from .types import (
     WarrantAxes,
     WarrantView,
 )
+from .versions import POLICY, PROTOCOL
 
 # Re-export: adapters and tests may import the classifier from the kernel.
 __all__ = ["warrant_now", "check_verification_class"]
 
 
-REFERENCE_POLICY = ("reference-v1", "reference-v1")
+REFERENCE_POLICY = (POLICY, POLICY)
 
 
 def warrant_now(view: EvidenceView, policy: Policy, evaluated_at: str) -> WarrantView:
-    """Deterministic reference-v1 evaluator. No store I/O. No LLM."""
+    """Deterministic reference-v2 evaluator. No store I/O. No LLM.
+
+    Raises InvalidEvidenceView for values outside the closed input enums.
+    """
     if (policy.policy_id, policy.version) != REFERENCE_POLICY:
         raise ValueError(
             f"unknown policy {policy.policy_id}/{policy.version}; "
-            "this evaluator implements reference-v1 only"
+            f"this evaluator implements {POLICY} only"
         )
+    validate_view(view)
     codes: list[str] = []
     eval_dt = parse_ts(evaluated_at)
 
@@ -91,7 +98,7 @@ def warrant_now(view: EvidenceView, policy: Policy, evaluated_at: str) -> Warran
     if any(c.result == "opposes" for c in view.checks):
         codes.append("verification.opposing_check")
 
-    superseded_by = [e.to_id for e in view.lineage if e.kind == "superseded_by"]
+    superseded_by = [e.to_id for e in superseding_edges(view)]
     supersedes = [e.to_id for e in view.lineage if e.kind == "supersedes"]
     derived_from = [e.to_id for e in view.lineage if e.kind == "derived_from"]
 
@@ -107,8 +114,9 @@ def warrant_now(view: EvidenceView, policy: Policy, evaluated_at: str) -> Warran
         if age > view.freshness_policy_seconds:
             stale = True
             codes.append("currency.stale_check")
-    elif view.checks:
-        newest = freshest_check(view.checks)
+    elif checks:
+        # Diagnostic only. Never feed unavailable or unparsable checks here.
+        newest = freshest_check(checks)
         freshest = newest.check_id
 
     if superseded_by:
@@ -199,4 +207,5 @@ def warrant_now(view: EvidenceView, policy: Policy, evaluated_at: str) -> Warran
         derived_from=derived_from,
         supersedes=supersedes,
         superseded_by=superseded_by,
+        protocol_version=PROTOCOL,
     )

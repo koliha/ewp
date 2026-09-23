@@ -9,13 +9,13 @@ Memory is evidence, not truth.
 [![python](https://img.shields.io/badge/python-3.12%2B-3776ab)](#layout)
 [![license](https://img.shields.io/badge/license-MIT-5c6770)](LICENSE)
 
-**EWP-0.2.0.** Policy `reference-v1`. EWP is an epistemic protocol, not an action-authorization framework. Other projects use *warrant* to describe permission to act; EWP uses *epistemic warrant* to describe what an agent is justified in accepting. `may_act()` is deliberately a later gate.
+**EWP-0.2.0.** Policy `reference-v2`. EWP is an epistemic protocol, not an action-authorization framework. Other projects use *warrant* to describe permission to act; EWP uses *epistemic warrant* to describe what an agent is justified in accepting. `may_act()` is deliberately a later gate.
 
 Stores adapt to the protocol. The protocol does not inherit the store’s epistemology.
 
-v0.2.0 tightens scope binding, refuses future-dated checks at T, persists SQLite view completeness, and narrows the serialized `WarrantView` contract. Later 0.2.x hardening ships the MCP façade with an ingest role and requires declared `subjects[]` for scope caps. The 26 goldens stay; the evaluator lock moves.
+v0.2.0 binds verification to declared `subjects[]` as exact ids, scopes supersession to the proposition, treats future, missing, and unparsable times as unavailable at T, refuses values outside the closed enums, makes the SQLite store append-only and per-proposition, requires every adapter to round-trip every field, and ships an MCP façade where every write needs a server-side ingest role. Those judgments changed, so the policy is `reference-v2`. `WarrantView` carries `protocol_version`.
 
-See `NAME.md`, `docs/PROTOCOL_v0.1.md`, `docs/DESIGN_NOTE.md`, `docs/implementer/`, `docs/PLATFORMS.md`, `docs/implementer/LIVE_ADAPTERS.md`, `docs/MCP_CONTRACT.md`, `CONFORMANCE.md`. MCP server: `python3 -m protocol.mcp_server`. The pre-freeze claim/confidence sketch is `historical/docs/MCP_CONTRACT.md` (superseded).
+See `NAME.md`, `docs/PROTOCOL.md`, `docs/DESIGN_NOTE.md`, `docs/implementer/`, `docs/PLATFORMS.md`, `docs/implementer/LIVE_ADAPTERS.md`, `docs/MCP_CONTRACT.md`, `CONFORMANCE.md`. MCP server: `python3 -m protocol.mcp_server`. The pre-freeze claim/confidence sketch is `historical/docs/MCP_CONTRACT.md` (superseded).
 
 Boundary. Policy. Observations. Permission. Four things. None gets to wear the others' clothes.
 
@@ -104,12 +104,12 @@ Those local projections are inputs. They are not automatically agent beliefs.
 warrant_now(evidence_view, policy, evaluated_at) -> WarrantView
 ```
 
-`warrant_now()` is deterministic. It performs no I/O and no LLM inference. Policy identity is `reference-v1` (rules: `docs/implementer/POLICY.md`).
+`warrant_now()` is deterministic. It performs no I/O and no LLM inference. Policy identity is `reference-v2` (rules: `docs/implementer/POLICY.md`). It refuses a policy identity it does not implement, and refuses a view with a value outside the closed enums.
 
 ```
-same EvidenceView + same policy version + same evaluated_at
-──────────────────────────────────────────────────────────
-same WarrantView
+same protocol version + same EvidenceView + same policy + same evaluated_at
+───────────────────────────────────────────────────────────────────────────
+same normative WarrantView
 ```
 
 Warrant is a function, not a stored truth field. Freshness depends on `evaluated_at` on purpose.
@@ -161,6 +161,8 @@ Check:        method tool_observation, result supports,
 
 `result` is part of the check. `opposes` opens conflict and blocks `ACCEPTED`. `inconclusive` cannot raise `EXTERNAL` or `HUMAN`. Method name alone is never enough: an endogenous origin (`extract`, `turn`, `summary`, …) caps the class at `INDIRECT`, including `human_attestation`.
 
+A check is about something. When a proposition declares `subjects: [server01]`, only a check that also names `server01` can raise `EXTERNAL`. A check on `server02`, on `customer-42`, or one that names no subject at all stays `INDIRECT`.
+
 That check can become stale without ever having been false. Currency is computed at evaluation time from the checks that confer the chosen verification class. A later summary cannot refresh an old tool observation. History is not rewritten.
 
 ---
@@ -208,7 +210,7 @@ Implementations **MUST NOT** use retrieval relevance, repetition count, memory s
 5. Endogenous processing cannot manufacture external verification.
 6. Derivation cannot manufacture provenance.
 7. Contradiction must survive storage and retrieval.
-8. Incomplete retrieval must be visible as `sufficiency=DEGRADED`. Under `reference-v1`, `DEGRADED` also blocks `ACCEPTED`.
+8. Incomplete retrieval must be visible as `sufficiency=DEGRADED`. Under `reference-v2`, `DEGRADED` also blocks `ACCEPTED`.
 9. Epistemic policy and action policy are separate.
 10. Semantically equivalent evidence must yield equivalent warrant independent of storage substrate.
 
@@ -227,12 +229,13 @@ The v0.2.0 *reference kernel*:
 - deterministic `warrant_now()` — no network, no LLM, no hidden writes
 - shared `protocol/classify.py` used by both reference evaluators
 - separate `may_act()`
-- 14 canonical fixtures + 12 pathological fixtures + laundering pack (including customer-scope and future-check-at-T)
-- 26 pinned golden `WarrantView`s
-- SQLite and JSON reference adapters (SQLite persists view completeness)
-- Graphiti-*shaped* semantic adapter (fake records used by the frozen suite)
-- live Graphiti and Mem0 *mappings* (`protocol/graphiti_client_adapter.py`, `protocol/mem0_adapter.py`) — not validated against goldens; live `graphiti-core 0.30.2` is **not** validated
-- MCP façade (`protocol/mcp_server.py`, `tests/test_mcp.py`) — stdio or `POST /mcp`; contract in `docs/MCP_CONTRACT.md`
+- 14 canonical + 12 pathological + 24 hardening fixtures (laundering, subject binding, time at T, supersession scope)
+- 26 pinned golden `WarrantView`s; all 50 fixtures' expected axes pinned in `docs/implementer/`
+- an independent third evaluator (`docs/implementer/third_eval.py`) written from the policy text alone
+- SQLite and JSON reference adapters (SQLite is append-only and partitioned by proposition)
+- Graphiti-*shaped* semantic adapter (fake records)
+- live Graphiti and Mem0 *mappings* (`protocol/graphiti_client_adapter.py`, `protocol/mem0_adapter.py`); every fixture round-trips through the fake Graphiti and Mem0 paths with identical axes; live `graphiti-core 0.30.2` is **not** validated
+- MCP façade (`protocol/mcp_server.py`, `tests/test_mcp.py`): MCP stdio transport or plain JSON-RPC `POST /mcp`; contract in `docs/MCP_CONTRACT.md`
 - four-stage runners and field-level diffs
 
 Warrant evaluation does not require MCP. Persona files (`MEMORY.md`) are a generated checkout, not the system of record.
@@ -248,11 +251,11 @@ The pre-freeze claim/confidence sketch is `historical/docs/MCP_CONTRACT.md` (sup
 OpenClaw consumes outbound MCP servers. Run the shipped façade and add it:
 
 ```bash
-python3 -m protocol.mcp_server --http 127.0.0.1:8765 --ingest-token "$EWP_INGEST_TOKEN" --db ./ewp.sqlite
+EWP_INGEST_TOKEN=... python3 -m protocol.mcp_server --http 127.0.0.1:8765 --db ./ewp.sqlite
 openclaw mcp add ewp --url http://127.0.0.1:8765/mcp
 ```
 
-Contract: `docs/MCP_CONTRACT.md`. Stdio is Content-Length framed MCP. HTTP is JSON-RPC. Trusted writes need a server-side ingest role, not only `ingest_attestation`.
+Contract: `docs/MCP_CONTRACT.md`. Stdio is the standard MCP transport (newline-delimited JSON-RPC). HTTP is plain JSON-RPC, not MCP Streamable HTTP. Every write needs the server-side ingest role (`--allow-ingest` on stdio, the token on HTTP); without it the server is evaluate-only. Give the token to the ingest pipeline, not the agent. `ewp_may_act` gates only stored evidence, at server time.
 
 | OpenClaw object | Role under EWP |
 |---|---|
@@ -266,7 +269,7 @@ Dreaming may rewrite `MEMORY.md`. EWP treats that rewrite as a new assertion, no
 
 ### Claude, Codex, other MCP clients
 
-Same contract. Prefer HTTP if several clients share one ledger. Prompt rules: fluency is not recollection; `conflict=OPEN` is said out loud; `DEGRADED` means the view is incomplete; store-native write tools stay disconnected.
+Same contract over stdio: `python3 -m protocol.mcp_server --db ./ewp.sqlite`. Point several clients at the same `--db` to share one ledger. Prompt rules: fluency is not recollection; `conflict=OPEN` is said out loud; `DEGRADED` means the view is incomplete; store-native write tools stay disconnected.
 
 ### Graphiti / Mem0 / Particles / SQLite
 
@@ -302,7 +305,7 @@ python3 tests/runner.py
 python3 tests/runner_pathological.py
 ```
 
-CI enforces fixture, evaluator, and golden lock hashes, all 26 goldens, SQLite ≡ JSON, fake-Graphiti isolation, the laundering pack, live-adapter mappings, the MCP façade, and the third evaluator. Changing a golden or the evaluator requires an explicit version bump, then `python3 tests/ci.py --write-lock`.
+CI enforces the fixture, evaluator, policy, golden, and implementer-pack lock hashes; all 26 goldens; all 50 fixtures through SQLite, JSON, fake Graphiti, and Mem0 with identical axes; fake-Graphiti isolation; the hardening pack; live-adapter mappings; the MCP façade; and the third evaluator. Changing a golden, the pack, the policy text, or the evaluator requires an explicit version change, then `python3 tests/ci.py --write-lock`. `tests/report.py` only says `CONFORMANT` for a CI stamp whose hashes match the current tree.
 
 Failure classes: `INGEST_LOSS`, `ADAPTER_MAP_LOSS`, `WARRANT_MISMATCH`, `RETRIEVAL_LOSS`, `EXPECTED_DIVERGENCE`.
 
@@ -312,26 +315,32 @@ Pathological pack (among others): false supersession, open contradiction, real t
 
 ---
 
-## v0.2.0 freeze
+## v0.2.0 lock
 
 <a id="v020"></a>
 
 ```
 Epistemic Warrant Protocol EWP-0.2.0
-Policy: reference-v1
+Policy: reference-v2
 Canonical: 14/14
 Pathological: 12/12
+Hardening: 24/24
 SQLite PASS
 JSON PASS
 Fake Graphiti PASS
+Mem0 (fake client) PASS
 graphiti-core 0.30.2 — NOT VALIDATED
 
-Fixture set sha256:
-910b6e98bee3148460f15303810c8e4c447721252b02c7f4805f3c0ce75b98db
-Evaluator set sha256:
-b1067194eb02a2cc419f8ee56e92b380eb1840f36e3d25a2d1f311989b9ff77a
-Golden set sha256:
-95f26b124ac813ef7b6f895bd43c20832f2026bfb8a25513ce6bfd7302088dd3
+fixture_set_sha256:
+1f6692791a1efa421629c4664dbed64cbfc31580db30eecbf174bc08465e1298
+evaluator_set_sha256:
+796a3f1000ab096f5d9994c2f320619476672db750190e6e292becb17f003cb4
+policy_set_sha256:
+c70211212f10c263020d01d61ccc40ef47b1855147a9b702174690ae5d2e4af3
+golden_set_sha256:
+1db7cab34639a87ce35c36635d4b6cffa46ba08855107fc9a04a4b89348a81c8
+implementer_pack_sha256:
+b5ca24655b443e01f0c20f582ad7208b2da730daf2e501c318156c3283eb3233
 ```
 
 A store that produces a different answer has an adapter or conformance problem, not a license to move the goldens.
@@ -342,14 +351,14 @@ A store that produces a different answer has an adapter or conformance problem, 
 
 ```
 protocol/          kernel (classify, warrant, adapters, fixtures, MCP server)
-                   plus live Graphiti/Mem0 mappings (not part of the 26-golden lock)
-tests/             conformance, goldens, runners, CI, live-adapter and MCP tests
-docs/              PROTOCOL (filename PROTOCOL_v0.1.md, content v0.2),
-                   design note, platforms, implementer pack, PDF
+                   plus live Graphiti/Mem0 mappings
+tests/             conformance, goldens, adapter round trips, runners, CI,
+                   live-adapter and MCP tests
+docs/              PROTOCOL.md, design note, platforms, implementer pack, PDFs
                    docs/MCP_CONTRACT.md — shipped MCP façade
 historical/        pre-freeze warrantmem ledger/MCP/Postgres sketches
                    including historical/docs/MCP_CONTRACT.md (superseded)
-RELEASE.lock.json  fixture + evaluator + golden hashes
+RELEASE.lock.json  fixture + evaluator + policy + golden + implementer-pack hashes
 pyproject.toml     package metadata (no published install yet; ewp-mcp entry point)
 ```
 
@@ -369,7 +378,7 @@ That answer can be reproduced, tested, inspected, and challenged.
 
 ## Status
 
-v0.2.0 is current. Policy identity stays `reference-v1`. The 26 goldens are unchanged; the evaluator lock moved with scope binding, future-check-at-T, and adapter completeness. See `CHANGELOG.md`.
+v0.2.0 is current under policy `reference-v2`. The 26 golden axes are unchanged from 0.1.0; their identity fields now read `reference-v2` and `EWP-0.2.0`. The hardening pack grew to 24 fixtures and is locked. Known limit: conflict rows and lineage edges carry no timestamp, so they are not filtered by availability at T. See `CHANGELOG.md`.
 
 New stores may reveal adapter bugs, retrieval loss, missing tests, or a genuine hole. They do not redefine warrant.
 

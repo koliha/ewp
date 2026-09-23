@@ -102,7 +102,10 @@ def ingest_view(store: FakeGraphitiStore, view: EvidenceView) -> dict:
             metadata={
                 "kind": "ewp_parked",
                 "proposition_id": view.proposition_id,
-                "checks": [c.__dict__ | {"source": c.source.__dict__} for c in view.checks],
+                "checks": [
+                    c.__dict__ | {"source": c.source.__dict__, "subjects": list(c.subjects)}
+                    for c in view.checks
+                ],
                 "conflicts": [
                     {"conflict_id": c.conflict_id, "proposition_ids": list(c.proposition_ids), "status": c.status, "note": c.note}
                     for c in view.conflicts
@@ -112,6 +115,7 @@ def ingest_view(store: FakeGraphitiStore, view: EvidenceView) -> dict:
                 "degraded": view.degraded,
                 "retrieval_scope": view.retrieval_scope,
                 "freshness_policy_seconds": view.freshness_policy_seconds,
+                "subjects": list(view.subjects),
             },
         )
     )

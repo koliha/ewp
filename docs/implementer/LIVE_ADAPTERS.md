@@ -1,7 +1,9 @@
 # Live Graphiti and Mem0 adapters
 
-v0.2.0 ships fake Graphiti + SQLite + JSON so the kernel can freeze without
-Neo4j or a Mem0 key. These adapters are the production mapping.
+EWP-0.2.0 ships fake Graphiti + SQLite + JSON so the kernel can be locked
+without Neo4j or a Mem0 key. These adapters are the production mapping.
+`tests/test_adapter_roundtrip.py` runs every fixture through the fake
+Graphiti and Mem0 paths and requires identical axes.
 
 ```
 store client  →  EvidenceView  →  warrant_now(view, policy, evaluated_at)
@@ -29,6 +31,11 @@ print(warrant_now(view, Policy(), "2026-09-22T15:00:00+00:00").warrant)
 | `EpisodicNode.metadata.lineage_id` or `source_description` JSON | `SourceRef.lineage_id` | Must be written by the caller. Graphiti must not invent it. |
 | `valid_at` / `invalid_at` / `expired_at` | evidence note only | Store-local. Not currency, not verification. |
 | `search()` hit set ⊂ group edges | `degraded=True`, `retrieval_scope=graphiti.search` | `RETRIEVAL_LOSS` if you forget this. |
+
+The parked sidecar carries checks (with their `subjects[]`), conflicts,
+lineage, completeness, freshness, and the view's `subjects[]`. Losing any of
+them changes warrant; subject loss can turn a mismatched check into
+`EXTERNAL`.
 
 Parked checks live on an episode whose *name* is `meta:{proposition_id}` and
 whose body is `ewp-parked`. Graphiti assigns its own UUID. The adapter finds
@@ -64,12 +71,15 @@ print(adapter.search_view(view.proposition_id, "Windows").degraded)
 
 | Mem0 field | EWP field | Notes |
 |---|---|---|
-| `memory` | assertion + supporting evidence | Default `origin_type=extract` (endogenous). |
+| `metadata.ewp.kind=assertion` | `Assertion` | Written by `ingest_view`, one memory per assertion. Keeps `asserted_at`. |
+| `metadata.ewp.kind=evidence` | `EvidenceItem` | One memory per evidence item. Keeps `polarity` and `observed_at`. |
+| `memory` with no EWP kind | assertion + supporting evidence | Memories written outside EWP. Default `origin_type=extract` (endogenous). |
+| `created_at` | fallback time only | Mem0's ingest time, not observation time. Used only when EWP metadata has none. |
 | `metadata.ewp.lineage_id` | `SourceRef.lineage_id` | Falls back to memory id. |
 | `metadata.ewp.origin_type` | `SourceRef.origin_type` | Only `tool` / `document` / `human` / `api` / `vendor` / `sensor` can raise EXTERNAL/HUMAN. |
 | `score` | `adapter_meta.retrieval_scores` | Never warrant strength. |
 | `get_all` vs `search` | `degraded` | Omitted memory ids listed. |
-| sidecar `kind=ewp_parked` | checks, conflicts, lineage | Mem0 has no first-class check table. |
+| sidecar `kind=ewp_parked` | checks, conflicts, lineage, completeness, `subjects[]` | Mem0 has no first-class check table. |
 
 Untagged memories (no `metadata.ewp.proposition_id`) do not enter a named
 proposition view. They are `Mem0Adapter.unscoped_items()`, not evidence for P.
