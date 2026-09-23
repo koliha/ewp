@@ -45,6 +45,10 @@
   },
   "notes": {
     "closed_enums": "a value outside the enums makes the view invalid; refuse it, do not evaluate it",
+    "bounded_view": "assertions and evidence must be about proposition_id (or proposition_id:<suffix>); conflict rows must name it; otherwise refuse the view",
+    "typed_fields": "subjects are lists of non-empty strings; freshness_policy_seconds is a non-negative int (0 is valid, bool is not); degraded is a bool; retrieval_scope is a string; missing fields take defaults, present falsy values are kept",
+    "unbound_check_conflict": "a check whose subjects do not bind still counts toward implied conflict",
+    "assertion_polarity": "known limit: assertions have no polarity and always count as grounds for TENTATIVE",
     "inconclusive_cap": "result=inconclusive cannot raise HUMAN or EXTERNAL",
     "endogenous_cap": "endogenous origin cannot raise HUMAN or EXTERNAL, including human methods",
     "implied_conflict": "supports+opposes in evidence or checks opens conflict even without a Conflict row",

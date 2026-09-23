@@ -19,3 +19,12 @@ jobs:
         run: python3 tests/ci.py
       - name: Print conformance claim
         run: python3 tests/report.py
+      - name: Tester path (pip install, ewp-ingest, ewp-mcp)
+        run: |
+          python3 -m venv /tmp/ewp-venv
+          /tmp/ewp-venv/bin/pip install --quiet .
+          /tmp/ewp-venv/bin/ewp-ingest --db /tmp/ewp.sqlite examples/quickstart.json --attest-trusted-origins
+          printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"ci","version":"0"}}}' \
+            '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"ewp_list_propositions","arguments":{}}}' \
+            | /tmp/ewp-venv/bin/ewp-mcp --db /tmp/ewp.sqlite | tee /tmp/mcp.out
+          grep -q P-prod-db-version /tmp/mcp.out

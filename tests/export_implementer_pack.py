@@ -14,12 +14,12 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from protocol.fixtures import EVAL
-from protocol.laundering import PACK as LAUNDER, EVAL_AT
-from protocol.pathological import PACK as PATHO
-from protocol.types import Policy
-from protocol.versions import PROTOCOL
-from protocol.warrant import warrant_now
+from ewp.fixtures import EVAL
+from ewp.laundering import INVALID_PACK, PACK as LAUNDER, EVAL_AT
+from ewp.pathological import PACK as PATHO
+from ewp.types import Policy
+from ewp.versions import PROTOCOL
+from ewp.warrant import warrant_now
 from tests.runner import FIXTURES
 
 ROOT = Path(__file__).resolve().parents[1] / "docs" / "implementer"
@@ -45,10 +45,16 @@ def dump(name: str, view, evaluated_at: str) -> None:
 
 
 def main() -> None:
-    for sub in ("fixtures", "expected"):
+    for sub in ("fixtures", "expected", "invalid"):
         (ROOT / sub).mkdir(parents=True, exist_ok=True)
         for old in (ROOT / sub).glob("*.json"):
             old.unlink()
+    # Views every conforming evaluator must refuse. No expected axes exist.
+    for name, make in INVALID_PACK:
+        payload = make()
+        payload["evaluated_at"] = EVAL
+        _write(ROOT / "invalid" / f"{name}.json", payload)
+        print(f"invalid/{name}")
     for name, cases in FIXTURES:
         _pid, view, evaluated_at = cases[0]
         dump(name, view, evaluated_at)

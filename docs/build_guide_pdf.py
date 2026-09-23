@@ -123,8 +123,8 @@ def build():
     story.append(Spacer(1, 1.15 * inch))
     story.append(p(s, "CoverKicker", "EPISTEMIC WARRANT PROTOCOL"))
     story.append(p(s, "CoverTitle", "What an agent is justified<br/>in accepting — and why"))
-    story.append(p(s, "CoverSub", f"{LOCK['protocol']}  ·  Policy {LOCK['policy']}"))
-    story.append(p(s, "CoverSub", "MIT  ·  Python 3.12+  ·  Canonical 14  ·  Pathological 12  ·  Hardening 24  ·  Goldens 26"))
+    story.append(p(s, "CoverSub", f"{LOCK['protocol']} release candidate  ·  Policy {LOCK['policy']}"))
+    story.append(p(s, "CoverSub", "MIT  ·  Python 3.12+  ·  Canonical 14  ·  Pathological 12  ·  Hardening 25  ·  Goldens 26"))
     story.append(Spacer(1, 0.12 * inch))
     story.append(p(s, "Lead", "EWP defines the deterministic boundary between what an AI agent's memory contains and what the agent is epistemically justified in accepting."))
     story.append(p(s, "RuleLine", "Memory is evidence, not truth."))
@@ -140,7 +140,7 @@ def build():
     ))
     story.append(p(s, "H2", "Quick start"))
     story.append(Preformatted(
-        "python3 tests/ci.py\npython3 tests/report.py\n\nfrom protocol.types import Policy\nfrom protocol.warrant import warrant_now\nfrom protocol.fixtures import fixture_verified_current, EVAL\nprint(warrant_now(fixture_verified_current(), Policy(), EVAL).warrant)",
+        "python3 tests/ci.py\npython3 tests/report.py\n\nfrom ewp.types import Policy\nfrom ewp.warrant import warrant_now\nfrom ewp.fixtures import fixture_verified_current, EVAL\nprint(warrant_now(fixture_verified_current(), Policy(), EVAL).warrant)",
         s["CodeBlock"],
     ))
     story.append(p(s, "Body", "There is no packaged install yet. The repository itself is currently the reference implementation and conformance suite."))
@@ -213,15 +213,15 @@ def build():
     ], [2.15 * inch, 4.65 * inch]))
     story.append(p(s, "Body", "Dreaming may rewrite MEMORY.md. EWP treats that rewrite as a new assertion, not as verification. Compression must not turn \"X is disputed\" into \"X.\""))
     story.append(p(s, "H2", "Claude, Codex, other MCP clients"))
-    story.append(p(s, "Body", "Same contract. python3 -m protocol.mcp_server speaks the MCP stdio transport (newline-delimited JSON-RPC). --http 127.0.0.1:8765 serves plain JSON-RPC POST /mcp for OpenClaw; it is not MCP Streamable HTTP. Every write requires the server-side ingest role (--allow-ingest on stdio, the token from EWP_INGEST_TOKEN on HTTP); without it the server is evaluate-only. Trusted origins also need ingest_attestation=true. Inline views are hypothetical: ewp_warrant_now demotes their trusted origins and ewp_may_act refuses them. ewp_may_act evaluates stored evidence at server time. The pre-freeze claim/confidence sketch stays in historical/docs/MCP_CONTRACT.md and is not the shipped façade."))
+    story.append(p(s, "Body", "Same contract. python3 -m ewp.mcp_server speaks the MCP stdio transport (newline-delimited JSON-RPC). --http 127.0.0.1:8765 serves plain JSON-RPC POST /mcp for OpenClaw; it is not MCP Streamable HTTP. Every write requires the server-side ingest role (--allow-ingest on stdio, the token from EWP_INGEST_TOKEN on HTTP); without it the server is evaluate-only. Trusted origins also need ingest_attestation=true. Inline views are hypothetical: ewp_warrant_now demotes their trusted origins and ewp_may_act refuses them. ewp_may_act evaluates stored evidence at server time. The pre-freeze claim/confidence sketch stays in historical/docs/MCP_CONTRACT.md and is not the shipped façade."))
     story.append(Preformatted(
-        "python3 -m protocol.mcp_server --db ./ewp.sqlite\n"
-        "EWP_INGEST_TOKEN=... python3 -m protocol.mcp_server --http 127.0.0.1:8765 --db ./ewp.sqlite\n"
+        "python3 -m ewp.mcp_server --db ./ewp.sqlite\n"
+        "EWP_INGEST_TOKEN=... python3 -m ewp.mcp_server --http 127.0.0.1:8765 --db ./ewp.sqlite\n"
         "openclaw mcp add ewp --url http://127.0.0.1:8765/mcp",
         s["CodeBlock"],
     ))
     story.append(p(s, "H2", "Graphiti, Mem0, Particles, SQLite"))
-    story.append(p(s, "Body", "Graphiti can be used as a temporal/entity evidence substrate or mirror. Inject lineage_id in episode metadata. invalid_at is store-local. valid_at is not a verification check. Search collapse marks the view DEGRADED. Every fixture must round-trip through the fake Graphiti and Mem0 paths with identical axes. Live Graphiti and Mem0 mappings live in protocol/graphiti_client_adapter.py and protocol/mem0_adapter.py; notes in docs/implementer/LIVE_ADAPTERS.md. Live graphiti-core 0.30.2 is not validated. Mem0 default origin is extract; retrieval score is not warrant. Particles is a good immutable substrate; writes go only through EWP's ingest role. SQLite and JSON prove store neutrality."))
+    story.append(p(s, "Body", "Graphiti can be used as a temporal/entity evidence substrate or mirror. Inject lineage_id in episode metadata. invalid_at is store-local. valid_at is not a verification check. Search collapse marks the view DEGRADED. Every fixture must round-trip through the fake Graphiti and Mem0 paths with identical axes. Live Graphiti and Mem0 mappings live in ewp/graphiti_client_adapter.py and ewp/mem0_adapter.py; notes in docs/implementer/LIVE_ADAPTERS.md. Live graphiti-core 0.30.2 is not validated. Mem0 default origin is extract; retrieval score is not warrant. Particles is a good immutable substrate; writes go only through EWP's ingest role. SQLite and JSON prove store neutrality."))
     story.append(p(s, "RuleLine", "Graphiti adapts to the protocol. The protocol does not adapt to Graphiti."))
 
     story.append(PageBreak())
@@ -238,7 +238,7 @@ def build():
         "python3 tests/ci.py\npython3 tests/report.py\npython3 tests/runner.py\npython3 tests/runner_pathological.py",
         s["CodeBlock"],
     ))
-    story.append(p(s, "Body", "CI enforces the fixture, evaluator, policy, golden, and implementer-pack lock hashes; all 26 goldens; all 50 fixtures through SQLite, JSON, fake Graphiti, and Mem0 with identical axes; the hardening pack; the MCP façade; and an independent third evaluator. Changing a golden, the pack, the policy text, or the evaluator requires a protocol or policy version change, then python3 tests/ci.py --write-lock."))
+    story.append(p(s, "Body", "CI enforces the fixture, evaluator, policy, golden, and implementer-pack lock hashes; all 26 goldens; all 51 fixtures through the codec, SQLite, JSON, Mem0, and fake Graphiti with identical axes and fields (Graphiti's listed losses aside); 12 invalid views refused; the hardening pack; the MCP façade; and an independent third evaluator. Changing a golden, the pack, the policy text, or the evaluator requires a protocol or policy version change, then python3 tests/ci.py --write-lock."))
     story.append(table(s, ["Class", "Meaning"], [
         ["INGEST_LOSS", "Store dropped assertions, sources, lineage, checks, or conflicts."],
         ["ADAPTER_MAP_LOSS", "Store has the rows; EvidenceView is incomplete."],
@@ -252,7 +252,7 @@ def build():
     story.append(Preformatted(
         f"Epistemic Warrant Protocol {LOCK['protocol']}\n"
         f"Policy: {LOCK['policy']}\n"
-        "Canonical: 14/14   Pathological: 12/12   Hardening: 24/24\n"
+        "Canonical: 14/14   Pathological: 12/12   Hardening: 25/25   Invalid refused: 12/12\n"
         "SQLite PASS    JSON PASS    Fake Graphiti PASS    Mem0 (fake client) PASS\n"
         f"graphiti-core {LOCK['graphiti_pin']} — NOT VALIDATED\n"
         + "".join(f"{key}:\n{LOCK[key]}\n" for key in LOCK_KEYS).rstrip("\n"),

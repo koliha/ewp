@@ -7,11 +7,11 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from protocol.fixtures import EVAL, EVAL_LATE
-from protocol.graphiti_adapter import GraphitiAdapter
-from protocol.graphiti_records import FakeEntityEdge, FakeEpisode, FakeGraphitiStore
-from protocol.types import Policy
-from protocol.warrant import warrant_now
+from ewp.fixtures import EVAL, EVAL_LATE
+from ewp.graphiti_adapter import GraphitiAdapter
+from ewp.graphiti_records import FakeEntityEdge, FakeEpisode, FakeGraphitiStore
+from ewp.types import Policy
+from ewp.warrant import warrant_now
 
 POLICY = Policy()
 FACT = "server01 runs Windows Server 2022"

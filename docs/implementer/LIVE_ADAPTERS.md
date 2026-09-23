@@ -1,9 +1,15 @@
 # Live Graphiti and Mem0 adapters
 
 EWP-0.2.0 ships fake Graphiti + SQLite + JSON so the kernel can be locked
-without Neo4j or a Mem0 key. These adapters are the production mapping.
+without Neo4j or a Mem0 key. The Mem0 adapter is the production mapping for
+Mem0. The live Graphiti adapter is **experimental**: it has not been run
+against a real `graphiti-core`, whose `add_episode()` LLM extractor decides
+which fields survive.
 `tests/test_adapter_roundtrip.py` runs every fixture through the fake
-Graphiti and Mem0 paths and requires identical axes.
+Graphiti and Mem0 paths and requires identical axes. Mem0 must also return
+every field unchanged; fake Graphiti may lose only the fields listed in
+`GRAPHITI_FIELD_LOSSES` (record ids, asserter, confidence, evidence content,
+duplicate identical assertions).
 
 ```
 store client  →  EvidenceView  →  warrant_now(view, policy, evaluated_at)
@@ -12,12 +18,12 @@ store client  →  EvidenceView  →  warrant_now(view, policy, evaluated_at)
 Neither adapter is a second epistemology. Graphiti `invalid_at` and Mem0
 `score` stay in `adapter_meta` / evidence notes. They never become axes.
 
-## Graphiti (`protocol/graphiti_client_adapter.py`)
+## Graphiti (`ewp/graphiti_client_adapter.py`)
 
 ```python
-from protocol.graphiti_client_adapter import GraphitiClientAdapter
-from protocol.types import Policy
-from protocol.warrant import warrant_now
+from ewp.graphiti_client_adapter import GraphitiClientAdapter
+from ewp.types import Policy
+from ewp.warrant import warrant_now
 
 adapter = GraphitiClientAdapter(graphiti, group_id="user-42", proposition_id="P-os")
 view = await adapter.raw_view("P-os")
@@ -36,6 +42,13 @@ The parked sidecar carries checks (with their `subjects[]`), conflicts,
 lineage, completeness, freshness, and the view's `subjects[]`. Losing any of
 them changes warrant; subject loss can turn a mismatched check into
 `EXTERNAL`.
+
+Both `raw_view` and `search_view` apply the parked sidecar. EWP-ingested edges
+carry `roles` (`assertion`, `evidence`, or both) so an evidence-only record
+does not come back as a claim and an assertion-only record does not gain
+supporting evidence. Edges from Graphiti's own extractor are read as both.
+Live ingest writes evidence-only sources as episodes too, with
+`reference_time` set from the source's `observed_at`.
 
 Parked checks live on an episode whose *name* is `meta:{proposition_id}` and
 whose body is `ewp-parked`. Graphiti assigns its own UUID. The adapter finds
@@ -56,11 +69,11 @@ parks them on a `meta:{proposition_id}` episode. If Graphiti strips
 Live pin remains `graphiti-core 0.30.2`. The mapping is duck-typed so a
 newer client still works if `search` / edge listing stay recognizable.
 
-## Mem0 (`protocol/mem0_adapter.py`)
+## Mem0 (`ewp/mem0_adapter.py`)
 
 ```python
 from mem0 import Memory  # or MemoryClient
-from protocol.mem0_adapter import Mem0Adapter
+from ewp.mem0_adapter import Mem0Adapter
 
 m = Memory()
 adapter = Mem0Adapter(m, user_id="u1", infer=False)
@@ -71,7 +84,7 @@ print(adapter.search_view(view.proposition_id, "Windows").degraded)
 
 | Mem0 field | EWP field | Notes |
 |---|---|---|
-| `metadata.ewp.kind=assertion` | `Assertion` | Written by `ingest_view`, one memory per assertion. Keeps `asserted_at`. |
+| `metadata.ewp.kind=assertion` | `Assertion` | Written by `ingest_view`, one memory per assertion. Keeps `asserted_at`, `assertion_id`, confidence, and the full `SourceRef` (`source_id`, `observed_at`, `extractor_id`, …). |
 | `metadata.ewp.kind=evidence` | `EvidenceItem` | One memory per evidence item. Keeps `polarity` and `observed_at`. |
 | `memory` with no EWP kind | assertion + supporting evidence | Memories written outside EWP. Default `origin_type=extract` (endogenous). |
 | `created_at` | fallback time only | Mem0's ingest time, not observation time. Used only when EWP metadata has none. |

@@ -10,24 +10,24 @@ import hashlib
 import json
 from pathlib import Path
 
-from .versions import GRAPHITI_PIN, POLICY, PROTOCOL
+from .versions import FIXTURES, GRAPHITI_PIN, POLICY, PROTOCOL
 
 ROOT = Path(__file__).resolve().parents[1]
 
 # Behavioral fixtures: canonical, pathological, and the hardening pack.
 FIXTURE_FILES = (
-    "protocol/fixtures.py",
-    "protocol/pathological.py",
-    "protocol/laundering.py",
+    "ewp/fixtures.py",
+    "ewp/pathological.py",
+    "ewp/laundering.py",
 )
 # Everything that decides the axes or the action gate.
 EVALUATOR_FILES = (
-    "protocol/classify.py",
-    "protocol/warrant.py",
-    "protocol/warrant_b.py",
-    "protocol/types.py",
-    "protocol/may_act.py",
-    "protocol/versions.py",
+    "ewp/classify.py",
+    "ewp/warrant.py",
+    "ewp/warrant_b.py",
+    "ewp/types.py",
+    "ewp/may_act.py",
+    "ewp/versions.py",
 )
 # The named policy as written for independent implementers.
 POLICY_FILES = (
@@ -81,10 +81,36 @@ def golden_set_hash() -> str:
 
 
 def implementer_pack_hash() -> str:
-    """docs/implementer fixtures + expected axes (all 50, including the hardening pack)."""
+    """docs/implementer fixtures + expected axes (canonical, pathological,
+    hardening) + the invalid pack every evaluator must refuse."""
     h = hashlib.sha256()
     h.update(_hash_dir("docs/implementer/fixtures").encode())
     h.update(_hash_dir("docs/implementer/expected").encode())
+    h.update(_hash_dir("docs/implementer/invalid").encode())
+    return h.hexdigest()
+
+
+CI_SURFACE_GLOBS = (
+    "ewp/**/*.py",
+    "tests/**/*.py",
+    "docs/implementer/**/*",
+    ".github/workflows/*.yml",
+    "examples/*.json",
+    "pyproject.toml",
+)
+
+
+def ci_surface_hash() -> str:
+    """Everything tests/ci.py exercises: kernel, adapters, MCP, tests,
+    implementer pack, workflow. Not part of the protocol lock; it ties a CI
+    stamp to the exact tree it ran on."""
+    files: set[Path] = set()
+    for pattern in CI_SURFACE_GLOBS:
+        files.update(p for p in ROOT.glob(pattern) if p.is_file() and "__pycache__" not in p.parts)
+    h = hashlib.sha256()
+    for path in sorted(files):
+        h.update(path.relative_to(ROOT).as_posix().encode())
+        h.update(_normalized(path))
     return h.hexdigest()
 
 
@@ -103,7 +129,7 @@ def metadata() -> dict:
         "protocol": PROTOCOL,
         "short_name": "EWP",
         "policy": POLICY,
-        "fixtures": "canonical-14 + pathological-12 + hardening-24",
+        "fixtures": FIXTURES,
         **current_hashes(),
         "graphiti_pin": GRAPHITI_PIN,
         "rule": "Graphiti adapts to the protocol. The protocol does not adapt to Graphiti.",

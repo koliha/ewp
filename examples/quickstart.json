@@ -1,0 +1,147 @@
+{
+  "views": [
+    {
+      "proposition_id": "P-prod-db-version",
+      "view_id": "quickstart-db-1",
+      "subjects": ["db-prod-1"],
+      "freshness_policy_seconds": 31536000,
+      "assertions": [
+        {
+          "assertion_id": "a-memory",
+          "text": "The production database runs PostgreSQL 13.",
+          "asserted_by": "assistant",
+          "assertion_confidence": 0.9,
+          "asserted_at": "2026-03-02T15:10:00Z",
+          "source": {
+            "source_id": "chat-2026-03-02",
+            "lineage_id": "L-chat-2026-03-02",
+            "origin_type": "turn",
+            "origin_locator": "conversation 2026-03-02, message 14",
+            "snapshot_id": "chat-2026-03-02",
+            "content_hash": "sha256:example-chat",
+            "observed_at": "2026-03-02T15:10:00Z"
+          }
+        }
+      ],
+      "evidence": [
+        {
+          "evidence_id": "e-memory",
+          "polarity": "supports",
+          "content": "Assistant recalled PostgreSQL 13 while planning the migration.",
+          "observed_at": "2026-03-02T15:10:00Z",
+          "source": {
+            "source_id": "chat-2026-03-02",
+            "lineage_id": "L-chat-2026-03-02",
+            "origin_type": "turn",
+            "origin_locator": "conversation 2026-03-02, message 14",
+            "snapshot_id": "chat-2026-03-02",
+            "content_hash": "sha256:example-chat",
+            "observed_at": "2026-03-02T15:10:00Z"
+          }
+        }
+      ],
+      "checks": [
+        {
+          "check_id": "k-psql-version",
+          "method": "tool_observation",
+          "scope": "SELECT version() on db-prod-1",
+          "subjects": ["db-prod-1"],
+          "result": "opposes",
+          "observed_at": "2026-09-20T09:00:00Z",
+          "source": {
+            "source_id": "psql-2026-09-20",
+            "lineage_id": "L-psql",
+            "origin_type": "tool",
+            "origin_locator": "psql -c 'SELECT version()' on db-prod-1",
+            "snapshot_id": "psql-2026-09-20",
+            "content_hash": "sha256:example-psql",
+            "observed_at": "2026-09-20T09:00:00Z"
+          }
+        }
+      ]
+    },
+    {
+      "proposition_id": "P-deploys-from-main",
+      "view_id": "quickstart-deploy-1",
+      "subjects": ["repo-webapp"],
+      "freshness_policy_seconds": 31536000,
+      "assertions": [
+        {
+          "assertion_id": "a-ci-config",
+          "text": "Production deploys are triggered from the main branch.",
+          "asserted_by": "ci-config-reader",
+          "assertion_confidence": 1.0,
+          "asserted_at": "2026-09-20T09:05:00Z",
+          "source": {
+            "source_id": "ci-yaml-2026-09-20",
+            "lineage_id": "L-ci-yaml",
+            "origin_type": "tool",
+            "origin_locator": ".github/workflows/deploy.yml@a1b2c3d",
+            "snapshot_id": "a1b2c3d",
+            "content_hash": "sha256:example-ci-yaml",
+            "observed_at": "2026-09-20T09:05:00Z"
+          }
+        }
+      ],
+      "checks": [
+        {
+          "check_id": "k-ci-yaml",
+          "method": "tool_observation",
+          "scope": "on.push.branches in deploy.yml",
+          "subjects": ["repo-webapp"],
+          "result": "supports",
+          "observed_at": "2026-09-20T09:05:00Z",
+          "source": {
+            "source_id": "ci-yaml-2026-09-20",
+            "lineage_id": "L-ci-yaml",
+            "origin_type": "tool",
+            "origin_locator": ".github/workflows/deploy.yml@a1b2c3d",
+            "snapshot_id": "a1b2c3d",
+            "content_hash": "sha256:example-ci-yaml",
+            "observed_at": "2026-09-20T09:05:00Z"
+          }
+        }
+      ]
+    },
+    {
+      "proposition_id": "P-api-key-rotated",
+      "view_id": "quickstart-key-1",
+      "assertions": [
+        {
+          "assertion_id": "a-summary-1",
+          "text": "The payments API key was rotated.",
+          "asserted_by": "memory-summarizer",
+          "assertion_confidence": 0.95,
+          "asserted_at": "2026-08-01T12:00:00Z",
+          "source": {
+            "source_id": "summary-aug-01",
+            "lineage_id": "L-standup-notes-jul-31",
+            "origin_type": "summary",
+            "origin_locator": "nightly memory summary 2026-08-01",
+            "snapshot_id": "summary-aug-01",
+            "content_hash": "sha256:example-summary-1",
+            "observed_at": "2026-08-01T12:00:00Z",
+            "parent_source_id": "standup-jul-31"
+          }
+        },
+        {
+          "assertion_id": "a-summary-2",
+          "text": "Confirmed: payments API key rotation is done.",
+          "asserted_by": "memory-summarizer",
+          "assertion_confidence": 0.99,
+          "asserted_at": "2026-08-15T12:00:00Z",
+          "source": {
+            "source_id": "summary-aug-15",
+            "lineage_id": "L-standup-notes-jul-31",
+            "origin_type": "summary",
+            "origin_locator": "nightly memory summary 2026-08-15",
+            "snapshot_id": "summary-aug-15",
+            "content_hash": "sha256:example-summary-2",
+            "observed_at": "2026-08-15T12:00:00Z",
+            "parent_source_id": "summary-aug-01"
+          }
+        }
+      ]
+    }
+  ]
+}

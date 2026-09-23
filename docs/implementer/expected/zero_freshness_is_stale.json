@@ -1,0 +1,10 @@
+{
+  "acceptance": "TENTATIVE",
+  "conflict": "NONE",
+  "currency": "STALE",
+  "evaluated_at": "2026-09-21T18:31:01+00:00",
+  "policy_version": "reference-v2",
+  "protocol_version": "EWP-0.2.0",
+  "sufficiency": "SUFFICIENT",
+  "verification": "EXTERNAL"
+}

@@ -2,12 +2,12 @@
   "protocol": "EWP-0.2.0",
   "short_name": "EWP",
   "policy": "reference-v2",
-  "fixtures": "canonical-14 + pathological-12 + hardening-24",
-  "fixture_set_sha256": "1f6692791a1efa421629c4664dbed64cbfc31580db30eecbf174bc08465e1298",
-  "evaluator_set_sha256": "796a3f1000ab096f5d9994c2f320619476672db750190e6e292becb17f003cb4",
-  "policy_set_sha256": "c70211212f10c263020d01d61ccc40ef47b1855147a9b702174690ae5d2e4af3",
+  "fixtures": "canonical-14 + pathological-12 + hardening-25 + invalid-12",
+  "fixture_set_sha256": "a6a9a1ea72608d70b695a5f7621978fca2c724dea877704c23ecead0ec8ed355",
+  "evaluator_set_sha256": "2fedf99023f4d17f85a44b8b8c89b825dcbcf4a5748c29f55aac5948b3dff025",
+  "policy_set_sha256": "90b1c819beffad833c5a43f4e68b014feea88d59bca5f60032684018da1c8896",
   "golden_set_sha256": "1db7cab34639a87ce35c36635d4b6cffa46ba08855107fc9a04a4b89348a81c8",
-  "implementer_pack_sha256": "b5ca24655b443e01f0c20f582ad7208b2da730daf2e501c318156c3283eb3233",
+  "implementer_pack_sha256": "b13d6f36eb8e25419f45aab216991397fcff786468ee3e7c7596b76e72ee316c",
   "graphiti_pin": "0.30.2",
   "rule": "Graphiti adapts to the protocol. The protocol does not adapt to Graphiti."
 }

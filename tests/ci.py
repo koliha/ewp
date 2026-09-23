@@ -21,8 +21,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from protocol.release import LOCK_KEYS, current_hashes, metadata, write_lock
-from protocol.versions import POLICY, PROTOCOL
+from ewp.release import LOCK_KEYS, ci_surface_hash, current_hashes, metadata, write_lock
+from ewp.versions import POLICY, PROTOCOL
 
 STAMP = ROOT / "tests" / ".last_ci.json"
 
@@ -49,24 +49,27 @@ def check_lock() -> None:
                 f"SILENT DRIFT on {key}\n"
                 f"  lock:    {pinned.get(key)}\n"
                 f"  current: {current[key]}\n"
-                "Bump protocol/policy version explicitly. Do not refresh goldens to please a store."
+                "Bump ewp/policy version explicitly. Do not refresh goldens to please a store."
             )
     print("lock hashes match")
     print(json.dumps({k: pinned[k] for k in ("protocol", "policy", *LOCK_KEYS)}, indent=2))
 
 
-def write_stamp(ok: bool, **extra) -> None:
-    body = {"ok": ok, "protocol": PROTOCOL, "policy": POLICY, **current_hashes(), **extra}
+def write_stamp(ok: bool, surface: str, **extra) -> None:
+    """`surface` is hashed before the run starts: the stamp names the tree that was tested."""
+    body = {"ok": ok, "protocol": PROTOCOL, "policy": POLICY, **current_hashes(), "ci_surface_sha256": surface, **extra}
     STAMP.write_text(json.dumps(body, indent=2) + "\n", encoding="utf-8", newline="\n")
 
 
 def main() -> int:
+    surface = ci_surface_hash()
     check_lock()
     steps = [
         [sys.executable, "tests/test_goldens.py"],
         [sys.executable, "tests/test_conformance.py"],
         [sys.executable, "tests/runner.py"],
         [sys.executable, "tests/runner_graphiti.py"],
+        [sys.executable, "tests/runner_pathological.py"],
         [sys.executable, "tests/test_graphiti_adapter.py"],
         [sys.executable, "tests/test_pathological.py"],
         [sys.executable, "tests/test_laundering.py"],
@@ -74,20 +77,25 @@ def main() -> int:
         [sys.executable, "tests/test_live_adapters.py"],
         [sys.executable, "tests/test_mcp.py"],
         [sys.executable, "tests/test_hardening.py"],
+        [sys.executable, "tests/test_ingest_cli.py"],
         [sys.executable, "docs/implementer/third_eval.py"],
     ]
     for cmd in steps:
         rc = run(cmd)
         if rc != 0:
             print("CI FAIL", cmd)
-            write_stamp(False, failed=cmd[1:])
+            write_stamp(False, surface, failed=cmd[1:])
             return rc
     print(
         "CI PASS: lock, goldens, implementer pack, hardening pack, adapter round trips, "
         "fake Graphiti isolation, live mappings, MCP façade, third evaluator"
     )
     print(json.dumps(metadata(), indent=2))
-    write_stamp(True)
+    if ci_surface_hash() != surface:
+        print("CI FAIL: files changed while CI was running; rerun")
+        write_stamp(False, surface, failed=["tree changed during run"])
+        return 1
+    write_stamp(True, surface)
     return 0
 
 

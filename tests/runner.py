@@ -12,7 +12,7 @@ from tempfile import TemporaryDirectory
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from protocol.fixtures import (
+from ewp.fixtures import (
     EVAL,
     EVAL_LATE,
     fixture_compression_full,
@@ -28,10 +28,10 @@ from protocol.fixtures import (
     fixture_superseded,
     fixture_verified_current,
 )
-from protocol.json_adapter import JsonFileAdapter
-from protocol.sqlite_adapter import SQLiteAdapter
-from protocol.types import EvidenceView, Policy
-from protocol.warrant import warrant_now
+from ewp.json_adapter import JsonFileAdapter
+from ewp.sqlite_adapter import SQLiteAdapter
+from ewp.types import EvidenceView, Policy
+from ewp.warrant import warrant_now
 
 POLICY = Policy()
 COMPARE_KEYS = (
@@ -104,8 +104,8 @@ FIXTURES: list[tuple[str, list[tuple[str, EvidenceView, str]]]] = [
 
 
 def run() -> int:
-    from protocol.graphiti_live import runtime_version
-    from protocol.versions import banner
+    from ewp.graphiti_live import runtime_version
+    from ewp.versions import banner
 
     print(banner(runtime_version()))
     adapters = [("SQLite", SQLiteAdapter), ("JSON", JsonFileAdapter)]

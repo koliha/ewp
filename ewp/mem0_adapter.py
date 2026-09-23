@@ -35,6 +35,7 @@ from .live_util import (
     iso,
     unwrap_collection,
 )
+from .codec import subjects_from
 from .types import (
     Assertion,
     Conflict,
@@ -75,6 +76,8 @@ def _item_score(item: Any) -> float | None:
 
 
 def source_from_mem0(item: Any, *, fallback_id: str) -> SourceRef:
+    """EWP-written memories carry the original SourceRef in metadata and get
+    it back exactly. Memories written outside EWP get Mem0-derived defaults."""
     blob = ewp_blob(item)
     mid = _item_id(item) or fallback_id
     origin = str(blob.get("origin_type") or "extract")
@@ -82,14 +85,14 @@ def source_from_mem0(item: Any, *, fallback_id: str) -> SourceRef:
     locator = str(blob.get("origin_locator") or f"mem0:memory:{mid}")
     digest = str(blob.get("content_hash") or attr(item, "hash", default=f"mem0:{mid}"))
     return SourceRef(
-        source_id=mid,
+        source_id=str(blob.get("source_id") or mid),
         lineage_id=lineage,
         origin_type=origin,
         origin_locator=locator,
         snapshot_id=str(blob.get("snapshot_id") or mid),
         content_hash=str(digest),
-        observed_at=_item_when(item),
-        extractor_id=blob.get("extractor_id") or "mem0.extract",
+        observed_at=str(blob.get("source_observed_at") or _item_when(item)),
+        extractor_id=blob["extractor_id"] if "extractor_id" in blob else "mem0.extract",
         parent_source_id=blob.get("parent_source_id"),
     )
 
@@ -98,7 +101,7 @@ def items_to_view(
     items: list[Any],
     *,
     proposition_id: str,
-    view_id: str,
+    view_id: str | None,
     retrieval_scope: str,
     raw_count: int | None = None,
     omitted: list[str] | None = None,
@@ -111,7 +114,8 @@ def items_to_view(
     parked_omitted: list[str] = []
     degraded = False
     freshness = 86400 * 30
-    subjects: tuple[str, ...] = ()
+    subjects: Any = ()
+    parked_view_id: str | None = None
     scores: dict[str, float] = {}
     scope = retrieval_scope
 
@@ -130,12 +134,13 @@ def items_to_view(
             conflicts.extend(_conflicts_from_blob(blob))
             lineage.extend(_lineage_from_blob(blob))
             parked_omitted.extend(str(x) for x in blob.get("omitted_sources") or [])
-            degraded = degraded or bool(blob.get("degraded", False))
-            if blob.get("retrieval_scope"):
-                scope = str(blob["retrieval_scope"])
+            degraded = degraded or blob.get("degraded") is True
+            if blob.get("retrieval_scope") is not None and scope == "complete":
+                scope = blob["retrieval_scope"]
             if blob.get("freshness_policy_seconds") is not None:
-                freshness = int(blob["freshness_policy_seconds"])
-            subjects = tuple(str(x) for x in as_list(blob.get("subjects")))
+                freshness = blob["freshness_policy_seconds"]
+            subjects = subjects_from(blob.get("subjects"))
+            parked_view_id = blob.get("view_id") or None
             continue
 
         if kind == "ewp_check":
@@ -147,7 +152,7 @@ def items_to_view(
                     source=src,
                     observed_at=str(blob.get("observed_at") or when),
                     result=blob.get("result") or "inconclusive",  # type: ignore[arg-type]
-                    subjects=tuple(str(x) for x in as_list(blob.get("subjects"))),
+                    subjects=subjects_from(blob.get("subjects")),
                 )
             )
             continue
@@ -183,7 +188,7 @@ def items_to_view(
                     proposition_id=prop,
                     text=text,
                     asserted_by=str(blob.get("asserted_by") or "mem0.extract"),
-                    assertion_confidence=float(blob.get("assertion_confidence") or 0.5),
+                    assertion_confidence=float(0.5 if blob.get("assertion_confidence") is None else blob["assertion_confidence"]),
                     source=src,
                     asserted_at=str(blob.get("asserted_at") or when),
                 )
@@ -207,7 +212,7 @@ def items_to_view(
         scope = "mem0.search"
 
     return EvidenceView(
-        view_id=view_id,
+        view_id=view_id or parked_view_id or "mem0",
         proposition_id=proposition_id,
         assertions=assertions,
         evidence=evidence,
@@ -236,7 +241,7 @@ def _checks_from_blob(blob: dict[str, Any]) -> list[VerificationCheck]:
                 source=SourceRef(**{k: src[k] for k in fields}),
                 observed_at=c["observed_at"],
                 result=c["result"],
-                subjects=tuple(str(x) for x in as_list(c.get("subjects"))),
+                subjects=subjects_from(c.get("subjects")),
             )
         )
     return out
@@ -324,8 +329,9 @@ class Mem0Adapter:
     def raw_view(
         self,
         proposition_id: str,
-        view_id: str = "mem0-raw",
+        view_id: str | None = None,
     ) -> EvidenceView:
+        """All memories for the proposition. view_id defaults to the one parked at ingest."""
         items = self._for_proposition(self._all_items(), proposition_id)
         return items_to_view(
             items,
@@ -383,6 +389,8 @@ class Mem0Adapter:
                 "parent_source_id": src.parent_source_id,
                 "extractor_id": src.extractor_id,
                 "snapshot_id": src.snapshot_id,
+                "source_id": src.source_id,
+                "source_observed_at": src.observed_at,
             }
 
         for assertion in view.assertions:
@@ -437,6 +445,7 @@ class Mem0Adapter:
                 "retrieval_scope": view.retrieval_scope,
                 "freshness_policy_seconds": view.freshness_policy_seconds,
                 "subjects": list(view.subjects),
+                "view_id": view.view_id,
             }
         }
         self._add(f"ewp-parked:{view.proposition_id}", park)

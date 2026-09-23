@@ -44,6 +44,8 @@ def ingest_view(store: FakeGraphitiStore, view: EvidenceView) -> dict:
                     "origin_locator": source.origin_locator,
                     "content_hash": source.content_hash,
                     "parent_source_id": source.parent_source_id,
+                    "snapshot_id": source.snapshot_id,
+                    "extractor_id": source.extractor_id,
                 },
             )
         )
@@ -56,12 +58,14 @@ def ingest_view(store: FakeGraphitiStore, view: EvidenceView) -> dict:
         report["assertions"] += 1
     polarity_by_text = {e.content: e.polarity for e in view.evidence}
     polarity_by_source = {e.source.source_id: e.polarity for e in view.evidence}
+    evidence_sources = {e.source.source_id for e in view.evidence}
+    assertion_sources = {a.source.source_id for a in view.assertions}
     seen_lineage = {a.source.lineage_id for a in view.assertions}
     for e in view.evidence:
         put_source(e.source, e.content)
         # Keep assertion-shaped facts unique. Add an evidence-only edge when
-        # that source lineage would otherwise vanish from raw_view.
-        if e.content not in by_text and e.source.lineage_id not in seen_lineage:
+        # that source would otherwise vanish from raw_view.
+        if e.content not in by_text and e.source.source_id not in assertion_sources:
             store.add_edge(
                 FakeEntityEdge(
                     uuid=f"edge:{e.evidence_id}",
@@ -73,6 +77,7 @@ def ingest_view(store: FakeGraphitiStore, view: EvidenceView) -> dict:
                     valid_at=None,
                     invalid_at=None,
                     expired_at=None,
+                    roles=("evidence",),
                 )
             )
             seen_lineage.add(e.source.lineage_id)
@@ -90,6 +95,7 @@ def ingest_view(store: FakeGraphitiStore, view: EvidenceView) -> dict:
                 valid_at=None,
                 invalid_at=None,
                 expired_at=None,
+                roles=("assertion", "evidence") if evidence_sources & set(ep_ids) else ("assertion",),
             )
         )
 
@@ -116,6 +122,7 @@ def ingest_view(store: FakeGraphitiStore, view: EvidenceView) -> dict:
                 "retrieval_scope": view.retrieval_scope,
                 "freshness_policy_seconds": view.freshness_policy_seconds,
                 "subjects": list(view.subjects),
+                "view_id": view.view_id,
             },
         )
     )

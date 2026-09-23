@@ -9,13 +9,13 @@ Memory is evidence, not truth.
 [![python](https://img.shields.io/badge/python-3.12%2B-3776ab)](#layout)
 [![license](https://img.shields.io/badge/license-MIT-5c6770)](LICENSE)
 
-**EWP-0.2.0.** Policy `reference-v2`. EWP is an epistemic protocol, not an action-authorization framework. Other projects use *warrant* to describe permission to act; EWP uses *epistemic warrant* to describe what an agent is justified in accepting. `may_act()` is deliberately a later gate.
+**EWP-0.2.0 release candidate.** Policy `reference-v2`. To try it with Claude and your own data, see [`QUICKSTART.md`](QUICKSTART.md). EWP is an epistemic protocol, not an action-authorization framework. Other projects use *warrant* to describe permission to act; EWP uses *epistemic warrant* to describe what an agent is justified in accepting. `may_act()` is deliberately a later gate.
 
 Stores adapt to the protocol. The protocol does not inherit the store’s epistemology.
 
-v0.2.0 binds verification to declared `subjects[]` as exact ids, scopes supersession to the proposition, treats future, missing, and unparsable times as unavailable at T, refuses values outside the closed enums, makes the SQLite store append-only and per-proposition, requires every adapter to round-trip every field, and ships an MCP façade where every write needs a server-side ingest role. Those judgments changed, so the policy is `reference-v2`. `WarrantView` carries `protocol_version`.
+v0.2.0 binds verification to declared `subjects[]` as exact ids, scopes supersession to the proposition, treats future, missing, and unparsable times as unavailable at T, refuses values outside the closed enums, refuses views that mix propositions, stores immutable `(proposition, view_id)` snapshots over an append-only ledger, requires adapters to round-trip every field (Graphiti's unavoidable losses are listed), and ships an MCP façade where every write needs a server-side ingest role. Those judgments changed, so the policy is `reference-v2`. `WarrantView` carries `protocol_version`.
 
-See `NAME.md`, `docs/PROTOCOL.md`, `docs/DESIGN_NOTE.md`, `docs/implementer/`, `docs/PLATFORMS.md`, `docs/implementer/LIVE_ADAPTERS.md`, `docs/MCP_CONTRACT.md`, `CONFORMANCE.md`. MCP server: `python3 -m protocol.mcp_server`. The pre-freeze claim/confidence sketch is `historical/docs/MCP_CONTRACT.md` (superseded).
+See `NAME.md`, `docs/PROTOCOL.md`, `docs/DESIGN_NOTE.md`, `docs/implementer/`, `docs/PLATFORMS.md`, `docs/implementer/LIVE_ADAPTERS.md`, `docs/MCP_CONTRACT.md`, `CONFORMANCE.md`. MCP server: `python3 -m ewp.mcp_server`. The pre-freeze claim/confidence sketch is `historical/docs/MCP_CONTRACT.md` (superseded).
 
 Boundary. Policy. Observations. Permission. Four things. None gets to wear the others' clothes.
 
@@ -47,10 +47,12 @@ python3 tests/ci.py
 python3 tests/report.py
 ```
 
+To use it with Claude on your own data: [`QUICKSTART.md`](QUICKSTART.md).
+
 ```python
-from protocol.types import Policy
-from protocol.warrant import warrant_now
-from protocol.fixtures import fixture_verified_current, EVAL
+from ewp.types import Policy
+from ewp.warrant import warrant_now
+from ewp.fixtures import fixture_verified_current, EVAL
 
 view = fixture_verified_current()
 result = warrant_now(view, Policy(), EVAL)
@@ -227,15 +229,16 @@ If the store has A→P and B→¬P but search returns only A, sufficiency is `DE
 The v0.2.0 *reference kernel*:
 
 - deterministic `warrant_now()` — no network, no LLM, no hidden writes
-- shared `protocol/classify.py` used by both reference evaluators
+- shared `ewp/classify.py` used by both reference evaluators
 - separate `may_act()`
-- 14 canonical + 12 pathological + 24 hardening fixtures (laundering, subject binding, time at T, supersession scope)
-- 26 pinned golden `WarrantView`s; all 50 fixtures' expected axes pinned in `docs/implementer/`
+- 14 canonical + 12 pathological + 25 hardening fixtures (laundering, subject binding, time at T, supersession scope, zero freshness), plus 12 invalid views that must be refused
+- 26 pinned golden `WarrantView`s; all 51 fixtures' expected axes pinned in `docs/implementer/`
 - an independent third evaluator (`docs/implementer/third_eval.py`) written from the policy text alone
-- SQLite and JSON reference adapters (SQLite is append-only and partitioned by proposition)
+- SQLite and JSON reference adapters (immutable snapshots; SQLite over an append-only ledger)
+- `ewp-ingest` to load your own evidence from JSON, and `ewp-mcp` to serve it read-only to Claude (`QUICKSTART.md`)
 - Graphiti-*shaped* semantic adapter (fake records)
-- live Graphiti and Mem0 *mappings* (`protocol/graphiti_client_adapter.py`, `protocol/mem0_adapter.py`); every fixture round-trips through the fake Graphiti and Mem0 paths with identical axes; live `graphiti-core 0.30.2` is **not** validated
-- MCP façade (`protocol/mcp_server.py`, `tests/test_mcp.py`): MCP stdio transport or plain JSON-RPC `POST /mcp`; contract in `docs/MCP_CONTRACT.md`
+- live Mem0 mapping and an **experimental** live Graphiti mapping (`ewp/mem0_adapter.py`, `ewp/graphiti_client_adapter.py`); every fixture round-trips through Mem0 with every field intact and through fake Graphiti with only its listed losses; live `graphiti-core 0.30.2` is **not** validated
+- MCP façade (`ewp/mcp_server.py`, `tests/test_mcp.py`): MCP stdio transport or plain JSON-RPC `POST /mcp`; contract in `docs/MCP_CONTRACT.md`
 - four-stage runners and field-level diffs
 
 Warrant evaluation does not require MCP. Persona files (`MEMORY.md`) are a generated checkout, not the system of record.
@@ -251,7 +254,7 @@ The pre-freeze claim/confidence sketch is `historical/docs/MCP_CONTRACT.md` (sup
 OpenClaw consumes outbound MCP servers. Run the shipped façade and add it:
 
 ```bash
-EWP_INGEST_TOKEN=... python3 -m protocol.mcp_server --http 127.0.0.1:8765 --db ./ewp.sqlite
+EWP_INGEST_TOKEN=... python3 -m ewp.mcp_server --http 127.0.0.1:8765 --db ./ewp.sqlite
 openclaw mcp add ewp --url http://127.0.0.1:8765/mcp
 ```
 
@@ -269,7 +272,7 @@ Dreaming may rewrite `MEMORY.md`. EWP treats that rewrite as a new assertion, no
 
 ### Claude, Codex, other MCP clients
 
-Same contract over stdio: `python3 -m protocol.mcp_server --db ./ewp.sqlite`. Point several clients at the same `--db` to share one ledger. Prompt rules: fluency is not recollection; `conflict=OPEN` is said out loud; `DEGRADED` means the view is incomplete; store-native write tools stay disconnected.
+Same contract over stdio: `python3 -m ewp.mcp_server --db ./ewp.sqlite`. Point several clients at the same `--db` to share one ledger. Prompt rules: fluency is not recollection; `conflict=OPEN` is said out loud; `DEGRADED` means the view is incomplete; store-native write tools stay disconnected.
 
 ### Graphiti / Mem0 / Particles / SQLite
 
@@ -305,7 +308,7 @@ python3 tests/runner.py
 python3 tests/runner_pathological.py
 ```
 
-CI enforces the fixture, evaluator, policy, golden, and implementer-pack lock hashes; all 26 goldens; all 50 fixtures through SQLite, JSON, fake Graphiti, and Mem0 with identical axes; fake-Graphiti isolation; the hardening pack; live-adapter mappings; the MCP façade; and the third evaluator. Changing a golden, the pack, the policy text, or the evaluator requires an explicit version change, then `python3 tests/ci.py --write-lock`. `tests/report.py` only says `CONFORMANT` for a CI stamp whose hashes match the current tree.
+CI enforces the fixture, evaluator, policy, golden, and implementer-pack lock hashes; all 26 goldens; all 51 fixtures through the codec, SQLite, JSON, Mem0, and fake Graphiti with identical axes and fields; 12 invalid views refused by all three evaluators; fake-Graphiti isolation; the hardening pack; live-adapter mappings; the MCP façade; and the third evaluator. Changing a golden, the pack, the policy text, or the evaluator requires an explicit version change, then `python3 tests/ci.py --write-lock`. `tests/report.py` only says `CONFORMANT` for a CI stamp taken on the exact tree it is run on.
 
 Failure classes: `INGEST_LOSS`, `ADAPTER_MAP_LOSS`, `WARRANT_MISMATCH`, `RETRIEVAL_LOSS`, `EXPECTED_DIVERGENCE`.
 
@@ -315,7 +318,7 @@ Pathological pack (among others): false supersession, open contradiction, real t
 
 ---
 
-## v0.2.0 lock
+## v0.2.0 release-candidate lock
 
 <a id="v020"></a>
 
@@ -324,7 +327,8 @@ Epistemic Warrant Protocol EWP-0.2.0
 Policy: reference-v2
 Canonical: 14/14
 Pathological: 12/12
-Hardening: 24/24
+Hardening: 25/25
+Invalid refused: 12/12
 SQLite PASS
 JSON PASS
 Fake Graphiti PASS
@@ -332,15 +336,15 @@ Mem0 (fake client) PASS
 graphiti-core 0.30.2 — NOT VALIDATED
 
 fixture_set_sha256:
-1f6692791a1efa421629c4664dbed64cbfc31580db30eecbf174bc08465e1298
+a6a9a1ea72608d70b695a5f7621978fca2c724dea877704c23ecead0ec8ed355
 evaluator_set_sha256:
-796a3f1000ab096f5d9994c2f320619476672db750190e6e292becb17f003cb4
+2fedf99023f4d17f85a44b8b8c89b825dcbcf4a5748c29f55aac5948b3dff025
 policy_set_sha256:
-c70211212f10c263020d01d61ccc40ef47b1855147a9b702174690ae5d2e4af3
+90b1c819beffad833c5a43f4e68b014feea88d59bca5f60032684018da1c8896
 golden_set_sha256:
 1db7cab34639a87ce35c36635d4b6cffa46ba08855107fc9a04a4b89348a81c8
 implementer_pack_sha256:
-b5ca24655b443e01f0c20f582ad7208b2da730daf2e501c318156c3283eb3233
+b13d6f36eb8e25419f45aab216991397fcff786468ee3e7c7596b76e72ee316c
 ```
 
 A store that produces a different answer has an adapter or conformance problem, not a license to move the goldens.
@@ -350,7 +354,7 @@ A store that produces a different answer has an adapter or conformance problem, 
 ## Layout
 
 ```
-protocol/          kernel (classify, warrant, adapters, fixtures, MCP server)
+ewp/               kernel (classify, warrant, adapters, fixtures, MCP server)
                    plus live Graphiti/Mem0 mappings
 tests/             conformance, goldens, adapter round trips, runners, CI,
                    live-adapter and MCP tests
@@ -378,7 +382,7 @@ That answer can be reproduced, tested, inspected, and challenged.
 
 ## Status
 
-v0.2.0 is current under policy `reference-v2`. The 26 golden axes are unchanged from 0.1.0; their identity fields now read `reference-v2` and `EWP-0.2.0`. The hardening pack grew to 24 fixtures and is locked. Known limit: conflict rows and lineage edges carry no timestamp, so they are not filtered by availability at T. See `CHANGELOG.md`.
+EWP-0.2.0 is a **release candidate** under policy `reference-v2`: not yet tagged, and still open to change from review. The 26 golden axes are unchanged from 0.1.0; their identity fields now read `reference-v2` and `EWP-0.2.0`. The hardening pack (25) and the invalid pack (12) are locked. Known limits: conflict rows and lineage edges carry no timestamp, so they are not filtered by availability at T; assertions carry no polarity. See `CHANGELOG.md`.
 
 New stores may reveal adapter bugs, retrieval loss, missing tests, or a genuine hole. They do not redefine warrant.
 

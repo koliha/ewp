@@ -397,6 +397,19 @@ def unrelated_supersession_is_not_superseded() -> EvidenceView:
     )
 
 
+def zero_freshness_is_stale() -> EvidenceView:
+    """freshness_policy_seconds=0 is a real value: a check one second old is stale."""
+    s = src("winrm", "L-obs", "tool")
+    return EvidenceView(
+        "l-zero-fresh",
+        "P-win",
+        assertions=[assertion("a1", "P-win", "server01 runs Windows Server 2022", s)],
+        evidence=[ev("e1", "P-win", "supports", s, "Get-ComputerInfo")],
+        checks=[VerificationCheck("k1", "tool_observation", "server01", s, T1, "supports")],
+        freshness_policy_seconds=0,
+    )
+
+
 PACK = [
     ("launder_repetition", launder_repetition),
     ("launder_summary", launder_summary),
@@ -422,11 +435,49 @@ PACK = [
     ("shared_subject_verifies", shared_subject_verifies),
     ("garbage_timestamp_is_not_available", garbage_timestamp_is_not_available),
     ("unrelated_supersession_is_not_superseded", unrelated_supersession_is_not_superseded),
+    ("zero_freshness_is_stale", zero_freshness_is_stale),
 ]
 
 EVAL_AT = {
     "future_check_not_available_at_t": T10,
+    "zero_freshness_is_stale": "2026-09-21T18:31:01+00:00",
 }
 
 
-__all__ = ["PACK", "EVAL", "human_looks_right_vs_inspection"]
+# Invalid pack: serialized views every conforming evaluator must refuse.
+# Each is a valid view with exactly one defect, as the JSON a store or
+# client would send.
+def _base() -> dict:
+    return honest_tool_same_lineage().to_dict()
+
+
+def _customer() -> dict:
+    return customer_scope_mismatch().to_dict()
+
+
+def _mutated(make, change) -> dict:
+    d = make()
+    change(d)
+    return d
+
+
+INVALID_PACK = [
+    ("cross_proposition_assertion", lambda: _mutated(_base, lambda d: d["assertions"][0].__setitem__("proposition_id", "P-other"))),
+    ("cross_proposition_evidence", lambda: _mutated(_base, lambda d: d["evidence"][0].__setitem__("proposition_id", "P-other"))),
+    ("unrelated_explicit_conflict", lambda: _mutated(_base, lambda d: d.__setitem__(
+        "conflicts", [{"conflict_id": "c1", "proposition_ids": ["P-q", "P-r"], "status": "open", "note": ""}]))),
+    ("string_subjects_on_view", lambda: _mutated(_customer, lambda d: d.__setitem__("subjects", "customer-42"))),
+    ("string_subjects_on_check", lambda: _mutated(_customer, lambda d: d["checks"][0].__setitem__("subjects", "customer-99"))),
+    ("negative_freshness", lambda: _mutated(_base, lambda d: d.__setitem__("freshness_policy_seconds", -5))),
+    ("boolean_freshness", lambda: _mutated(_base, lambda d: d.__setitem__("freshness_policy_seconds", False))),
+    ("string_degraded", lambda: _mutated(_base, lambda d: d.__setitem__("degraded", "false"))),
+    ("unknown_check_result", lambda: _mutated(_base, lambda d: d["checks"][0].__setitem__("result", "pending"))),
+    ("unknown_polarity", lambda: _mutated(_base, lambda d: d["evidence"][0].__setitem__("polarity", "oppose"))),
+    ("unknown_conflict_status", lambda: _mutated(_base, lambda d: d.__setitem__(
+        "conflicts", [{"conflict_id": "c1", "proposition_ids": ["P-win"], "status": "Open", "note": ""}]))),
+    ("unknown_lineage_kind", lambda: _mutated(_base, lambda d: d.__setitem__(
+        "lineage", [{"from_id": "P-win", "to_id": "P-next", "kind": "replaced_by"}]))),
+]
+
+
+__all__ = ["PACK", "INVALID_PACK", "EVAL", "human_looks_right_vs_inspection"]

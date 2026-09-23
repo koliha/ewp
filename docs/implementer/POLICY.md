@@ -17,6 +17,17 @@ These enums are closed:
 
 A view with any other value is invalid. Refuse it; do not evaluate it. An unknown `result` must not classify like `supports`, an unknown `status` must not read as no conflict, and an unknown `polarity` must not silently drop opposition.
 
+The view is bounded to one proposition. It is also invalid if:
+
+- an assertion or evidence item has a `proposition_id` other than the view's `proposition_id` or a variant `proposition_id:<suffix>`
+- a conflict row's `proposition_ids` do not include the view's proposition (or a variant)
+
+Refuse such a view; do not filter the foreign records out. Silent filtering would hide an adapter that mixed propositions.
+
+Types are part of the contract. The view is invalid if `subjects` (on the view or any check) is not a list of non-empty strings — a bare string must never be read character by character — if `freshness_policy_seconds` is not a non-negative integer (`0` is valid and means any check older than `evaluated_at` is stale; booleans are not integers), if `degraded` is not a boolean, or if `retrieval_scope` is not a string. A missing field takes its schema default; a present field is never replaced by a default because it is falsy.
+
+`docs/implementer/invalid/` holds one view per rule. A conforming evaluator refuses all of them.
+
 ## Availability at T
 
 A record is available at `evaluated_at` only if its instant (`asserted_at` for assertions, `observed_at` for evidence and checks) parses and is not after `evaluated_at`. Missing or unparsable instants are not available. Unavailable records cannot confer class, refresh currency, open conflict, count toward sufficiency or lineage, or support acceptance. Compare instants, not raw strings (`Z` vs `+00:00`; naive values are UTC).
@@ -71,6 +82,8 @@ There is no family inference. A proposition about several entities declares all 
 
 Missing `Conflict` rows must not hide a live opposition that is already in the view. Conflict rows carry no timestamp and are not filtered by availability.
 
+Every available check counts toward implied conflict, including a check whose subjects do not bind to the view. Such a check cannot raise verification, but its `result=opposes` still opens conflict: a check that disagrees is shown, not ignored. This is a deliberate choice for `reference-v2` and errs toward caution.
+
 ## Currency
 
 - Any lineage edge of kind `superseded_by` whose `from_id` is the view's `proposition_id`, or a variant `proposition_id:<suffix>` → `SUPERSEDED`. Edges between other propositions do not apply. Lineage edges carry no timestamp and are not filtered by availability.
@@ -96,6 +109,8 @@ Age uses that check’s `observed_at` parsed as an instant. A later untrusted or
 Incomplete retrieval cannot produce `ACCEPTED`. That is the policy reading of “losing evidence must not raise warrant.”
 
 Acceptance is a policy judgment over the other axes. It is not a sixth independent observation.
+
+Known limit: assertions carry no polarity. Any available assertion in the view counts as grounds for `TENTATIVE`, even one whose text denies the proposition (a lone "not X" in the `P-x` view). Direction is expressed through evidence `polarity` and check `result`. Assertion polarity is planned for a later policy.
 
 `strength` and `rationale_codes` are non-normative. Do not branch on them, and do not compare implementations on them.
 

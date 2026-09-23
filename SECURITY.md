@@ -8,7 +8,7 @@ EWP assumes source-origin metadata presented in an `EvidenceView` has been authe
 
 - Agent tool execution
 - Secret storage
-- Prompt injection against an MCP client. `protocol.mcp_server` is an ingest boundary, not an authenticator. Every write requires a server-side ingest role (`--allow-ingest` on stdio, the ingest token on HTTP); without it the server is evaluate-only. `ingest_attestation` is not a credential.
+- Prompt injection against an MCP client. `ewp.mcp_server` is an ingest boundary, not an authenticator. Every write requires a server-side ingest role (`--allow-ingest` on stdio, the ingest token on HTTP); without it the server is evaluate-only. `ingest_attestation` is not a credential.
 - The HTTP façade (`POST /mcp`) has no TLS and no origin check. Bind it to loopback. Supply the ingest token through `EWP_INGEST_TOKEN` or `--ingest-token-file`, not the command line.
 - Caller-built evidence. An inline `EvidenceView` sent to `ewp_warrant_now` has its trusted origins demoted; `ewp_may_act` refuses inline views and evaluates stored evidence at server time.
 - Store credentials

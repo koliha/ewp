@@ -31,6 +31,10 @@ class FakeEntityEdge:
     reference_time: str | None = None
     source_episode_indices: list[int] = field(default_factory=list)
     polarity: str = "supports"
+    # Which EWP records this edge carries. Graphiti-extracted facts are read as
+    # both; EWP ingest narrows it so an assertion-only record does not gain
+    # supporting evidence and an evidence-only record does not become a claim.
+    roles: tuple[str, ...] = ("assertion", "evidence")
 
 
 @dataclass

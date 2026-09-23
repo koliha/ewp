@@ -12,10 +12,11 @@ keywords = ["epistemic", "warrant", "agent-memory", "ai-agents"]
 Repository = "https://github.com/koliha/ewp"
 
 [project.scripts]
-ewp-mcp = "protocol.mcp_server:main"
+ewp-mcp = "ewp.mcp_server:main"
+ewp-ingest = "ewp.ingest_cli:main"
 
 [tool.setuptools.packages.find]
-include = ["protocol*"]
+include = ["ewp*"]
 
 [build-system]
 requires = ["setuptools>=68"]

@@ -23,7 +23,7 @@ Agents never get store mutation tools directly. If someone wires an agent straig
 OpenClaw already consumes outbound MCP servers. That is the integration.
 
 ```bash
-EWP_INGEST_TOKEN=... python3 -m protocol.mcp_server --http 127.0.0.1:8765 --db ./ewp.sqlite
+EWP_INGEST_TOKEN=... python3 -m ewp.mcp_server --http 127.0.0.1:8765 --db ./ewp.sqlite
 openclaw mcp add ewp --url http://127.0.0.1:8765/mcp
 ```
 
@@ -52,7 +52,7 @@ Do not let Dreaming rebase `X is disputed` into `X`. Compression monotonicity is
 
 ## Claude, Codex, and other MCP clients
 
-Same MCP surface over the standard stdio transport. Each client launches its own `python3 -m protocol.mcp_server --db <path>`; point them at the same `--db` file to share one ledger. The agent-facing process runs without `--allow-ingest`, so the agent can evaluate but not write. Run a separate `--allow-ingest` process for the ingest pipeline.
+Same MCP surface over the standard stdio transport. Each client launches its own `python3 -m ewp.mcp_server --db <path>`; point them at the same `--db` file to share one ledger. The agent-facing process runs without `--allow-ingest`, so the agent can evaluate but not write. Load evidence with `ewp-ingest` (see `QUICKSTART.md`) or a separate `--allow-ingest` process.
 
 Rules that belong in the client system prompt, not in the store:
 
@@ -66,9 +66,9 @@ Rules that belong in the client system prompt, not in the store:
 Use Graphiti as a temporal/entity mirror, not as warrant.
 
 - Ingest episodes with `episode_metadata.lineage_id` set by EWP.
-- The locked suite uses fake Graphiti-shaped records (`protocol/graphiti_adapter.py`). Every fixture must round-trip through it with identical axes.
+- The locked suite uses fake Graphiti-shaped records (`ewp/graphiti_adapter.py`). Every fixture must round-trip through it with identical axes.
 - Park the view's and each check's `subjects[]` with the checks. Dropping them changes warrant.
-- The live client mapping is `protocol/graphiti_client_adapter.py` — see `docs/implementer/LIVE_ADAPTERS.md`.
+- The live client mapping is `ewp/graphiti_client_adapter.py` — see `docs/implementer/LIVE_ADAPTERS.md`.
 - Adapter maps edges → `EvidenceView`. `invalid_at` is store-local. `valid_at` is not a verification check.
 - Search collapse must mark the view `DEGRADED`.
 - Live pin: `graphiti-core 0.30.2`. Live `graphiti-core` is **not** validated. Graphiti adapts to EWP. EWP does not adapt to Graphiti.
@@ -82,7 +82,7 @@ Use Mem0 as an extract-and-retrieve store, not as warrant.
 - Write assertions and evidence as separate memories with their own polarity and timestamps (`Mem0Adapter.ingest_view` does). Mem0's `created_at` is ingest time, not observation time.
 - Retrieval `score` is adapter metadata, never warrant strength.
 - `search` that drops memories the store still holds must mark the view `DEGRADED`.
-- Live mapping: `protocol/mem0_adapter.py`. Notes: `docs/implementer/LIVE_ADAPTERS.md`.
+- Live mapping: `ewp/mem0_adapter.py`. Notes: `docs/implementer/LIVE_ADAPTERS.md`.
 
 ## Particles
 

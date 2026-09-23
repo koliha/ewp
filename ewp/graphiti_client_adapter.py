@@ -7,6 +7,9 @@ This module is the production mapping:
     Graphiti EntityEdge + EpisodicNode  →  Fake* records  →  EvidenceView
                                                        →  warrant_now()
 
+EXPERIMENTAL: not validated against a real graphiti-core. Graphiti's
+add_episode() runs an LLM extractor; which fields survive depends on it.
+
 Rules (EWP-0.2.0, not negotiable):
 * `valid_at` / `invalid_at` / `expired_at` are store-local notes, never warrant.
 * Graphiti search that drops edges must set `degraded=True`.
@@ -24,6 +27,7 @@ from typing import Any, Iterable
 from .graphiti_adapter import GraphitiAdapter
 from .graphiti_ingest import ingest_view as ingest_into_fake
 from .graphiti_records import FakeEntityEdge, FakeEpisode, FakeGraphitiStore
+from .classify import parse_ts
 from .live_util import EWP_META_KEY, as_list, attr, ewp_blob, iso, unwrap_collection
 from .types import EvidenceView
 
@@ -77,6 +81,7 @@ def edge_from_live(edge: Any) -> FakeEntityEdge:
         created_at=_dt(attr(edge, "created_at", default=None)),
         reference_time=_dt(attr(edge, "reference_time", default=None)),
         polarity="opposes" if str(blob.get("polarity") or attr(edge, "polarity", default="supports")) == "opposes" else "supports",
+        roles=tuple(blob["roles"]) if isinstance(blob.get("roles"), list) else ("assertion", "evidence"),
     )
 
 
@@ -241,15 +246,16 @@ class GraphitiClientAdapter:
                 raw_count=raw_count,
                 retrieval_scope=retrieval_scope,
             )
-        else:
-            view = adapter.raw_view(self.proposition_id, fact_text=fact_text, view_id=view_id)
-        return view
+            # Search views need the parked checks, conflicts, lineage, subjects,
+            # and freshness as much as raw views do.
+            return adapter._apply_parked(view, self.proposition_id)
+        return adapter.raw_view(self.proposition_id, fact_text=fact_text, view_id=view_id)
 
     async def raw_view(
         self,
         proposition_id: str | None = None,
         fact_text: str | None = None,
-        view_id: str = "graphiti-live-raw",
+        view_id: str | None = None,
     ) -> EvidenceView:
         if proposition_id:
             self.proposition_id = proposition_id
@@ -317,10 +323,10 @@ class GraphitiClientAdapter:
             raise RuntimeError("client has no add_episode")
         report = {"episodes": 0, "checks_parked": 0, "conflicts_parked": 0, "path": "add_episode"}
         seen: set[str] = set()
-        for assertion in view.assertions:
-            src = assertion.source
+
+        async def put_episode(src, body: str, kind: str, polarity: str | None) -> None:
             if src.source_id in seen:
-                continue
+                return
             seen.add(src.source_id)
             payload = {
                 EWP_META_KEY: {
@@ -331,15 +337,21 @@ class GraphitiClientAdapter:
                     "parent_source_id": src.parent_source_id,
                     "proposition_id": view.proposition_id,
                     "extractor_id": src.extractor_id,
-                    "kind": "assertion",
+                    "snapshot_id": src.snapshot_id,
+                    "kind": kind,
+                    **({"polarity": polarity} if polarity else {}),
                 }
             }
+            try:
+                reference_time = parse_ts(src.observed_at)
+            except ValueError:
+                reference_time = None
             kwargs = {
                 "name": src.source_id,
-                "episode_body": assertion.text,
+                "episode_body": body,
                 "source": "text",
                 "source_description": json.dumps(payload),
-                "reference_time": None,
+                "reference_time": reference_time,
                 "group_id": self.group_id,
             }
             try:
@@ -348,6 +360,13 @@ class GraphitiClientAdapter:
                 kwargs.pop("reference_time", None)
                 await self.client.add_episode(**kwargs)
             report["episodes"] += 1
+
+        for assertion in view.assertions:
+            await put_episode(assertion.source, assertion.text, "assertion", None)
+        # Evidence-only sources (e.g. an opposing camera) are episodes too;
+        # skipping them would drop a lineage and hide opposition.
+        for ev in view.evidence:
+            await put_episode(ev.source, ev.content, "evidence", ev.polarity)
 
         park = {
             EWP_META_KEY: {
@@ -375,6 +394,7 @@ class GraphitiClientAdapter:
                 "retrieval_scope": view.retrieval_scope,
                 "freshness_policy_seconds": view.freshness_policy_seconds,
                 "subjects": list(view.subjects),
+                "view_id": view.view_id,
             }
         }
         parked = await self.client.add_episode(

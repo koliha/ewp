@@ -8,8 +8,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from protocol.fixtures import EVAL
-from protocol.laundering import (
+from ewp.fixtures import EVAL
+from ewp.laundering import (
     PACK,
     claimed_independence,
     degraded_external_is_not_accepted,
@@ -37,9 +37,9 @@ from protocol.laundering import (
     unrelated_supersession_is_not_superseded,
     EVAL_AT,
 )
-from protocol.types import Policy
-from protocol.warrant import warrant_now
-from protocol.warrant_b import axes_only, naive_verification
+from ewp.types import Policy
+from ewp.warrant import warrant_now
+from ewp.warrant_b import axes_only, naive_verification
 
 
 POLICY = Policy()

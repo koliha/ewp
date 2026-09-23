@@ -56,7 +56,9 @@ get_conflicts(proposition_id) -> Conflict[]
 get_checks(proposition_id) -> VerificationCheck[]
 ```
 
-Stores MUST NOT present a local projection as universal belief. Stores MUST preserve every field in `docs/implementer/SCHEMA.md`, including `subjects[]`, completeness, and freshness, across a write/read round trip.
+Stores MUST NOT present a local projection as universal belief. Stores MUST preserve every field in `docs/implementer/SCHEMA.md`, including `subjects[]`, completeness, and freshness, across a write/read round trip. A store whose data model cannot hold a field MUST list the loss explicitly, and MUST still preserve source provenance, times, polarity, and every warrant-relevant field.
+
+A `view_id` names an immutable snapshot. Reading `(proposition_id, view_id)` returns exactly the evidence stored under it; new evidence is a new snapshot with a new `view_id`.
 
 ## Required types
 
@@ -105,6 +107,10 @@ Method name is not enough. Only origins `tool`, `document`, `human`, `api`, `ven
 ### Closed enums
 
 `polarity`, `result`, conflict `status`, and lineage `kind` are closed enums (`docs/implementer/SCHEMA.md`). A view carrying any other value is invalid. Implementations MUST refuse it rather than evaluate it: an unknown value may not be read as `supports`, as "no conflict", or be silently dropped.
+
+### Bounded views
+
+An `EvidenceView` is bounded to one proposition. Every assertion and evidence item MUST be about the view's `proposition_id` (or a `proposition_id:<suffix>` variant), and every conflict row MUST name it. A view that mixes propositions is invalid and MUST be refused, not filtered. Field types are part of the contract: `subjects` are lists of strings, `freshness_policy_seconds` is a non-negative integer (0 is valid), `degraded` is a boolean. `docs/implementer/invalid/` has one refused view per rule.
 
 ### WarrantView
 
@@ -160,7 +166,7 @@ Policy.version    = reference-v2
 - evidence contains both `supports` and `opposes`
 - checks contain both `result=supports` and `result=opposes`
 
-A missing `Conflict` row must not hide opposition already present in the view.
+A missing `Conflict` row must not hide opposition already present in the view. A check whose subjects do not bind to the view cannot raise verification, but its `result` still counts toward conflict: disagreement is shown, not discarded (`POLICY.md`).
 
 ## Currency
 
@@ -212,6 +218,8 @@ Derivation may preserve or reduce warrant. It MUST NOT raise verification class 
 
 Lineage independence: increasing the number of derived representations within one `lineage_id` MUST NOT increase independent-evidence count.
 
+Known limit: assertions carry no polarity in 0.2.0. Every available assertion counts as grounds for `TENTATIVE`, including one that denies the proposition. Direction is carried by evidence `polarity` and check `result`.
+
 ## Action gate
 
 `may_act` consumes a `WarrantView`, an `Action {risk: low|medium|high, reversible}`, and a `RiskPolicy`. An unknown risk level is refused. A `SUPERSEDED` proposition is `DENY` for high risk and at least `REQUIRE_CONFIRMATION` otherwise. The action policy belongs to the operator, not to the agent being gated.
@@ -231,7 +239,7 @@ A store adapter is not conforming because it serializes the schema. It MUST pass
 9. Policy reproducibility — same protocol + view + policy + `evaluated_at` ⇒ same normative `WarrantView`.
 10. Store independence — every fixture (canonical, pathological, hardening) loaded through a conforming adapter yields the same normative axes.
 
-Test 10 runs all 50 fixtures in `docs/implementer/fixtures/` through each adapter → `EvidenceView` → `warrant_now()` (`tests/test_adapter_roundtrip.py`). A difference means a lost field or an underspecified interchange.
+Test 10 runs all 51 fixtures in `docs/implementer/fixtures/` through each adapter and compares both the normative axes and every `SCHEMA.md` field (`tests/test_adapter_roundtrip.py`). A difference means a lost field or an underspecified interchange.
 
 ## Out of scope for 0.2
 
@@ -244,23 +252,24 @@ Test 10 runs all 50 fixtures in `docs/implementer/fixtures/` through each adapte
 
 ## Reference implementation
 
-1. `protocol/fixtures.py`, `protocol/pathological.py`, `protocol/laundering.py` — canonical, pathological, and hardening fixtures
-2. `protocol/classify.py` — validation, check classification, subject binding, supersession scope
-3. `protocol/warrant.py` / `protocol/warrant_b.py` — two control flows, same five axes
-4. `protocol/sqlite_adapter.py` / `protocol/json_adapter.py` — substrates (warrant is never written back; SQLite is append-only)
-5. `protocol/graphiti_adapter.py` — fake Graphiti-shaped records
-6. `protocol/graphiti_client_adapter.py` / `protocol/mem0_adapter.py` — live mappings (`docs/implementer/LIVE_ADAPTERS.md`)
-7. `protocol/mcp_server.py` — MCP façade (`docs/MCP_CONTRACT.md`)
+1. `ewp/fixtures.py`, `ewp/pathological.py`, `ewp/laundering.py` — canonical, pathological, and hardening fixtures
+2. `ewp/classify.py` — validation, check classification, subject binding, supersession scope
+3. `ewp/warrant.py` / `ewp/warrant_b.py` — two control flows, same five axes
+4. `ewp/sqlite_adapter.py` / `ewp/json_adapter.py` — substrates with immutable `(proposition_id, view_id)` snapshots over an append-only record ledger; warrant is never written back
+5. `ewp/graphiti_adapter.py` — fake Graphiti-shaped records
+6. `ewp/mem0_adapter.py` — live Mem0 mapping; `ewp/graphiti_client_adapter.py` — experimental live Graphiti mapping (`docs/implementer/LIVE_ADAPTERS.md`)
+7. `ewp/mcp_server.py` — MCP façade (`docs/MCP_CONTRACT.md`)
 8. `docs/implementer/third_eval.py` — independent evaluator from the written policy only
+9. `ewp/ingest_cli.py` (`ewp-ingest`) — load EvidenceViews from JSON into a ledger (`QUICKSTART.md`)
 
 Gate: `python3 tests/ci.py`
 
 Locked artifacts (`RELEASE.lock.json`; change only with a version change, never to match a store):
 
-- fixtures: `protocol/fixtures.py`, `protocol/pathological.py`, `protocol/laundering.py`
-- evaluator: `protocol/classify.py`, `warrant.py`, `warrant_b.py`, `types.py`, `may_act.py`, `versions.py`
+- fixtures: `ewp/fixtures.py`, `ewp/pathological.py`, `ewp/laundering.py`
+- evaluator: `ewp/classify.py`, `warrant.py`, `warrant_b.py`, `types.py`, `may_act.py`, `versions.py`
 - policy: `docs/implementer/POLICY.md`, `docs/implementer/policy.json`
 - goldens: `tests/golden_warrantviews/`
-- implementer pack: `docs/implementer/fixtures/`, `docs/implementer/expected/`
+- implementer pack: `docs/implementer/fixtures/`, `docs/implementer/expected/`, `docs/implementer/invalid/`
 
 Integration pin: Graphiti `0.30.2`. Live `graphiti-core` is an external-substrate test. The protocol does not adapt to Graphiti.

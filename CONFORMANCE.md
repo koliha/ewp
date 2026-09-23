@@ -8,21 +8,29 @@ The five axes are the interchange contract, compared under the same `protocol_ve
 
 | Pack | Where | Count | Locked |
 |---|---|---|---|
-| Canonical | `protocol/fixtures.py` | 14 | goldens + implementer pack |
-| Pathological | `protocol/pathological.py` | 12 | goldens + implementer pack |
-| Hardening | `protocol/laundering.py` | 24 | implementer pack |
+| Canonical | `ewp/fixtures.py` | 14 | goldens + implementer pack |
+| Pathological | `ewp/pathological.py` | 12 | goldens + implementer pack |
+| Hardening | `ewp/laundering.py` | 25 | implementer pack |
+| Invalid (must be refused) | `ewp/laundering.py` `INVALID_PACK` | 12 | implementer pack |
 
-The hardening pack tries to break method-only “verification,” latest-row supersession, incomplete-view optimism, unused `check.result`, implied conflict, human-method laundering, endogenous freshness refresh, subject binding (`customer-42` vs `customer-99`, `customer-42` vs `invoice-999`, `server01` vs `customer-42`, omitted check subjects, a shared subject that should verify), future-dated and unparsable check times at T, and a `superseded_by` edge between unrelated propositions.
+The hardening pack tries to break method-only “verification,” latest-row supersession, incomplete-view optimism, unused `check.result`, implied conflict, human-method laundering, endogenous freshness refresh, subject binding (`customer-42` vs `customer-99`, `customer-42` vs `invoice-999`, `server01` vs `customer-42`, omitted check subjects, a shared subject that should verify), future-dated and unparsable check times at T, `freshness_policy_seconds=0`, and a `superseded_by` edge between unrelated propositions.
 
-All 50 fixtures and their expected axes live in `docs/implementer/`. The reference evaluator, the second evaluator (`protocol/warrant_b.py`), and an independent third evaluator (`docs/implementer/third_eval.py`, written from `POLICY.md` / `policy.json` only) must all agree on them.
+The invalid pack is one view per input rule (records about another proposition, a conflict that does not name the proposition, string `subjects`, negative or boolean freshness, a string `degraded`, each unknown enum value). The only conforming output is a refusal.
+
+All 51 fixtures and their expected axes, and the 12 invalid views, live in `docs/implementer/`. The reference evaluator, the second evaluator (`ewp/warrant_b.py`), and an independent third evaluator (`docs/implementer/third_eval.py`, written from `POLICY.md` / `policy.json` only) must all agree on the axes and all refuse the invalid views.
 
 ## Store independence
 
-`tests/test_adapter_roundtrip.py` runs every fixture through SQLite, JSON, fake Graphiti, and Mem0 (fake client), and requires identical normative axes. A field an adapter forgets to persist shows up here as `WARRANT_MISMATCH`. The live Graphiti client adapter is additionally checked for `subjects[]` preservation in its parked sidecar.
+`tests/test_adapter_roundtrip.py` runs every fixture through the JSON codec, SQLite, JSON, Mem0 (fake client), and fake Graphiti, and checks two things:
 
-Live Graphiti / Mem0 mappings (`protocol/graphiti_client_adapter.py`, `protocol/mem0_adapter.py`, `tests/test_live_adapters.py`) are mapping tests. They do not validate `graphiti-core 0.30.2`.
+- **Axes**: identical normative axes (`WARRANT_MISMATCH` otherwise).
+- **Fields**: the codec, SQLite, JSON, and Mem0 return every `SCHEMA.md` field unchanged. Graphiti's edge/episode model cannot hold record ids, `asserted_by`, `assertion_confidence`, or evidence content, and collapses identical assertions from one source; those losses are listed in the test (`GRAPHITI_FIELD_LOSSES`). Everything else — text, times, full source provenance, polarity, checks, conflicts, lineage, completeness, subjects, `view_id` — must come back.
 
-The MCP façade (`protocol/mcp_server.py`, `tests/test_mcp.py`) is an integration boundary. Conformance of warrant is still the five axes. The server must not persist a `WarrantView` as evidence, must require the ingest role for every write, must not let an inline view authorize action, and must not infer `may_act` without an action.
+The live Graphiti client adapter is **experimental**: its sidecar is checked for `subjects[]`, and its search path for the parked checks, but it is not validated against a real `graphiti-core`.
+
+Live Graphiti / Mem0 mappings (`ewp/graphiti_client_adapter.py`, `ewp/mem0_adapter.py`, `tests/test_live_adapters.py`) are mapping tests. They do not validate `graphiti-core 0.30.2`.
+
+The MCP façade (`ewp/mcp_server.py`, `tests/test_mcp.py`) is an integration boundary. Conformance of warrant is still the five axes. The server must not persist a `WarrantView` as evidence, must require the ingest role for every write, must not let an inline view authorize action, and must not infer `may_act` without an action.
 
 ## Failure classes
 
@@ -47,7 +55,8 @@ implementer_pack_sha256: …
 Adapter: graphiti-core 0.30.2 — NOT VALIDATED
 Canonical: 14/14
 Pathological: 12/12
-Hardening: 24/24
+Hardening: 25/25
+Invalid refused: 12/12
 Result: CONFORMANT
 ```
 
@@ -63,7 +72,7 @@ expected: present
 actual: missing
 ```
 
-`tests/report.py` prints `CONFORMANT` only when `tests/.last_ci.json` was written by a passing `tests/ci.py` on a tree with the same hashes. A stamp from before an edit reports `CLAIM_ONLY`.
+`tests/report.py` prints `CONFORMANT` only when `tests/.last_ci.json` was written by a passing `tests/ci.py` on the same tree: the protocol-lock hashes and a `ci_surface_sha256` over every file CI exercises (kernel, adapters, MCP server, tests, implementer pack, examples, workflow) must all match. A stamp from before any such edit reports `CLAIM_ONLY`.
 
 ## CI
 

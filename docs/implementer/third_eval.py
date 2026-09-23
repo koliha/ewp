@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Third evaluator. Reads only this directory.
 
-Does not import protocol.warrant, protocol.classify, or protocol.warrant_b.
+Does not import ewp.warrant, ewp.classify, or ewp.warrant_b.
 Policy tables come from policy.json. Rules come from POLICY.md.
 """
 
@@ -33,21 +33,44 @@ def origin_of(check: dict) -> str:
     return (check.get("source") or {}).get("origin_type") or ""
 
 
+def is_subject_list(value) -> bool:
+    return value is None or (isinstance(value, list) and all(isinstance(s, str) and s for s in value))
+
+
 def validate(view: dict) -> None:
-    """POLICY.md: a value outside a closed enum makes the view invalid."""
+    """POLICY.md "Input validation": refuse, do not evaluate."""
     enums = POLICY["enums"]
+    pid = view["proposition_id"]
+    for a in view.get("assertions") or []:
+        if not names_proposition(a.get("proposition_id", pid), pid):
+            raise InvalidView(f"assertion about {a.get('proposition_id')!r}")
     for e in view.get("evidence") or []:
         if e.get("polarity") not in enums["polarity"]:
             raise InvalidView(f"polarity {e.get('polarity')!r}")
+        if not names_proposition(e.get("proposition_id", pid), pid):
+            raise InvalidView(f"evidence about {e.get('proposition_id')!r}")
     for c in view.get("checks") or []:
         if c.get("result") not in enums["result"]:
             raise InvalidView(f"result {c.get('result')!r}")
+        if not is_subject_list(c.get("subjects")):
+            raise InvalidView(f"check subjects {c.get('subjects')!r}")
     for c in view.get("conflicts") or []:
         if c.get("status") not in enums["conflict_status"]:
             raise InvalidView(f"status {c.get('status')!r}")
+        if not any(names_proposition(x, pid) for x in c.get("proposition_ids") or []):
+            raise InvalidView(f"conflict does not name {pid!r}")
     for e in view.get("lineage") or []:
         if e.get("kind") not in enums["lineage_kind"]:
             raise InvalidView(f"kind {e.get('kind')!r}")
+    if not is_subject_list(view.get("subjects")):
+        raise InvalidView(f"view subjects {view.get('subjects')!r}")
+    fresh = view.get("freshness_policy_seconds", 86400 * 30)
+    if type(fresh) is not int or fresh < 0:
+        raise InvalidView(f"freshness_policy_seconds {fresh!r}")
+    if type(view.get("degraded", False)) is not bool:
+        raise InvalidView(f"degraded {view.get('degraded')!r}")
+    if not isinstance(view.get("retrieval_scope", "complete"), str):
+        raise InvalidView(f"retrieval_scope {view.get('retrieval_scope')!r}")
 
 
 def scope_caps_check(check: dict, view: dict) -> bool:
@@ -228,7 +251,8 @@ def main() -> int:
     expected_dir = HERE / "expected"
     rows = []
     failed = 0
-    for path in sorted(fixtures.glob("*.json")):
+    fixture_files = sorted(fixtures.glob("*.json"))
+    for path in fixture_files:
         view = json.loads(path.read_text(encoding="utf-8"))
         exp_path = expected_dir / path.name
         if not exp_path.exists():
@@ -237,7 +261,7 @@ def main() -> int:
             continue
         expected = json.loads(exp_path.read_text(encoding="utf-8"))
         if expected.get("protocol_version") != POLICY["protocol"] or expected.get("policy_version") != POLICY["version"]:
-            rows.append((path.stem, "—", "IDENTITY", "expected file names a different protocol/policy"))
+            rows.append((path.stem, "—", "IDENTITY", "expected file names a different ewp/policy"))
             failed += 1
             continue
         got = warrant_now(view)
@@ -247,16 +271,32 @@ def main() -> int:
             failed += 1
         rows.append((path.stem, got["verification"] + "/" + got["acceptance"], expected["verification"] + "/" + expected["acceptance"], klass))
 
+    axis_failed = failed
+    # Invalid views: the only correct output is a refusal.
+    refused = 0
+    invalid_files = sorted((HERE / "invalid").glob("*.json"))
+    for path in invalid_files:
+        view = json.loads(path.read_text(encoding="utf-8"))
+        try:
+            got = warrant_now(view)
+        except InvalidView:
+            refused += 1
+            rows.append((path.stem, "REFUSED", "REFUSED", "—"))
+            continue
+        failed += 1
+        rows.append((path.stem, got["verification"] + "/" + got["acceptance"], "REFUSED", "impl (evaluated an invalid view)"))
+
     print("fixture                                   got            expected       class")
     print("-" * 88)
     for name, got, exp, klass in rows:
         print(f"{name:41} {got:14} {exp:14} {klass}")
     print()
-    print(f"{len(rows) - failed}/{len(rows)} axis matches")
+    print(f"{len(fixture_files) - axis_failed}/{len(fixture_files)} axis matches")
+    print(f"{refused}/{len(invalid_files)} invalid views refused")
     if failed:
         print("Result: DISAGREEMENT")
         return 1
-    print("Result: THIRD EVALUATOR MATCHES IMPLEMENTER EXPECTED AXES")
+    print("Result: THIRD EVALUATOR MATCHES IMPLEMENTER EXPECTED AXES AND REFUSES EVERY INVALID VIEW")
     return 0
 
 

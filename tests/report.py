@@ -1,8 +1,10 @@
 """Print a conformance claim. Does not establish conformance.
 
 Reads tests/.last_ci.json written by tests/ci.py. The stamp counts only if
-its hashes equal the current tree: a stamp from before an edit is stale,
-and a stale or missing stamp never prints an authoritative CONFORMANT.
+its protocol-lock hashes *and* its ci_surface_sha256 (every file CI
+exercises: kernel, adapters, MCP, tests, implementer pack) equal the
+current tree. A stamp from before any such edit is stale, and a stale or
+missing stamp never prints an authoritative CONFORMANT.
 """
 
 from __future__ import annotations
@@ -13,8 +15,11 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from protocol.graphiti_live import runtime_version
-from protocol.release import LOCK_KEYS, metadata
+from ewp.graphiti_live import runtime_version
+from ewp.laundering import INVALID_PACK, PACK as HARDENING
+from ewp.pathological import PACK as PATHOLOGICAL
+from ewp.release import LOCK_KEYS, ci_surface_hash, metadata
+from tests.runner import FIXTURES as CANONICAL
 
 ROOT = Path(__file__).resolve().parents[1]
 STAMP = ROOT / "tests" / ".last_ci.json"
@@ -30,7 +35,17 @@ def main() -> int:
             stamp = json.loads(STAMP.read_text(encoding="utf-8"))
         except json.JSONDecodeError:
             stamp = None
-    fresh = bool(stamp) and all(stamp.get(k) == meta[k] for k in (*LOCK_KEYS, "protocol", "policy"))
+    fresh = (
+        bool(stamp)
+        and all(stamp.get(k) == meta[k] for k in (*LOCK_KEYS, "protocol", "policy"))
+        and stamp.get("ci_surface_sha256") == ci_surface_hash()
+    )
+    counts = {
+        "Canonical": f"{len(CANONICAL)}/{len(CANONICAL)}",
+        "Pathological": f"{len(PATHOLOGICAL)}/{len(PATHOLOGICAL)}",
+        "Hardening": f"{len(HARDENING)}/{len(HARDENING)}",
+        "Invalid refused": f"{len(INVALID_PACK)}/{len(INVALID_PACK)}",
+    }
     if stamp and not fresh:
         result = "CLAIM_ONLY"
         claim = "stale-ci-stamp: tree changed since tests/ci.py last ran"
@@ -50,9 +65,7 @@ def main() -> int:
         "policy": meta["policy"],
         **{k: meta[k] for k in LOCK_KEYS},
         "adapter": adapter,
-        "canonical": "14/14" if verified else "unverified",
-        "pathological": "12/12" if verified else "unverified",
-        "hardening": "24/24" if verified else "unverified",
+        **{label.lower().replace(" ", "_"): (count if verified else "unverified") for label, count in counts.items()},
         "reference_stores": {"SQLite": "PASS", "JSON": "PASS"} if verified else {"SQLite": "unverified", "JSON": "unverified"},
         "semantic_adapter": {"Fake Graphiti": "PASS"} if verified else {"Fake Graphiti": "unverified"},
         "live_integrations": {f"graphiti-core {meta['graphiti_pin']}": "NOT VALIDATED"},
@@ -67,7 +80,7 @@ def main() -> int:
     for key in LOCK_KEYS:
         print(f"{key}: {meta[key]}")
     print(f"Adapter: {adapter}")
-    for label, count in (("Canonical", "14/14"), ("Pathological", "12/12"), ("Hardening", "24/24")):
+    for label, count in counts.items():
         print(f"{label}: {count if verified else 'unverified'}")
     print(f"Result: {result}")
     print(f"Claim: {claim}")

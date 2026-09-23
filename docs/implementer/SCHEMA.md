@@ -24,6 +24,8 @@ subjects[]        declared subject ids of the proposition; may be empty
 
 The enums in parentheses are closed. A value outside them makes the view invalid: refuse it, do not evaluate it.
 
+The view is bounded: every assertion and evidence `proposition_id` equals the view's (or is `proposition_id:<suffix>`), and every conflict's `proposition_ids` include it. `subjects` are JSON arrays of non-empty strings, never a bare string. `freshness_policy_seconds` is a non-negative integer (`0` is valid; booleans are not integers). `degraded` is a boolean. A missing field takes the default shown; a present value is never replaced because it is falsy. `invalid/` has one view per rule.
+
 ## SourceRef
 
 ```

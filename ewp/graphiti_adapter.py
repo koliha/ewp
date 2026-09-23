@@ -6,6 +6,7 @@ store-local metadata. warrant_now() is the only acceptance function.
 
 from __future__ import annotations
 
+from .codec import subjects_from
 from .graphiti_records import FakeEpisode, FakeEntityEdge, FakeGraphitiStore
 from .types import (
     Assertion,
@@ -31,7 +32,7 @@ def _source(ep: FakeEpisode, observed_at: str) -> SourceRef:
     origin = str(ep.metadata.get("origin_type") or "episode")
     locator = str(ep.metadata.get("origin_locator") or f"graphiti:episode:{ep.uuid}")
     digest = str(ep.metadata.get("content_hash") or f"episode:{ep.uuid}")
-    extractor = ep.metadata.get("extractor_id") or "graphiti.extract"
+    extractor = ep.metadata["extractor_id"] if "extractor_id" in ep.metadata else "graphiti.extract"
     parent = ep.metadata.get("parent_source_id")
     snapshot = str(ep.metadata.get("snapshot_id") or ep.uuid)
     return SourceRef(
@@ -77,17 +78,20 @@ class GraphitiAdapter:
                 source = _source(ep, when)
                 _lid, basis = lineage_of(ep)
                 lineage_basis[source.source_id] = basis
-                assertions.append(
-                    Assertion(
-                        assertion_id=f"{edge.uuid}:a:{i}",
-                        proposition_id=proposition_id,
-                        text=edge.fact,
-                        asserted_by="graphiti.extract",
-                        assertion_confidence=0.5,
-                        source=source,
-                        asserted_at=when,
+                if "assertion" in edge.roles:
+                    assertions.append(
+                        Assertion(
+                            assertion_id=f"{edge.uuid}:a:{i}",
+                            proposition_id=proposition_id,
+                            text=edge.fact,
+                            asserted_by="graphiti.extract",
+                            assertion_confidence=0.5,
+                            source=source,
+                            asserted_at=when,
+                        )
                     )
-                )
+                if "evidence" not in edge.roles:
+                    continue
                 note = ep.content or edge.fact
                 if edge.valid_at:
                     note += f" [graphiti.valid_at={edge.valid_at}]"
@@ -166,7 +170,7 @@ class GraphitiAdapter:
                 source=SourceRef(**{k: c["source"][k] for k in fields if k in c["source"]}),
                 observed_at=c["observed_at"],
                 result=c["result"],
-                subjects=tuple(c.get("subjects") or ()),
+                subjects=subjects_from(c.get("subjects")),
             )
             for c in meta.get("checks", [])
         ]
@@ -176,21 +180,27 @@ class GraphitiAdapter:
         ]
         view.lineage = [LineageEdge(e["from"], e["to"], e["kind"]) for e in meta.get("lineage", [])]
         view.omitted_sources = list(meta.get("omitted_sources", view.omitted_sources))
-        view.degraded = view.degraded or bool(meta.get("degraded", False))
+        view.degraded = view.degraded or meta.get("degraded") is True
         if view.retrieval_scope == "complete":
             view.retrieval_scope = meta.get("retrieval_scope", view.retrieval_scope)
         view.freshness_policy_seconds = int(
             meta.get("freshness_policy_seconds", view.freshness_policy_seconds)
         )
-        view.subjects = tuple(str(x) for x in (meta.get("subjects") or ()))
+        view.subjects = subjects_from(meta.get("subjects"))
+        if meta.get("view_id") and view.view_id is None:
+            view.view_id = str(meta["view_id"])
         return view
 
-    def raw_view(self, proposition_id: str, fact_text: str | None = None, view_id: str = "graphiti-raw") -> EvidenceView:
+    def raw_view(self, proposition_id: str, fact_text: str | None = None, view_id: str | None = None) -> EvidenceView:
+        """All edges for the proposition. view_id defaults to the one parked at ingest."""
         edges = self.store.raw_group(proposition_id)
         if not edges and fact_text:
             edges = self.store.raw_edges(fact_text)
-        view = self._edges_to_view(proposition_id, view_id, edges, retrieval_scope="complete")
-        return self._apply_parked(view, proposition_id)
+        view = self._edges_to_view(proposition_id, view_id, edges, retrieval_scope="complete")  # type: ignore[arg-type]
+        view = self._apply_parked(view, proposition_id)
+        if view.view_id is None:
+            view.view_id = "graphiti-raw"
+        return view
 
     def search_view(
         self, proposition_id: str, query: str, fact_text: str | None = None, view_id: str = "graphiti-search"

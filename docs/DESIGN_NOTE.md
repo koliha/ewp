@@ -36,7 +36,7 @@ Incomplete retrieval (`sufficiency=DEGRADED`) cannot yield `acceptance=ACCEPTED`
 
 ## Reference policy (`reference-v2`)
 
-`protocol/warrant.py` is one function from those inputs to those axes. Its implementation may change without the protocol number changing, provided the locked fixtures still pass. Any change to a judgment mints a new policy name: a policy name never changes meaning.
+`ewp/warrant.py` is one function from those inputs to those axes. Its implementation may change without the protocol number changing, provided the locked fixtures still pass. Any change to a judgment mints a new policy name: a policy name never changes meaning.
 
 Today it also computes a scalar `strength`. That field is **not** part of the interchange contract.
 
@@ -88,9 +88,9 @@ implementation B ── five axes
 identical axes
 ```
 
-`protocol/warrant.py` and `protocol/warrant_b.py` are two control flows. `tests/test_laundering.py` compares them. A naive evaluator that trusts `method` alone must *disagree* on `launder_verification`.
+`ewp/warrant.py` and `ewp/warrant_b.py` are two control flows. `tests/test_laundering.py` compares them. A naive evaluator that trusts `method` alone must *disagree* on `launder_verification`.
 
-Until independent implementations agree on all 50 fixtures (canonical, pathological, hardening), EWP is an architecture plus a reference function. Agreement on the five axes is what earns the word protocol. `docs/implementer/third_eval.py` is the first such implementation, written from the pack alone.
+Until independent implementations agree on all 51 fixtures (canonical, pathological, hardening) and refuse all 12 invalid views, EWP is an architecture plus a reference function. Agreement on the five axes is what earns the word protocol. `docs/implementer/third_eval.py` is the first such implementation, written from the pack alone.
 
 The third implementation is the experiment. Give it only schema, policy prose, fixture inputs, and expected five-axis outputs. Do not give it `warrant.py`, helper names, or fixture-specific hints. Capture disagreements. Classify each:
 

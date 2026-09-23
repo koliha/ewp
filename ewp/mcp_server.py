@@ -34,9 +34,9 @@ from typing import Any, Callable
 from urllib.parse import parse_qs, urlparse
 
 from .classify import InvalidEvidenceView, parse_ts
-from .codec import view_from_dict
+from .codec import subjects_from, view_from_dict
 from .may_act import RISK_LEVELS, Action, RiskPolicy, may_act
-from .sqlite_adapter import ImmutableRecordError, SQLiteAdapter
+from .sqlite_adapter import ImmutableRecordError, MissingViewError, SQLiteAdapter
 from .types import (
     TRUSTED_ORIGINS,
     Assertion,
@@ -72,6 +72,10 @@ REFUSE_CLIENT_RISK_POLICY = "EWP_REFUSE_CLIENT_RISK_POLICY"
 REFUSE_INVALID_ACTION = "EWP_REFUSE_INVALID_ACTION"
 REFUSE_INVALID_VIEW = "EWP_REFUSE_INVALID_EVIDENCE_VIEW"
 REFUSE_IMMUTABLE_RECORD = "EWP_REFUSE_IMMUTABLE_RECORD"
+REFUSE_INVALID_ARGUMENTS = "EWP_REFUSE_INVALID_ARGUMENTS"
+
+# JSON-RPC error codes for non-tool methods (MCP: resource not found is -32002).
+_RPC_CODES = {"EWP_UNKNOWN_RESOURCE": -32002, REFUSE_MISSING_VIEW: -32002}
 
 
 def encode_mcp_message(payload: dict[str, Any]) -> bytes:
@@ -172,14 +176,13 @@ class EwpMcp:
                 return self._ok(mid, {"prompts": []})
             return self._err(mid, -32601, f"method not found: {method}")
         except McpError as exc:
-            return self._ok(
-                mid,
-                {
-                    "content": [{"type": "text", "text": json.dumps({"error": exc.code, "message": exc.message})}],
-                    "isError": True,
-                    "error": {"code": exc.code, "message": exc.message},
-                },
-            )
+            # Tool failures are returned inside tools/call results (see _call_tool).
+            # Anything reaching here came from another method: a JSON-RPC error.
+            return {
+                "jsonrpc": "2.0",
+                "id": mid,
+                "error": {"code": _RPC_CODES.get(exc.code, -32602), "message": exc.message, "data": {"ewp_code": exc.code}},
+            }
         except Exception as exc:  # noqa: BLE001 — surface to the client
             return self._err(mid, -32000, str(exc))
 
@@ -192,7 +195,8 @@ class EwpMcp:
             "serverInfo": {"name": SERVER_NAME, "version": PROTOCOL},
             "instructions": (
                 "EWP evaluates evidence. Memory is not truth. "
-                "Call ewp_warrant_now; do not persist its result as evidence. "
+                "Find claims with ewp_list_propositions, then call ewp_memory_context before relying on one. "
+                "Do not persist warrant as evidence. "
                 "Say OPEN and DEGRADED out loud. Writes require the server-side ingest role."
             ),
         }
@@ -206,15 +210,31 @@ class EwpMcp:
             "ewp_evidence_record": self.tool_evidence_record,
             "ewp_may_act": self.tool_may_act,
             "ewp_memory_context": self.tool_memory_context,
+            "ewp_list_propositions": self.tool_list_propositions,
         }
-        if name not in dispatch:
-            raise McpError("EWP_UNKNOWN_TOOL", f"unknown tool {name}")
         try:
-            result = dispatch[name](args)
-        except InvalidEvidenceView as exc:
-            raise McpError(REFUSE_INVALID_VIEW, str(exc)) from exc
-        except ImmutableRecordError as exc:
-            raise McpError(REFUSE_IMMUTABLE_RECORD, str(exc)) from exc
+            if name not in dispatch:
+                raise McpError("EWP_UNKNOWN_TOOL", f"unknown tool {name}")
+            try:
+                result = dispatch[name](args)
+            except McpError:
+                raise
+            except InvalidEvidenceView as exc:
+                raise McpError(REFUSE_INVALID_VIEW, str(exc)) from exc
+            except ImmutableRecordError as exc:
+                raise McpError(REFUSE_IMMUTABLE_RECORD, str(exc)) from exc
+            except MissingViewError as exc:
+                raise McpError(REFUSE_MISSING_VIEW, str(exc.args[0] if exc.args else exc)) from exc
+            except KeyError as exc:
+                raise McpError(REFUSE_INVALID_ARGUMENTS, f"missing required argument {exc}") from exc
+            except (TypeError, ValueError, AttributeError) as exc:
+                raise McpError(REFUSE_INVALID_ARGUMENTS, str(exc)) from exc
+        except McpError as exc:
+            return {
+                "content": [{"type": "text", "text": json.dumps({"error": exc.code, "message": exc.message})}],
+                "isError": True,
+                "error": {"code": exc.code, "message": exc.message},
+            }
         text = json.dumps(result, indent=2, sort_keys=True)
         return {"content": [{"type": "text", "text": text}], "structuredContent": result}
 
@@ -223,15 +243,19 @@ class EwpMcp:
     def _has_ingest_role(self) -> bool:
         return self.ingest_enabled or _REQUEST_INGEST.get()
 
-    def _require_write(self, args: dict[str, Any], view: EvidenceView) -> None:
-        """Every mutation needs the ingest role. Trusted origins also need
-        the caller to declare ingest_attestation=true."""
+    def _require_role(self) -> None:
+        """Checked first on every write tool, before the payload is examined."""
         if not self._has_ingest_role():
             raise McpError(
                 REFUSE_INGEST_ROLE,
                 "writes require a server-side ingest role (--allow-ingest on stdio, "
                 "or the ingest token on HTTP). Without it this server is evaluate-only.",
             )
+
+    def _require_write(self, args: dict[str, Any], view: EvidenceView) -> None:
+        """Every mutation needs the ingest role. Trusted origins also need
+        the caller to declare ingest_attestation=true."""
+        self._require_role()
         trusted = _origins_in(view) & set(TRUSTED_ORIGINS)
         if trusted and not args.get("ingest_attestation"):
             raise McpError(
@@ -259,15 +283,19 @@ class EwpMcp:
             )
         return str(supplied)
 
-    def _load(self, proposition_id: str, view_id: str = "mcp") -> EvidenceView:
+    def _load(self, args: dict[str, Any]) -> EvidenceView:
+        """The requested snapshot, or the latest one for the proposition."""
+        pid = str(args["proposition_id"])
+        view_id = args.get("view_id") or None
         try:
-            return self.store.get_view(proposition_id, view_id)
-        except Exception as exc:  # noqa: BLE001
-            raise McpError(REFUSE_MISSING_VIEW, f"no view for {proposition_id}: {exc}") from exc
+            return self.store.get_view(pid, None if view_id is None else str(view_id))
+        except MissingViewError as exc:
+            raise McpError(REFUSE_MISSING_VIEW, str(exc.args[0] if exc.args else exc)) from exc
 
     # -- tools ------------------------------------------------------------
 
     def tool_view_put(self, args: dict[str, Any]) -> dict[str, Any]:
+        self._require_role()
         if "warrant" in args and "proposition_id" in (args.get("warrant") or {}):
             raise McpError(REFUSE_PERSIST_WARRANT, "WarrantView is computed. Do not write it as evidence.")
         raw = args.get("view") or args
@@ -285,8 +313,7 @@ class EwpMcp:
         }
 
     def tool_view_get(self, args: dict[str, Any]) -> dict[str, Any]:
-        view = self._load(str(args["proposition_id"]), str(args.get("view_id") or "mcp"))
-        return view.to_dict()
+        return self._load(args).to_dict()
 
     def tool_warrant_now(self, args: dict[str, Any]) -> dict[str, Any]:
         evaluated_at = str(args.get("evaluated_at") or "")
@@ -299,7 +326,7 @@ class EwpMcp:
                 demoted = sorted(_origins_in(view) & set(TRUSTED_ORIGINS))
                 view = demote_inline_origins(view)
         else:
-            view = self._load(str(args["proposition_id"]), str(args.get("view_id") or "mcp"))
+            view = self._load(args)
         policy = Policy(
             policy_id=str(args.get("policy_id") or POLICY),
             version=str(args.get("policy_version") or POLICY),
@@ -321,58 +348,59 @@ class EwpMcp:
         return source_from_args(raw or {}, fallback=fallback)
 
     def tool_check_record(self, args: dict[str, Any]) -> dict[str, Any]:
-        view = self._load(str(args["proposition_id"]), str(args.get("view_id") or "mcp"))
+        """Append a check: a new snapshot = latest snapshot + this check."""
+        self._require_role()
+        pid = str(args["proposition_id"])
         check = args["check"]
         source = self._build_source(check.get("source"), fallback=f"check:{check.get('check_id')}")
-        built = EvidenceView(
-            view_id=view.view_id,
-            proposition_id=view.proposition_id,
-            checks=[
-                VerificationCheck(
-                    check_id=str(check["check_id"]),
-                    method=str(check["method"]),
-                    scope=str(check.get("scope") or view.proposition_id),
-                    source=source,
-                    observed_at=str(check["observed_at"]),
-                    result=check["result"],
-                    subjects=tuple(str(x) for x in (check.get("subjects") or ())),
-                )
-            ],
+        built = VerificationCheck(
+            check_id=str(check["check_id"]),
+            method=str(check["method"]),
+            scope=str(check.get("scope") or pid),
+            source=source,
+            observed_at=str(check["observed_at"]),
+            result=check["result"],
+            subjects=subjects_from(check.get("subjects")),
         )
-        self._require_write(args, built)
-        view.checks.append(built.checks[0])
-        self.store.load_view(view)
-        return {"recorded": True, "check_id": built.checks[0].check_id, "count": len(view.checks)}
+        self._require_write(args, EvidenceView(view_id="probe", proposition_id=pid, checks=[built]))
+        view = self.store.extend_view(pid, checks=[built], new_view_id=args.get("new_view_id") or None)
+        return {"recorded": True, "check_id": built.check_id, "view_id": view.view_id, "count": len(view.checks)}
 
     def tool_evidence_record(self, args: dict[str, Any]) -> dict[str, Any]:
-        view = self._load(str(args["proposition_id"]), str(args.get("view_id") or "mcp"))
+        """Append evidence (and optional assertion text): a new snapshot."""
+        self._require_role()
+        pid = str(args["proposition_id"])
         item = args["evidence"]
+        if "polarity" not in item:
+            raise McpError(REFUSE_INVALID_ARGUMENTS, "evidence.polarity is required (supports|opposes); it is never assumed")
         source = self._build_source(item.get("source"), fallback=str(item.get("evidence_id")))
         ev = EvidenceItem(
             evidence_id=str(item["evidence_id"]),
-            proposition_id=view.proposition_id,
-            polarity=item.get("polarity") or "supports",
+            proposition_id=pid,
+            polarity=item["polarity"],
             source=source,
             content=str(item["content"]),
             observed_at=str(item["observed_at"]),
         )
-        probe = EvidenceView(view_id=view.view_id, proposition_id=view.proposition_id, evidence=[ev])
-        self._require_write(args, probe)
-        view.evidence.append(ev)
+        assertions: list[Assertion] = []
         if args.get("text"):
-            view.assertions.append(
+            confidence = args.get("assertion_confidence")
+            assertions.append(
                 Assertion(
                     assertion_id=str(args.get("assertion_id") or ev.evidence_id + ":a"),
-                    proposition_id=view.proposition_id,
+                    proposition_id=pid,
                     text=str(args["text"]),
                     asserted_by=str(args.get("asserted_by") or "mcp"),
-                    assertion_confidence=float(args.get("assertion_confidence") or 0.5),
+                    assertion_confidence=0.5 if confidence is None else float(confidence),
                     source=source,
                     asserted_at=ev.observed_at,
                 )
             )
-        self.store.load_view(view)
-        return {"recorded": True, "evidence_id": ev.evidence_id, "count": len(view.evidence)}
+        self._require_write(args, EvidenceView(view_id="probe", proposition_id=pid, evidence=[ev]))
+        view = self.store.extend_view(
+            pid, evidence=[ev], assertions=assertions, new_view_id=args.get("new_view_id") or None
+        )
+        return {"recorded": True, "evidence_id": ev.evidence_id, "view_id": view.view_id, "count": len(view.evidence)}
 
     def _action_from(self, raw: dict[str, Any]) -> Action:
         risk = raw.get("risk")
@@ -427,7 +455,7 @@ class EwpMcp:
         action = self._action_from(action_raw)
         risk_policy = self._risk_policy_from(args.get("risk_policy"))
         evaluated_at = self._server_time(args)
-        view = self._load(str(args["proposition_id"]), str(args.get("view_id") or "mcp"))
+        view = self._load(args)
         warrant = warrant_now(view, Policy(), evaluated_at)
         decision = may_act(warrant, action, risk_policy)
         return {
@@ -441,9 +469,20 @@ class EwpMcp:
             "risk_policy": {"policy_id": risk_policy.policy_id, "version": risk_policy.version},
         }
 
+    def tool_list_propositions(self, args: dict[str, Any]) -> dict[str, Any]:
+        """Discovery: which propositions exist. Says nothing about warrant."""
+        limit = args.get("limit", 50)
+        if type(limit) is not int or not 1 <= limit <= 500:
+            raise McpError(REFUSE_INVALID_ARGUMENTS, "limit must be an integer from 1 to 500")
+        query = args.get("query")
+        return {
+            "propositions": self.store.list_propositions(None if query is None else str(query), limit),
+            "note": "discovery only; call ewp_memory_context or ewp_warrant_now before relying on any of these",
+        }
+
     def tool_memory_context(self, args: dict[str, Any]) -> dict[str, Any]:
         evaluated_at = str(args.get("evaluated_at") or self.clock())
-        view = self._load(str(args["proposition_id"]), str(args.get("view_id") or "mcp"))
+        view = self._load(args)
         result = warrant_now(view, Policy(), evaluated_at)
         w = result.warrant
         warnings: list[str] = []
@@ -459,6 +498,7 @@ class EwpMcp:
             warnings.append(f"acceptance={w.acceptance} — fluency is not recollection")
         return {
             "proposition_id": view.proposition_id,
+            "view_id": view.view_id,
             "query": args.get("query"),
             "evaluated_at": evaluated_at,
             "warrant": result.normative()["warrant"],
@@ -565,7 +605,7 @@ TOOLS = [
     },
     {
         "name": "ewp_evidence_view_get",
-        "description": "Load a stored EvidenceView by proposition_id.",
+        "description": "Load a stored EvidenceView snapshot by proposition_id (latest snapshot unless view_id is given).",
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -577,12 +617,12 @@ TOOLS = [
     },
     {
         "name": "ewp_check_record",
-        "description": "Append a VerificationCheck to a stored view. Requires the ingest role. Trusted origin requires ingest_attestation.",
+        "description": "Append a VerificationCheck: creates a new snapshot from the latest one. Requires the ingest role. Trusted origin requires ingest_attestation. Returns the new view_id.",
         "inputSchema": {
             "type": "object",
             "properties": {
                 "proposition_id": {"type": "string"},
-                "view_id": {"type": "string"},
+                "new_view_id": {"type": "string", "description": "optional; content-derived when omitted"},
                 "check": {"type": "object"},
                 "ingest_attestation": {"type": "boolean"},
             },
@@ -591,12 +631,17 @@ TOOLS = [
     },
     {
         "name": "ewp_evidence_record",
-        "description": "Append an EvidenceItem to a stored view. Requires the ingest role.",
+        "description": "Append an EvidenceItem (polarity required): creates a new snapshot from the latest one. Requires the ingest role. Returns the new view_id.",
         "inputSchema": {
             "type": "object",
             "properties": {
                 "proposition_id": {"type": "string"},
-                "evidence": {"type": "object"},
+                "new_view_id": {"type": "string", "description": "optional; content-derived when omitted"},
+                "evidence": {
+                    "type": "object",
+                    "properties": {"polarity": {"type": "string", "enum": ["supports", "opposes"]}},
+                    "required": ["evidence_id", "polarity", "content", "observed_at", "source"],
+                },
                 "text": {"type": "string"},
                 "ingest_attestation": {"type": "boolean"},
             },
@@ -629,6 +674,21 @@ TOOLS = [
                 "risk_policy": {"type": "object"},
             },
             "required": ["action", "proposition_id"],
+        },
+    },
+    {
+        "name": "ewp_list_propositions",
+        "description": (
+            "Find stored propositions by id or assertion text (case-insensitive substring). "
+            "Returns ids, latest snapshot ids, and assertion texts. Discovery only: it does not say "
+            "what is warranted; call ewp_memory_context next."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string"},
+                "limit": {"type": "integer", "minimum": 1, "maximum": 500},
+            },
         },
     },
     {

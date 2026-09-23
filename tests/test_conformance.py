@@ -8,7 +8,7 @@ from tempfile import TemporaryDirectory
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from protocol.fixtures import (
+from ewp.fixtures import (
     EVAL,
     EVAL_LATE,
     fixture_compression_full,
@@ -24,11 +24,11 @@ from protocol.fixtures import (
     fixture_superseded,
     fixture_verified_current,
 )
-from protocol.may_act import Action, RiskPolicy, may_act
-from protocol.json_adapter import JsonFileAdapter
-from protocol.sqlite_adapter import SQLiteAdapter
-from protocol.types import Policy
-from protocol.warrant import warrant_now
+from ewp.may_act import Action, RiskPolicy, may_act
+from ewp.json_adapter import JsonFileAdapter
+from ewp.sqlite_adapter import SQLiteAdapter
+from ewp.types import Policy
+from ewp.warrant import warrant_now
 
 POLICY = Policy()
 

@@ -15,8 +15,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from protocol.fixtures import EVAL, fixture_verified_current
-from protocol.mcp_server import (
+from ewp.fixtures import EVAL, fixture_verified_current
+from ewp.mcp_server import (
     REFUSE_CLIENT_RISK_POLICY,
     REFUSE_CLIENT_WARRANT,
     REFUSE_EVALUATED_AT_SKEW,
@@ -83,6 +83,7 @@ def test_initialize_and_tools():
         "ewp_evidence_record",
         "ewp_may_act",
         "ewp_memory_context",
+        "ewp_list_propositions",
     }
     print("PASS initialize (version negotiation) + notifications + tool list")
 
@@ -259,7 +260,7 @@ def test_stdio_framing_is_newline_delimited():
 def test_stdio_subprocess_session():
     """Drive the real process the way an MCP client does."""
     proc = subprocess.Popen(
-        [sys.executable, "-m", "protocol.mcp_server", "--allow-ingest"],
+        [sys.executable, "-m", "ewp.mcp_server", "--allow-ingest"],
         cwd=ROOT,
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
@@ -278,7 +279,7 @@ def test_stdio_subprocess_session():
         assert recv()["result"]["protocolVersion"] == "2025-06-18"
         send({"jsonrpc": "2.0", "method": "notifications/initialized"})
         send({"jsonrpc": "2.0", "id": 2, "method": "tools/list"})
-        assert len(recv()["result"]["tools"]) == 7
+        assert len(recv()["result"]["tools"]) == 8
         send({"jsonrpc": "2.0", "id": 3, "method": "tools/call", "params": {"name": "ewp_evidence_view_put", "arguments": {
             "view": fixture_verified_current().to_dict(), "ingest_attestation": True}}})
         assert recv()["result"]["structuredContent"]["stored"] is True
@@ -306,13 +307,13 @@ def test_stdio_with_official_sdk():
     negotiated: list[str] = []
 
     async def run() -> None:
-        params = StdioServerParameters(command=sys.executable, args=["-m", "protocol.mcp_server"], cwd=str(ROOT))
+        params = StdioServerParameters(command=sys.executable, args=["-m", "ewp.mcp_server"], cwd=str(ROOT))
         async with stdio_client(params) as (read, write):
             async with ClientSession(read, write) as session:
                 init = await session.initialize()
                 negotiated.append(str(getattr(init, "protocol_version", None) or getattr(init, "protocolVersion", "?")))
                 tools = await session.list_tools()
-                assert len(tools.tools) == 7
+                assert len(tools.tools) == 8
                 result = await session.call_tool("ewp_warrant_now", {"view": fixture_verified_current().to_dict(), "evaluated_at": EVAL})
                 # SDK 1.x exposes structuredContent; 2.x exposes structured_content.
                 body = getattr(result, "structured_content", None) or getattr(result, "structuredContent", None)
@@ -373,6 +374,41 @@ def test_http_roles_and_limits():
     print("PASS HTTP: evaluate-only without token, writes with token, body limit, stdio-only --allow-ingest")
 
 
+def test_snapshots_and_discovery():
+    server = seeded()
+    pid = "P-win"
+    w = tool(server, "ewp_warrant_now", {"proposition_id": pid, "evaluated_at": EVAL})["structuredContent"]
+    assert w["view_id"] == "v-ver", w["view_id"]
+    src = {"source_id": "cam", "lineage_id": "L-cam", "origin_type": "extract", "origin_locator": "x",
+           "snapshot_id": "x", "content_hash": "h", "observed_at": EVAL}
+    rec = tool(server, "ewp_evidence_record", {"proposition_id": pid, "evidence": {
+        "evidence_id": "e-new", "polarity": "opposes", "content": "not 2022", "observed_at": EVAL, "source": src}})["structuredContent"]
+    assert rec["view_id"] not in ("v-ver", "mcp"), rec
+    latest = tool(server, "ewp_warrant_now", {"proposition_id": pid, "evaluated_at": EVAL})["structuredContent"]
+    old = tool(server, "ewp_warrant_now", {"proposition_id": pid, "view_id": "v-ver", "evaluated_at": EVAL})["structuredContent"]
+    assert latest["view_id"] == rec["view_id"] and latest["warrant"]["conflict"] == "OPEN", latest
+    assert old["view_id"] == "v-ver" and old["warrant"]["conflict"] == "NONE", old
+    found = tool(server, "ewp_list_propositions", {"query": "windows server"})["structuredContent"]["propositions"]
+    assert [p["proposition_id"] for p in found] == [pid] and found[0]["latest_view_id"] == rec["view_id"], found
+    assert tool(server, "ewp_list_propositions", {"query": "no such text"})["structuredContent"]["propositions"] == []
+    print("PASS snapshots: appends make a new view_id, old view_id still evaluates as stored; discovery by text")
+
+
+def test_missing_views_and_error_shapes():
+    server = seeded()
+    assert error_code(tool(server, "ewp_warrant_now", {"proposition_id": "P-typo", "evaluated_at": EVAL})) == "EWP_REFUSE_MISSING_VIEW"
+    assert error_code(tool(server, "ewp_warrant_now", {"proposition_id": "P-win", "view_id": "nope", "evaluated_at": EVAL})) == "EWP_REFUSE_MISSING_VIEW"
+    src = {"source_id": "s", "content_hash": "h", "observed_at": EVAL, "origin_type": "extract"}
+    assert error_code(tool(server, "ewp_check_record", {"proposition_id": "P-typo", "check": {
+        "check_id": "k", "method": "inference", "observed_at": EVAL, "result": "supports", "source": src}})) == "EWP_REFUSE_MISSING_VIEW"
+    assert error_code(tool(server, "ewp_check_record", {"proposition_id": "P-win"})) == "EWP_REFUSE_INVALID_ARGUMENTS"
+    assert error_code(tool(server, "ewp_evidence_record", {"proposition_id": "P-win", "evidence": {
+        "evidence_id": "e9", "content": "x", "observed_at": EVAL, "source": src}})) == "EWP_REFUSE_INVALID_ARGUMENTS"
+    rr = call(server, "resources/read", {"uri": "ewp://proposition/P-typo"})
+    assert "result" not in rr and rr["error"]["code"] == -32002, rr
+    print("PASS unknown proposition/view refused; argument errors are tool results; resource errors are JSON-RPC errors")
+
+
 def main() -> int:
     test_initialize_and_tools()
     test_every_write_requires_ingest_role()
@@ -390,6 +426,8 @@ def main() -> int:
     test_stdio_subprocess_session()
     test_stdio_with_official_sdk()
     test_http_roles_and_limits()
+    test_snapshots_and_discovery()
+    test_missing_views_and_error_shapes()
     print("MCP SUITE PASS")
     return 0
 

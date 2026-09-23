@@ -12,16 +12,16 @@ from types import SimpleNamespace
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from protocol.fixtures import EVAL, fixture_verified_current
-from protocol.graphiti_client_adapter import (
+from ewp.fixtures import EVAL, fixture_verified_current
+from ewp.graphiti_client_adapter import (
     GraphitiClientAdapter,
     edge_from_live,
     episode_from_live,
     store_from_live,
 )
-from protocol.mem0_adapter import Mem0Adapter, items_to_view, source_from_mem0
-from protocol.types import Policy
-from protocol.warrant import warrant_now
+from ewp.mem0_adapter import Mem0Adapter, items_to_view, source_from_mem0
+from ewp.types import Policy
+from ewp.warrant import warrant_now
 
 
 class FakeGraphitiClient:

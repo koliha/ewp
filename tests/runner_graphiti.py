@@ -31,12 +31,12 @@ COMPARE_KEYS = (
     "superseded_by",
     "freshest_check",
 )
-from protocol.fixtures import EVAL
-from protocol.graphiti_adapter import GraphitiAdapter
-from protocol.graphiti_ingest import ingest_view
-from protocol.graphiti_records import FakeGraphitiStore
-from protocol.types import Policy
-from protocol.warrant import warrant_now
+from ewp.fixtures import EVAL
+from ewp.graphiti_adapter import GraphitiAdapter
+from ewp.graphiti_ingest import ingest_view
+from ewp.graphiti_records import FakeGraphitiStore
+from ewp.types import Policy
+from ewp.warrant import warrant_now
 
 POLICY = Policy()
 
@@ -96,7 +96,7 @@ def run() -> int:
         search = adapter.search_view(view.proposition_id, fact, fact)
         search_w = _payload(search, evaluated_at)
         search_complete = not _diff(reference, search_w)
-        search_degraded_ok = search.warrant.sufficiency == "DEGRADED" if False else (
+        search_degraded_ok = (
             search_w["warrant"]["sufficiency"] == "DEGRADED" or search_complete
         )
         # empty search of a non-empty raw store is retrieval loss; must be degraded

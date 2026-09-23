@@ -32,28 +32,57 @@ class InvalidEvidenceView(ValueError):
     """The view carries a value outside a closed enum. Refuse; do not evaluate."""
 
 
-def validate_view(view: EvidenceView) -> None:
-    """Closed enums fail closed.
+def _is_subject_list(value) -> bool:
+    return isinstance(value, (list, tuple)) and all(isinstance(s, str) and s for s in value)
 
-    An unknown `result` must not classify like `supports`, an unknown
-    conflict `status` must not read as no conflict, and an unknown
-    `polarity` must not silently drop opposition. The view is refused.
+
+def validate_view(view: EvidenceView) -> None:
+    """Invalid input is refused, never evaluated.
+
+    - Closed enums fail closed: an unknown `result` must not classify like
+      `supports`, an unknown conflict `status` must not read as no
+      conflict, and an unknown `polarity` must not silently drop opposition.
+    - The view is bounded: every assertion and evidence item is about the
+      view's proposition (or a `proposition_id:<suffix>` variant), and every
+      conflict row names it. Records about another proposition are an
+      adapter error, not evidence; filtering them silently would hide it.
+    - `subjects` are lists of non-empty strings. A bare string would be
+      iterated as characters and match on shared letters.
+    - `freshness_policy_seconds` is a non-negative int (not bool);
+      `degraded` is a bool; `retrieval_scope` is a string.
     """
     problems: list[str] = []
+    pid = view.proposition_id
+    for a in view.assertions:
+        if not about_proposition(a.proposition_id, pid):
+            problems.append(f"assertion {a.assertion_id}: proposition_id={a.proposition_id!r} is not {pid!r}")
     for e in view.evidence:
         if e.polarity not in POLARITIES:
             problems.append(f"evidence {e.evidence_id}: polarity={e.polarity!r}")
+        if not about_proposition(e.proposition_id, pid):
+            problems.append(f"evidence {e.evidence_id}: proposition_id={e.proposition_id!r} is not {pid!r}")
     for c in view.checks:
         if c.result not in CHECK_RESULTS:
             problems.append(f"check {c.check_id}: result={c.result!r}")
+        if not _is_subject_list(c.subjects):
+            problems.append(f"check {c.check_id}: subjects={c.subjects!r} must be a list of strings")
     for c in view.conflicts:
         if c.status not in CONFLICT_STATUSES:
             problems.append(f"conflict {c.conflict_id}: status={c.status!r}")
+        if not any(about_proposition(x, pid) for x in c.proposition_ids):
+            problems.append(f"conflict {c.conflict_id}: proposition_ids={list(c.proposition_ids)!r} do not name {pid!r}")
     for edge in view.lineage:
         if edge.kind not in LINEAGE_KINDS:
             problems.append(f"lineage {edge.from_id}->{edge.to_id}: kind={edge.kind!r}")
-    if not isinstance(view.freshness_policy_seconds, int) or view.freshness_policy_seconds < 0:
-        problems.append(f"freshness_policy_seconds={view.freshness_policy_seconds!r}")
+    if not _is_subject_list(view.subjects):
+        problems.append(f"subjects={view.subjects!r} must be a list of strings")
+    fresh = view.freshness_policy_seconds
+    if type(fresh) is not int or fresh < 0:
+        problems.append(f"freshness_policy_seconds={fresh!r} must be a non-negative integer")
+    if type(view.degraded) is not bool:
+        problems.append(f"degraded={view.degraded!r} must be a boolean")
+    if not isinstance(view.retrieval_scope, str):
+        problems.append(f"retrieval_scope={view.retrieval_scope!r} must be a string")
     if problems:
         raise InvalidEvidenceView("invalid EvidenceView: " + "; ".join(problems))
 

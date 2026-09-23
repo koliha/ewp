@@ -11,15 +11,15 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import dataclasses
 import json
 
-from protocol.classify import InvalidEvidenceView, parse_ts
-from protocol.codec import view_from_dict
-from protocol.fixtures import EVAL, T0, assertion, ev, fixture_verified_current, src
-from protocol.graphiti_adapter import GraphitiAdapter
-from protocol.graphiti_ingest import ingest_view
-from protocol.graphiti_records import FakeEpisode, FakeGraphitiStore
-from protocol.may_act import Action, RiskPolicy, may_act
-from protocol.sqlite_adapter import ImmutableRecordError, SQLiteAdapter
-from protocol.types import (
+from ewp.classify import InvalidEvidenceView, parse_ts
+from ewp.codec import view_from_dict
+from ewp.fixtures import EVAL, T0, assertion, ev, fixture_verified_current, src
+from ewp.graphiti_adapter import GraphitiAdapter
+from ewp.graphiti_ingest import ingest_view
+from ewp.graphiti_records import FakeEpisode, FakeGraphitiStore
+from ewp.may_act import Action, RiskPolicy, may_act
+from ewp.sqlite_adapter import ImmutableRecordError, SQLiteAdapter
+from ewp.types import (
     Assertion,
     Conflict,
     EvidenceItem,
@@ -30,7 +30,7 @@ from protocol.types import (
     WarrantAxes,
     WarrantView,
 )
-from protocol.warrant import warrant_now
+from ewp.warrant import warrant_now
 
 
 def test_future_assertion_and_evidence_not_available_at_t():
@@ -66,8 +66,12 @@ def test_naive_and_aware_timestamps_compare():
         evidence=[EvidenceItem("em", "P-mix", "supports", s, "X", "2026-09-21T18:31:00")],
     )
     w = warrant_now(view, Policy(), "2026-09-21T21:00:00+00:00")
-    assert w.warrant.acceptance in {"TENTATIVE", "UNACCEPTED", "ACCEPTED"}
-    print("PASS naive vs aware timestamps do not crash")
+    # The naive 18:31 records are read as UTC, so they are available at 21:00Z.
+    assert w.supporting_evidence_ids == ["em"], w.supporting_evidence_ids
+    assert w.warrant.acceptance == "TENTATIVE", w.warrant
+    before = warrant_now(view, Policy(), "2026-09-21T18:00:00+00:00")
+    assert before.warrant.acceptance == "UNACCEPTED", before.warrant
+    print("PASS naive timestamps are UTC instants, compared against aware ones")
 
 
 def test_unknown_policy_rejected():
@@ -303,32 +307,101 @@ def test_sqlite_isolates_propositions_sharing_ids():
     print("PASS sqlite partitions view metadata and records by proposition")
 
 
+def _refused(fn) -> bool:
+    try:
+        fn()
+    except ImmutableRecordError:
+        return True
+    return False
+
+
 def test_sqlite_is_append_only():
     view = fixture_verified_current()
     db = SQLiteAdapter()
     db.load_view(view)
-    downgraded = dataclasses.replace(
-        view,
-        assertions=[],
-        evidence=[],
-        checks=[dataclasses.replace(view.checks[0], result="opposes")],
+    db.load_view(view)  # identical snapshot: no-op
+    flipped = dataclasses.replace(view.checks[0], result="opposes")
+    # A ledger record cannot change, even under a new view id.
+    assert _refused(lambda: db.load_view(dataclasses.replace(view, view_id="v-new", checks=[flipped])))
+    # A snapshot cannot change under its own id.
+    assert _refused(lambda: db.load_view(dataclasses.replace(view, degraded=True)))
+    assert db.get_view(view.proposition_id, view.view_id).checks[0].result == "supports"
+    # Conflict participants are fixed across views; status belongs to each snapshot.
+    base = dict(assertions=[], evidence=[], checks=[])
+    db.load_view(dataclasses.replace(view, view_id="v-open", conflicts=[Conflict("c1", ("P-win",), "open")], **base))
+    db.load_view(dataclasses.replace(view, view_id="v-resolved", conflicts=[Conflict("c1", ("P-win",), "resolved")], **base))
+    assert db.get_view("P-win", "v-open").conflicts[0].status == "open"
+    assert db.get_view("P-win", "v-resolved").conflicts[0].status == "resolved"
+    assert _refused(lambda: db.load_view(dataclasses.replace(
+        view, view_id="v-widened", conflicts=[Conflict("c1", ("P-win", "P-other"), "open")], **base)))
+    print("PASS sqlite: ledger records and snapshots are immutable; conflict participants fixed, status per snapshot")
+
+
+def test_sqlite_views_are_snapshots():
+    from ewp.sqlite_adapter import MissingViewError
+
+    v1 = fixture_verified_current()
+    v2 = dataclasses.replace(
+        v1,
+        view_id="v2",
+        degraded=True,
+        evidence=v1.evidence + [dataclasses.replace(v1.evidence[0], evidence_id="e2")],
     )
+    db = SQLiteAdapter()
+    db.load_view(v1)
+    db.load_view(v2)
+    old = db.get_view(v1.proposition_id, v1.view_id)
+    assert old.view_id == "v-ver" and len(old.evidence) == 1 and old.degraded is False, old
+    assert db.get_view(v1.proposition_id).view_id == "v2"
+    grown = db.extend_view(v1.proposition_id, evidence=[dataclasses.replace(v1.evidence[0], evidence_id="e3")])
+    assert db.get_view(v1.proposition_id).view_id == grown.view_id
+    assert [e.evidence_id for e in grown.evidence] == ["e1", "e2", "e3"]
+    assert len(db.get_view(v1.proposition_id, "v2").evidence) == 2
+    assert db.view_ids(v1.proposition_id) == ["v-ver", "v2", grown.view_id]
     try:
-        db.load_view(downgraded)
-    except ImmutableRecordError:
+        db.get_view("P-never-stored")
+    except MissingViewError:
         pass
     else:
-        raise AssertionError("existing check was overwritten")
-    assert db.get_view(view.proposition_id, view.view_id).checks[0].result == "supports"
-    # Conflict participants are fixed; status may change.
-    db.load_view(dataclasses.replace(view, assertions=[], evidence=[], checks=[], conflicts=[Conflict("c1", ("P-win",), "open")]))
-    db.load_view(dataclasses.replace(view, assertions=[], evidence=[], checks=[], conflicts=[Conflict("c1", ("P-win",), "resolved")]))
-    try:
-        db.load_view(dataclasses.replace(view, assertions=[], evidence=[], checks=[], conflicts=[Conflict("c1", ("P-other",), "open")]))
-    except ImmutableRecordError:
-        print("PASS sqlite refuses overwrites; conflict participants fixed, status may change")
-        return
-    raise AssertionError("conflict participants were rewritten")
+        raise AssertionError("missing proposition returned a view")
+    print("PASS sqlite: get_view(pid, id) returns exactly that snapshot; extend_view makes a new latest")
+
+
+def _as_proposition(view: EvidenceView, pid: str, **changes) -> EvidenceView:
+    return dataclasses.replace(
+        view,
+        proposition_id=pid,
+        assertions=[dataclasses.replace(a, proposition_id=pid) for a in view.assertions],
+        evidence=[dataclasses.replace(e, proposition_id=pid) for e in view.evidence],
+        **changes,
+    )
+
+
+def test_json_store_ids_cannot_collide_or_escape():
+    import tempfile
+
+    from ewp.json_adapter import JsonFileAdapter
+
+    base = fixture_verified_current()
+    with tempfile.TemporaryDirectory() as outer:
+        root = Path(outer) / "store"
+        store = JsonFileAdapter(root)
+        store.load_view(_as_proposition(base, "a/b"))
+        store.load_view(_as_proposition(base, "a_b", degraded=True))
+        assert store.get_view("a/b").degraded is False, "a/b and a_b collided"
+        assert store.get_view("a_b").degraded is True
+        store.load_view(_as_proposition(base, "..\\..\\escaped"))
+        store.load_view(_as_proposition(base, "../../escaped2"))
+        outside = [p for p in Path(outer).rglob("*") if root not in p.parents and p != root]
+        assert outside == [], outside
+        bad = dataclasses.replace(base, conflicts=[Conflict("c", ("P-win",), "Open")])  # type: ignore[arg-type]
+        try:
+            store.load_view(bad)
+        except InvalidEvidenceView:
+            pass
+        else:
+            raise AssertionError("JSON store accepted status='Open'")
+    print("PASS json store: hashed paths, no collisions or escapes, validates writes")
 
 
 def main() -> int:
@@ -345,6 +418,8 @@ def main() -> int:
     test_may_act_superseded_and_unknown_risk()
     test_sqlite_isolates_propositions_sharing_ids()
     test_sqlite_is_append_only()
+    test_sqlite_views_are_snapshots()
+    test_json_store_ids_cannot_collide_or_escape()
     print("HARDENING SUITE PASS")
     return 0
 

@@ -7,14 +7,14 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from protocol.fixtures import EVAL, EVAL_LATE
-from protocol.graphiti_adapter import GraphitiAdapter
-from protocol.graphiti_hostile import apply_hostile
-from protocol.graphiti_ingest import ingest_view
-from protocol.graphiti_records import FakeGraphitiStore
-from protocol.pathological import PACK
-from protocol.types import Policy
-from protocol.warrant import warrant_now
+from ewp.fixtures import EVAL, EVAL_LATE
+from ewp.graphiti_adapter import GraphitiAdapter
+from ewp.graphiti_hostile import apply_hostile
+from ewp.graphiti_ingest import ingest_view
+from ewp.graphiti_records import FakeGraphitiStore
+from ewp.pathological import PACK
+from ewp.types import Policy
+from ewp.warrant import warrant_now
 
 POLICY = Policy()
 
