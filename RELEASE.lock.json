@@ -4,7 +4,7 @@
   "policy": "reference-v1",
   "fixtures": "canonical-14 + pathological-12",
   "fixture_set_sha256": "910b6e98bee3148460f15303810c8e4c447721252b02c7f4805f3c0ce75b98db",
-  "evaluator_set_sha256": "b791e6395a4c0272485c3c25d7f549e7ba832a50e50c21dc1923920713854d82",
+  "evaluator_set_sha256": "b1067194eb02a2cc419f8ee56e92b380eb1840f36e3d25a2d1f311989b9ff77a",
   "golden_set_sha256": "95f26b124ac813ef7b6f895bd43c20832f2026bfb8a25513ce6bfd7302088dd3",
   "graphiti_pin": "0.30.2",
   "rule": "Graphiti adapts to the protocol. The protocol does not adapt to Graphiti."

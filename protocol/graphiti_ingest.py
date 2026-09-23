@@ -54,8 +54,28 @@ def ingest_view(store: FakeGraphitiStore, view: EvidenceView) -> dict:
         put_source(a.source, a.text)
         by_text.setdefault(a.text, []).append(a.source.source_id)
         report["assertions"] += 1
+    polarity_by_text = {e.content: e.polarity for e in view.evidence}
+    polarity_by_source = {e.source.source_id: e.polarity for e in view.evidence}
+    seen_lineage = {a.source.lineage_id for a in view.assertions}
     for e in view.evidence:
         put_source(e.source, e.content)
+        # Keep assertion-shaped facts unique. Add an evidence-only edge when
+        # that source lineage would otherwise vanish from raw_view.
+        if e.content not in by_text and e.source.lineage_id not in seen_lineage:
+            store.add_edge(
+                FakeEntityEdge(
+                    uuid=f"edge:{e.evidence_id}",
+                    fact=e.content,
+                    group_id=view.proposition_id,
+                    episodes=[e.source.source_id],
+                    reference_time=e.observed_at,
+                    polarity=e.polarity,
+                    valid_at=None,
+                    invalid_at=None,
+                    expired_at=None,
+                )
+            )
+            seen_lineage.add(e.source.lineage_id)
 
     for text, ep_ids in by_text.items():
         store.add_edge(
@@ -65,6 +85,7 @@ def ingest_view(store: FakeGraphitiStore, view: EvidenceView) -> dict:
                 group_id=view.proposition_id,
                 episodes=list(dict.fromkeys(ep_ids)),
                 reference_time=view.assertions[0].asserted_at if view.assertions else None,
+                polarity=polarity_by_text.get(text) or polarity_by_source.get(ep_ids[0], "supports"),
                 # never copy warrant into Graphiti temporal fields
                 valid_at=None,
                 invalid_at=None,

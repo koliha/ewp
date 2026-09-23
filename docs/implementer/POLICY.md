@@ -27,7 +27,7 @@ Unknown origins (`episode`, `graph`, `agent`, …) are untrusted.
 - Indirect method → `INDIRECT`.
 - Unknown method → `NONE`.
 - `result=inconclusive` cannot raise `HUMAN` or `EXTERNAL`. Cap at `INDIRECT`.
-- If `scope` or declared `subjects` names an identifier in the same family as the view (`server-01`, `customer-42`, `contract-123`, …) and that token is not the one in the view → cap that check at `INDIRECT`. A scope that is only an inspection surface (`dashboard_screenshot`) does not cap. When both the check and the view declare `subjects`, disjoint same-family ids cap; overlapping ids apply.
+- Identity for scope caps is declared `subjects[]` only. `scope` is an inspection surface (`dashboard_screenshot`) and is not scraped for identifiers. A check with no `subjects` does not cap. A check that names `subjects` the view did not declare cannot raise `HUMAN` or `EXTERNAL`. When both declare `subjects`, disjoint same-family ids (`server01` vs `server02`, `customer-42` vs `customer-99`) cap at `INDIRECT`; overlapping ids apply.
 - `result=opposes` still classifies the check. Polarity is a conflict input, not a reason to ignore the check.
 
 A later check does not supersede an earlier one by timestamp alone. Compare `observed_at` as instants, not as raw strings (`Z` vs `+00:00`).

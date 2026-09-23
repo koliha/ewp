@@ -39,7 +39,9 @@
         "snapshot_id": "snap:billing",
         "source_id": "billing"
       },
-      "subjects": []
+      "subjects": [
+        "customer-99"
+      ]
     }
   ],
   "conflicts": [],

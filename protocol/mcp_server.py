@@ -1,18 +1,21 @@
 """EWP MCP façade — shipped in 0.2.0.
 
-Stdio JSON-RPC (MCP) and optional HTTP POST /mcp.
+Stdio is Content-Length framed JSON-RPC (MCP). HTTP POST /mcp is plain
+JSON-RPC for OpenClaw-style clients - not framed MCP, and not an
+authenticated production API unless --ingest-token is set.
 
 This is the policy boundary. Agents talk to these tools. They do not get
 store-native write tools. Warrant is computed, never stored as truth.
 
-Origin rule: a caller may not self-assert a trusted origin_type unless
-`ingest_attestation` is true (operator/ingest channel). Otherwise the
-write is refused. That is the ingest boundary SECURITY.md assumes.
+Trusted origin writes require a server-side ingest role
+(--allow-ingest on stdio, or a matching --ingest-token on HTTP).
+The client boolean ingest_attestation is not authentication.
 """
 
 from __future__ import annotations
 
 import argparse
+import contextvars
 import json
 import sys
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -20,7 +23,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs, urlparse
 
-from .codec import view_from_dict, warrant_from_dict
+from .codec import view_from_dict
 from .may_act import Action, RiskPolicy, may_act
 from .sqlite_adapter import SQLiteAdapter
 from .types import (
@@ -37,11 +40,43 @@ from .warrant import warrant_now
 
 SERVER_NAME = "ewp-mcp"
 PROTOCOL_VERSION = "2024-11-05"
+_REQUEST_INGEST = contextvars.ContextVar("ewp_request_ingest", default=False)
 
 REFUSE_PERSIST_WARRANT = "EWP_REFUSE_PERSIST_WARRANT"
 REFUSE_UNATTESTED_ORIGIN = "EWP_REFUSE_UNATTESTED_TRUSTED_ORIGIN"
 REFUSE_MISSING_VIEW = "EWP_REFUSE_MISSING_VIEW"
 REFUSE_MAY_ACT_WITHOUT_ACTION = "EWP_REFUSE_MAY_ACT_WITHOUT_ACTION"
+REFUSE_CLIENT_WARRANT = "EWP_REFUSE_CLIENT_SUPPLIED_WARRANT"
+REFUSE_INGEST_ROLE = "EWP_REFUSE_INGEST_ROLE"
+REFUSE_MISSING_CONTENT_HASH = "EWP_REFUSE_MISSING_CONTENT_HASH"
+REFUSE_MISSING_OBSERVED_AT = "EWP_REFUSE_MISSING_OBSERVED_AT"
+
+
+def encode_mcp_message(payload: dict[str, Any]) -> bytes:
+    body = json.dumps(payload, separators=(',', ':')).encode('utf-8')
+    header = f'Content-Length: {len(body)}\r\n\r\n'.encode('ascii')
+    return header + body
+
+
+def read_mcp_message(buf) -> dict[str, Any] | None:
+    """Read one Content-Length framed JSON-RPC message from a binary stream."""
+    headers: dict[str, str] = {}
+    while True:
+        line = buf.readline()
+        if not line:
+            return None
+        stripped = line.decode('utf-8').rstrip('\r\n')
+        if stripped == '':
+            break
+        key, _, value = stripped.partition(':')
+        headers[key.strip().lower()] = value.strip()
+    n = int(headers.get('content-length') or 0)
+    if n <= 0:
+        return None
+    raw = buf.read(n)
+    if not raw:
+        return None
+    return json.loads(raw.decode('utf-8'))
 
 
 class McpError(Exception):
@@ -59,9 +94,17 @@ def _origins_in(view: EvidenceView) -> set[str]:
 
 
 class EwpMcp:
-    def __init__(self, db_path: str = ":memory:") -> None:
+    def __init__(
+        self,
+        db_path: str = ":memory:",
+        *,
+        ingest_enabled: bool = False,
+        ingest_token: str = "",
+    ) -> None:
         self.db_path = db_path
         self.store = SQLiteAdapter(db_path)
+        self.ingest_enabled = ingest_enabled
+        self.ingest_token = ingest_token
 
     def handle(self, message: dict[str, Any]) -> dict[str, Any] | None:
         if "method" not in message:
@@ -129,7 +172,16 @@ class EwpMcp:
 
     def _require_attestation(self, args: dict[str, Any], view: EvidenceView) -> None:
         trusted = _origins_in(view) & set(TRUSTED_ORIGINS)
-        if trusted and not args.get("ingest_attestation"):
+        if not trusted:
+            return
+        if not (self.ingest_enabled or _REQUEST_INGEST.get()):
+            raise McpError(
+                REFUSE_INGEST_ROLE,
+                "trusted origin_type writes require a server-side ingest role "
+                "(--allow-ingest or a matching --ingest-token). "
+                "ingest_attestation is not authentication: " + ", ".join(sorted(trusted)),
+            )
+        if not args.get("ingest_attestation"):
             raise McpError(
                 REFUSE_UNATTESTED_ORIGIN,
                 "trusted origin_type values require ingest_attestation=true at the ingest boundary: "
@@ -244,13 +296,18 @@ class EwpMcp:
         if not action_raw:
             raise McpError(REFUSE_MAY_ACT_WITHOUT_ACTION, "may_act requires an action; it is not inferred from WarrantView")
         if args.get("warrant"):
-            warrant = warrant_from_dict(args["warrant"])
+            raise McpError(
+                REFUSE_CLIENT_WARRANT,
+                "ewp_may_act does not accept a caller-built WarrantView; it evaluates the stored view",
+            )
+        evaluated_at = str(args.get("evaluated_at") or "")
+        if not evaluated_at:
+            raise McpError("EWP_MISSING_EVALUATED_AT", "evaluated_at is required")
+        if args.get("view"):
+            view = view_from_dict(args["view"])
         else:
-            evaluated_at = str(args.get("evaluated_at") or "")
-            if not evaluated_at:
-                raise McpError("EWP_MISSING_EVALUATED_AT", "evaluated_at is required when warrant is omitted")
             view = self._load(str(args["proposition_id"]), str(args.get("view_id") or "mcp"))
-            warrant = warrant_now(view, Policy(), evaluated_at)
+        warrant = warrant_now(view, Policy(), evaluated_at)
         action = Action(
             action_id=str(action_raw.get("action_id") or "unnamed"),
             kind=str(action_raw.get("kind") or "unknown"),
@@ -344,14 +401,18 @@ class EwpMcp:
 
 def source_from_args(d: dict[str, Any], fallback: str) -> SourceRef:
     sid = str(d.get("source_id") or fallback)
+    if not d.get("content_hash"):
+        raise McpError(REFUSE_MISSING_CONTENT_HASH, "source.content_hash is required; the server will not invent one")
+    if not d.get("observed_at"):
+        raise McpError(REFUSE_MISSING_OBSERVED_AT, "source.observed_at is required; the server will not invent epoch")
     return SourceRef(
         source_id=sid,
         lineage_id=str(d.get("lineage_id") or sid),
         origin_type=str(d.get("origin_type") or "extract"),
         origin_locator=str(d.get("origin_locator") or f"mcp:{sid}"),
         snapshot_id=str(d.get("snapshot_id") or sid),
-        content_hash=str(d.get("content_hash") or f"mcp:{sid}"),
-        observed_at=str(d.get("observed_at") or "1970-01-01T00:00:00+00:00"),
+        content_hash=str(d["content_hash"]),
+        observed_at=str(d["observed_at"]),
         extractor_id=d.get("extractor_id"),
         parent_source_id=d.get("parent_source_id"),
     )
@@ -428,17 +489,18 @@ TOOLS = [
     },
     {
         "name": "ewp_may_act",
-        "description": "Separate action gate. Requires an action object. Will not infer permission from WarrantView alone.",
+        "description": "Separate action gate. Requires an action object. Evaluates the stored or inline view. Does not accept a caller-built WarrantView.",
         "inputSchema": {
             "type": "object",
             "properties": {
                 "action": {"type": "object"},
-                "warrant": {"type": "object"},
                 "proposition_id": {"type": "string"},
+                "view_id": {"type": "string"},
+                "view": {"type": "object"},
                 "evaluated_at": {"type": "string"},
                 "risk_policy": {"type": "object"},
             },
-            "required": ["action"],
+            "required": ["action", "evaluated_at"],
         },
     },
     {
@@ -459,20 +521,21 @@ TOOLS = [
 
 
 def serve_stdio(server: EwpMcp) -> None:
-    for line in sys.stdin:
-        line = line.strip()
-        if not line:
-            continue
+    stdin = sys.stdin.buffer
+    stdout = sys.stdout.buffer
+    while True:
         try:
-            message = json.loads(line)
+            message = read_mcp_message(stdin)
         except json.JSONDecodeError:
-            sys.stdout.write(json.dumps({"jsonrpc": "2.0", "id": None, "error": {"code": -32700, "message": "parse error"}}) + "\n")
-            sys.stdout.flush()
+            stdout.write(encode_mcp_message({"jsonrpc": "2.0", "id": None, "error": {"code": -32700, "message": "parse error"}}))
+            stdout.flush()
             continue
+        if message is None:
+            return
         reply = server.handle(message)
         if reply is not None:
-            sys.stdout.write(json.dumps(reply) + "\n")
-            sys.stdout.flush()
+            stdout.write(encode_mcp_message(reply))
+            stdout.flush()
 
 
 def serve_http(server: EwpMcp, host: str, port: int) -> None:
@@ -488,6 +551,14 @@ def serve_http(server: EwpMcp, host: str, port: int) -> None:
             self.end_headers()
             self.wfile.write(body)
 
+        def _token_ok(self) -> bool:
+            if not server.ingest_token:
+                return False
+            auth = self.headers.get("Authorization") or self.headers.get("X-EWP-Ingest-Token") or ""
+            if auth.lower().startswith("bearer "):
+                auth = auth[7:].strip()
+            return auth == server.ingest_token
+
         def do_POST(self) -> None:  # noqa: N802
             if self.path not in {"/mcp", "/", "/mcp/"}:
                 self._write(404, {"error": "not found"})
@@ -499,7 +570,11 @@ def serve_http(server: EwpMcp, host: str, port: int) -> None:
             except json.JSONDecodeError:
                 self._write(400, {"jsonrpc": "2.0", "error": {"code": -32700, "message": "parse error"}})
                 return
-            reply = server.handle(message) or {"jsonrpc": "2.0", "result": None}
+            token = _REQUEST_INGEST.set(self._token_ok())
+            try:
+                reply = server.handle(message) or {"jsonrpc": "2.0", "result": None}
+            finally:
+                _REQUEST_INGEST.reset(token)
             self._write(200, reply)
 
         def do_GET(self) -> None:  # noqa: N802
@@ -517,11 +592,17 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="ewp-mcp", description="EWP MCP façade")
     parser.add_argument("--db", default=":memory:", help="SQLite path, default memory")
     parser.add_argument("--http", default="", help="host:port for JSON-RPC HTTP (optional)")
-    parser.add_argument("--stdio", action="store_true", help="JSON-RPC on stdin/stdout (default if no --http)")
+    parser.add_argument("--stdio", action="store_true", help="MCP-framed JSON-RPC on stdin/stdout (default if no --http)")
+    parser.add_argument("--allow-ingest", action="store_true", help="stdio process may honor ingest_attestation")
+    parser.add_argument("--ingest-token", default="", help="HTTP bearer token that grants the ingest role")
     args = parser.parse_args(argv)
     if args.db != ":memory:":
         Path(args.db).parent.mkdir(parents=True, exist_ok=True)
-    server = EwpMcp(args.db)
+    server = EwpMcp(
+        args.db,
+        ingest_enabled=bool(args.allow_ingest),
+        ingest_token=args.ingest_token,
+    )
     if args.http:
         host, _, port = args.http.partition(":")
         serve_http(server, host or "127.0.0.1", int(port or "8765"))

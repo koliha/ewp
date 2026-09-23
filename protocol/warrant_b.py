@@ -13,9 +13,13 @@ from .classify import (
     highest_verification,
     implied_open_conflict,
     opposing_high_check,
+    opposing_items,
     parse_ts,
     supporting_items,
+    visible_assertions,
+    visible_checks,
 )
+from .warrant import REFERENCE_POLICY
 from .types import (
     EXTERNAL_METHODS,
     HUMAN_METHODS,
@@ -28,8 +32,16 @@ from .types import (
 
 def axes_only(view: EvidenceView, policy: Policy, evaluated_at: str) -> dict[str, str]:
     """Normative projection: five axes. No scalar."""
+    if (policy.policy_id, policy.version) != REFERENCE_POLICY:
+        raise ValueError(
+            f"unknown policy {policy.policy_id}/{policy.version}; "
+            "this evaluator implements reference-v1 only"
+        )
     eval_dt = parse_ts(evaluated_at)
-    supporting = supporting_items(view)
+    assertions = visible_assertions(view, evaluated_at)
+    supporting = supporting_items(view, evaluated_at)
+    opposing = opposing_items(view, evaluated_at)
+    checks = visible_checks(view, evaluated_at)
     open_c = [c for c in view.conflicts if c.status == "open"]
     resolved_c = [c for c in view.conflicts if c.status == "resolved"]
 
@@ -59,13 +71,13 @@ def axes_only(view: EvidenceView, policy: Policy, evaluated_at: str) -> dict[str
 
     if view.degraded or view.omitted_sources or view.retrieval_scope != "complete":
         sufficiency = "DEGRADED"
-    elif not view.assertions and not view.evidence and not view.checks:
+    elif not assertions and not supporting and not opposing and not checks:
         sufficiency = "INSUFFICIENT"
     else:
         sufficiency = "SUFFICIENT"
 
     opposing_high = opposing_high_check(view, evaluated_at)
-    if not view.assertions and not supporting:
+    if not assertions and not supporting:
         acceptance = "UNACCEPTED"
     elif (
         verification in {"EXTERNAL", "HUMAN"}

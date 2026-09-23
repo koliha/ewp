@@ -165,7 +165,7 @@ def build():
         ["currency", "CURRENT / STALE / SUPERSEDED"],
         ["sufficiency", "SUFFICIENT / INSUFFICIENT / DEGRADED"],
     ], [1.7 * inch, 5.1 * inch]))
-    story.append(p(s, "Body", "Verification is a record (method, source, scope, time, result, freshness policy), not a badge. result=opposes opens conflict and blocks ACCEPTED. result=inconclusive cannot raise EXTERNAL or HUMAN. Endogenous origin caps human and external methods at INDIRECT. Currency is computed at evaluation time from checks that confer the chosen class. A later summary cannot refresh an old tool observation. History is not rewritten."))
+    story.append(p(s, "Body", "Verification is a record (method, source, scope, time, result, freshness policy), not a badge. result=opposes opens conflict and blocks ACCEPTED. result=inconclusive cannot raise EXTERNAL or HUMAN. Endogenous origin caps human and external methods at INDIRECT. Scope identity is declared subjects[] only; the scope string is an inspection surface and is not scraped for identifiers. Currency is computed at evaluation time from checks that confer the chosen class. A later summary cannot refresh an old tool observation. History is not rewritten."))
 
     story.append(PageBreak())
     story.append(p(s, "H1", "5. Lineage and the three confidences"))
@@ -204,7 +204,13 @@ def build():
     ], [2.15 * inch, 4.65 * inch]))
     story.append(p(s, "Body", "Dreaming may rewrite MEMORY.md. EWP treats that rewrite as a new assertion, not as verification. Compression must not turn \"X is disputed\" into \"X.\""))
     story.append(p(s, "H2", "Claude, Codex, other MCP clients"))
-    story.append(p(s, "Body", "Same MCP surface. Prefer HTTP if several clients share one ledger. Fluency is not recollection. OPEN conflict is said out loud. DEGRADED means the view is incomplete. Store-native write tools stay disconnected. python3 -m protocol.mcp_server is the shipped facade (stdio or POST /mcp). docs/MCP_CONTRACT.md is the contract. historical/docs/MCP_CONTRACT.md is the superseded pre-freeze sketch. Warrant evaluation does not require MCP."))
+    story.append(p(s, "Body", "Same contract. python3 -m protocol.mcp_server --stdio --allow-ingest speaks Content-Length framed JSON-RPC (MCP). --http 127.0.0.1:8765 serves plain JSON-RPC POST /mcp for OpenClaw. HTTP is not framed MCP. Trusted writes require a server-side ingest role (--allow-ingest on stdio, or Authorization: Bearer matching --ingest-token on HTTP) plus ingest_attestation=true. ewp_may_act refuses a caller-built WarrantView. The pre-freeze claim/confidence sketch stays in historical/docs/MCP_CONTRACT.md and is not the shipped façade."))
+    story.append(Preformatted(
+        "python3 -m protocol.mcp_server --stdio --allow-ingest --db ./ewp.sqlite\n"
+        "python3 -m protocol.mcp_server --http 127.0.0.1:8765 --ingest-token \"$EWP_INGEST_TOKEN\" --db ./ewp.sqlite\n"
+        "openclaw mcp add ewp --url http://127.0.0.1:8765/mcp",
+        s["CodeBlock"],
+    ))
     story.append(p(s, "H2", "Graphiti, Mem0, Particles, SQLite"))
     story.append(p(s, "Body", "Graphiti can be used as a temporal/entity evidence substrate or mirror. Inject lineage_id in episode metadata. invalid_at is store-local. valid_at is not a verification check. Search collapse marks the view DEGRADED. The frozen suite uses fake Graphiti-shaped records. Live Graphiti and Mem0 mappings live in protocol/graphiti_client_adapter.py and protocol/mem0_adapter.py; notes in docs/implementer/LIVE_ADAPTERS.md. Live graphiti-core 0.30.2 is not validated. Mem0 default origin is extract; retrieval score is not warrant. Particles is a good immutable substrate — agents write only through EWP. SQLite and JSON prove store neutrality."))
     story.append(p(s, "RuleLine", "Graphiti adapts to the protocol. The protocol does not adapt to Graphiti."))
@@ -223,7 +229,7 @@ def build():
         "python3 tests/ci.py\npython3 tests/report.py\npython3 tests/runner.py\npython3 tests/runner_pathological.py",
         s["CodeBlock"],
     ))
-    story.append(p(s, "Body", "CI enforces fixture, evaluator, and golden lock hashes, all 26 goldens, SQLite = JSON, fake-Graphiti isolation, the laundering pack, live mappings, MCP facade, and the third evaluator. Changing a golden or the evaluator requires a protocol or policy bump, then python3 tests/ci.py --write-lock."))
+    story.append(p(s, "Body", "CI enforces fixture, evaluator, and golden lock hashes, all 26 goldens, SQLite = JSON, fake-Graphiti isolation, and the laundering pack. Changing a golden or the evaluator requires a protocol or policy bump, then python3 tests/ci.py --write-lock."))
     story.append(table(s, ["Class", "Meaning"], [
         ["INGEST_LOSS", "Store dropped assertions, sources, lineage, checks, or conflicts."],
         ["ADAPTER_MAP_LOSS", "Store has the rows; EvidenceView is incomplete."],
@@ -243,7 +249,7 @@ def build():
         "Fixture set sha256:\n"
         "910b6e98bee3148460f15303810c8e4c447721252b02c7f4805f3c0ce75b98db\n"
         "Evaluator set sha256:\n"
-        "b791e6395a4c0272485c3c25d7f549e7ba832a50e50c21dc1923920713854d82\n"
+        "b1067194eb02a2cc419f8ee56e92b380eb1840f36e3d25a2d1f311989b9ff77a\n"
         "Golden set sha256:\n"
         "95f26b124ac813ef7b6f895bd43c20832f2026bfb8a25513ce6bfd7302088dd3",
         s["CodeBlock"],
@@ -252,7 +258,7 @@ def build():
 
     story.append(p(s, "H1", "11. What EWP is not"))
     story.append(p(s, "Body", "Not a vector database, knowledge graph, memory engine, truth oracle, LLM fact-checker, or authorization framework. It does not ask what is ultimately true. It asks a narrower, computable question: given this bounded evidence view, at this time, under this versioned policy, what may the agent accept — and why?"))
-    story.append(p(s, "Body", "v0.2.0 tightens generic scope binding, refuses future-dated checks at T, persists SQLite view completeness, and narrows the serialized WarrantView. The 26 goldens are unchanged. New stores may reveal adapter bugs; they do not redefine warrant."))
+    story.append(p(s, "Body", "v0.2.0 tightened generic scope binding, refused future-dated checks at T, persisted SQLite view completeness, and narrowed the serialized WarrantView. Later 0.2.x hardening shipped the MCP façade with framed stdio and an ingest role, time-filtered assertions and evidence, and required subjects[] for scope caps. The 26 goldens stay. New stores may reveal adapter bugs; they do not redefine warrant."))
     story.append(p(s, "RuleLine", "Stores keep evidence. Warrant is computed. Action is a later gate."))
 
     doc = SimpleDocTemplate(

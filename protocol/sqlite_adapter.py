@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+import threading
 
 from .types import (
     Assertion,
@@ -73,15 +74,18 @@ CREATE TABLE IF NOT EXISTS conflicts (
 CREATE TABLE IF NOT EXISTS lineage (
   from_id TEXT NOT NULL,
   to_id TEXT NOT NULL,
-  kind TEXT NOT NULL
+  kind TEXT NOT NULL,
+  UNIQUE (from_id, to_id, kind)
 );
 """
 
 
 class SQLiteAdapter:
     def __init__(self, path: str = ":memory:") -> None:
-        self.conn = sqlite3.connect(path)
+        self._lock = threading.Lock()
+        self.conn = sqlite3.connect(path, check_same_thread=False, timeout=5)
         self.conn.row_factory = sqlite3.Row
+        self.conn.execute("PRAGMA busy_timeout=5000")
         self.conn.executescript(SCHEMA)
         self.conn.commit()
 
@@ -103,6 +107,10 @@ class SQLiteAdapter:
         )
 
     def load_view(self, view: EvidenceView) -> None:
+        with self._lock:
+            self._load_view_unlocked(view)
+
+    def _load_view_unlocked(self, view: EvidenceView) -> None:
         for a in view.assertions:
             self._put_source(a.source)
             self.conn.execute(
@@ -144,7 +152,7 @@ class SQLiteAdapter:
                 (c.conflict_id, json.dumps(list(c.proposition_ids)), c.status, c.note),
             )
         for e in view.lineage:
-            self.conn.execute("INSERT INTO lineage VALUES (?,?,?)", (e.from_id, e.to_id, e.kind))
+            self.conn.execute("INSERT OR IGNORE INTO lineage VALUES (?,?,?)", (e.from_id, e.to_id, e.kind))
         self.conn.execute(
             "INSERT OR REPLACE INTO views VALUES (?,?,?,?,?,?,?)",
             (
@@ -174,6 +182,26 @@ class SQLiteAdapter:
         )
 
     def get_view(
+        self,
+        proposition_id: str,
+        view_id: str,
+        *,
+        omitted_sources: list[str] | None = None,
+        retrieval_scope: str | None = None,
+        degraded: bool | None = None,
+        freshness_policy_seconds: int | None = None,
+    ) -> EvidenceView:
+        with self._lock:
+            return self._get_view_unlocked(
+                proposition_id,
+                view_id,
+                omitted_sources=omitted_sources,
+                retrieval_scope=retrieval_scope,
+                degraded=degraded,
+                freshness_policy_seconds=freshness_policy_seconds,
+            )
+
+    def _get_view_unlocked(
         self,
         proposition_id: str,
         view_id: str,

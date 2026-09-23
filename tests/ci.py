@@ -66,6 +66,7 @@ def main() -> int:
         [sys.executable, "tests/test_laundering.py"],
         [sys.executable, "tests/test_live_adapters.py"],
         [sys.executable, "tests/test_mcp.py"],
+        [sys.executable, "tests/test_hardening.py"],
         [sys.executable, "docs/implementer/third_eval.py"],
     ]
     for cmd in steps:

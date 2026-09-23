@@ -12,6 +12,8 @@ from .classify import (
     opposing_items,
     parse_ts,
     supporting_items,
+    visible_assertions,
+    visible_checks,
 )
 from .types import (
     ENDOGENOUS_ORIGINS,
@@ -26,16 +28,30 @@ from .types import (
 __all__ = ["warrant_now", "check_verification_class"]
 
 
+REFERENCE_POLICY = ("reference-v1", "reference-v1")
+
+
 def warrant_now(view: EvidenceView, policy: Policy, evaluated_at: str) -> WarrantView:
     """Deterministic reference-v1 evaluator. No store I/O. No LLM."""
+    if (policy.policy_id, policy.version) != REFERENCE_POLICY:
+        raise ValueError(
+            f"unknown policy {policy.policy_id}/{policy.version}; "
+            "this evaluator implements reference-v1 only"
+        )
     codes: list[str] = []
     eval_dt = parse_ts(evaluated_at)
 
-    supporting = supporting_items(view)
-    opposing = opposing_items(view)
+    assertions = visible_assertions(view, evaluated_at)
+    supporting = supporting_items(view, evaluated_at)
+    opposing = opposing_items(view, evaluated_at)
+    checks = visible_checks(view, evaluated_at)
 
-    lineage_ids = independent_lineage_ids(view)
+    lineage_ids = independent_lineage_ids(view, evaluated_at)
     independent = len(lineage_ids)
+    if any(not available_at(a.asserted_at, evaluated_at) for a in view.assertions):
+        codes.append("availability.future_assertion")
+    if any(not available_at(e.observed_at, evaluated_at) for e in view.evidence):
+        codes.append("availability.future_evidence")
 
     open_c = [c for c in view.conflicts if c.status == "open"]
     resolved_c = [c for c in view.conflicts if c.status == "resolved"]
@@ -106,14 +122,14 @@ def warrant_now(view: EvidenceView, policy: Policy, evaluated_at: str) -> Warran
     if view.degraded or view.omitted_sources or view.retrieval_scope != "complete":
         sufficiency: str = "DEGRADED"
         codes.append("sufficiency.degraded")
-    elif not view.assertions and not view.evidence and not view.checks:
+    elif not assertions and not supporting and not opposing and not checks:
         sufficiency = "INSUFFICIENT"
         codes.append("sufficiency.none")
     else:
         sufficiency = "SUFFICIENT"
 
     opposing_high = opposing_high_check(view, evaluated_at)
-    if not view.assertions and not supporting:
+    if not assertions and not supporting:
         acceptance: str = "UNACCEPTED"
         codes.append("acceptance.none")
     elif (

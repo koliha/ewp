@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import json
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -24,7 +24,11 @@ AXES = ("acceptance", "conflict", "verification", "currency", "sufficiency")
 
 
 def instant(ts: str) -> datetime:
-    return datetime.fromisoformat(ts.replace("Z", "+00:00"))
+    text = (ts or "").strip().replace("Z", "+00:00")
+    dt = datetime.fromisoformat(text)
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
 
 
 def origin_of(check: dict) -> str:
@@ -47,21 +51,17 @@ def family(tok: str) -> str:
 
 
 def scope_caps_check(check: dict, view: dict) -> bool:
-    scope = (check.get("scope") or "").strip()
-    if not scope:
+    subjects = [str(s).lower() for s in (check.get("subjects") or [])]
+    if not subjects:
         return False
-    hay = " ".join(
-        [view.get("proposition_id") or ""]
-        + [a.get("text") or "" for a in view.get("assertions") or []]
-        + [e.get("content") or "" for e in view.get("evidence") or []]
-    )
-    view_ents = entities(hay)
-    for token in entities(scope):
-        fam = family(token)
-        same = {v for v in view_ents if family(v) == fam}
-        if same and token not in same:
-            return True
-    return False
+    view_ids = [str(s).lower() for s in (view.get("subjects") or [])]
+    if not view_ids:
+        return True
+    if set(subjects) & set(view_ids):
+        return False
+    check_fams = {family(s) for s in subjects}
+    view_fams = {family(s) for s in view_ids}
+    return bool(check_fams & view_fams)
 
 
 def available_at(observed_at: str, evaluated_at: str | None) -> bool:
@@ -127,14 +127,17 @@ def conflict_of(view: dict, evaluated_at: str | None = None) -> str:
     return "NONE"
 
 
-def sufficiency_of(view: dict) -> str:
+def sufficiency_of(view: dict, evaluated_at: str | None = None) -> str:
     if (
         view.get("degraded")
         or view.get("omitted_sources")
         or (view.get("retrieval_scope") or "complete") != "complete"
     ):
         return "DEGRADED"
-    if not view.get("assertions") and not view.get("evidence") and not view.get("checks"):
+    assertions = [a for a in view.get("assertions") or [] if available_at(a.get("asserted_at") or "", evaluated_at)]
+    evidence = [e for e in view.get("evidence") or [] if available_at(e.get("observed_at") or "", evaluated_at)]
+    checks = [c for c in view.get("checks") or [] if available_at(c.get("observed_at") or "", evaluated_at)]
+    if not assertions and not evidence and not checks:
         return "INSUFFICIENT"
     return "SUFFICIENT"
 
@@ -161,8 +164,9 @@ def currency_of(view: dict, verification: str, evaluated_at: str) -> tuple[str, 
 
 
 def acceptance_of(view: dict, verification: str, conflict: str, currency: str, sufficiency: str, stale: bool, evaluated_at: str | None = None) -> str:
-    supporting = [e for e in view.get("evidence") or [] if e.get("polarity") == "supports"]
-    if not view.get("assertions") and not supporting:
+    supporting = [e for e in view.get("evidence") or [] if e.get("polarity") == "supports" and available_at(e.get("observed_at") or "", evaluated_at)]
+    assertions = [a for a in view.get("assertions") or [] if available_at(a.get("asserted_at") or "", evaluated_at)]
+    if not assertions and not supporting:
         return "UNACCEPTED"
     opposing_high = any(
         c.get("result") == "opposes" and class_of(c, view, evaluated_at) in {"EXTERNAL", "HUMAN"}
@@ -184,7 +188,7 @@ def warrant_now(view: dict) -> dict:
     evaluated_at = view["evaluated_at"]
     verification = verification_of(view, evaluated_at)
     conflict = conflict_of(view, evaluated_at)
-    sufficiency = sufficiency_of(view)
+    sufficiency = sufficiency_of(view, evaluated_at)
     currency, stale = currency_of(view, verification, evaluated_at)
     acceptance = acceptance_of(view, verification, conflict, currency, sufficiency, stale, evaluated_at)
     return {

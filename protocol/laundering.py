@@ -277,7 +277,8 @@ def scope_mismatch_is_not_external() -> EvidenceView:
         "P-win",
         assertions=[assertion("a1", "P-win", "server01 runs Windows Server 2022", s)],
         evidence=[ev("e1", "P-win", "supports", s, "Get-ComputerInfo server01")],
-        checks=[VerificationCheck("k1", "tool_observation", "server02", s, T1, "supports")],
+        checks=[VerificationCheck("k1", "tool_observation", "server02", s, T1, "supports", subjects=("server02",))],
+        subjects=("server01",),
         freshness_policy_seconds=86400 * 7,
     )
 
@@ -291,7 +292,7 @@ def customer_scope_mismatch() -> EvidenceView:
         "P-refund",
         assertions=[assertion("a1", "P-refund", "customer-42 has approved the refund", s)],
         evidence=[ev("e1", "P-refund", "supports", s, "refund approved for customer-42")],
-        checks=[VerificationCheck("k1", "external_api", "customer-99", s, T1, "supports")],
+        checks=[VerificationCheck("k1", "external_api", "customer-99", s, T1, "supports", subjects=("customer-99",))],
         subjects=("customer-42",),
         freshness_policy_seconds=86400 * 7,
     )

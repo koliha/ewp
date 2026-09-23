@@ -17,11 +17,6 @@ from .types import (
 )
 
 
-def _src(d: dict[str, Any]) -> SourceRef:
-    fields = SourceRef.__dataclass_fields__
-    return SourceRef(**{k: d.get(k) for k in fields if k in d or fields[k].default is not fields[k].default})
-
-
 def source_from_dict(d: dict[str, Any]) -> SourceRef:
     return SourceRef(
         source_id=str(d["source_id"]),

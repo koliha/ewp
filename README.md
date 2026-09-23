@@ -13,7 +13,7 @@ Memory is evidence, not truth.
 
 Stores adapt to the protocol. The protocol does not inherit the store’s epistemology.
 
-v0.2.0 tightens scope binding, refuses future-dated checks at T, persists SQLite view completeness, and narrows the serialized `WarrantView` contract. The 26 goldens stay; the evaluator lock moves.
+v0.2.0 tightens scope binding, refuses future-dated checks at T, persists SQLite view completeness, and narrows the serialized `WarrantView` contract. Later 0.2.x hardening ships the MCP façade with an ingest role and requires declared `subjects[]` for scope caps. The 26 goldens stay; the evaluator lock moves.
 
 See `NAME.md`, `docs/PROTOCOL_v0.1.md`, `docs/DESIGN_NOTE.md`, `docs/implementer/`, `docs/PLATFORMS.md`, `docs/implementer/LIVE_ADAPTERS.md`, `docs/MCP_CONTRACT.md`, `CONFORMANCE.md`. MCP server: `python3 -m protocol.mcp_server`. The pre-freeze claim/confidence sketch is `historical/docs/MCP_CONTRACT.md` (superseded).
 
@@ -248,11 +248,11 @@ The pre-freeze claim/confidence sketch is `historical/docs/MCP_CONTRACT.md` (sup
 OpenClaw consumes outbound MCP servers. Run the shipped façade and add it:
 
 ```bash
-python3 -m protocol.mcp_server --http 127.0.0.1:8765 --db ./ewp.sqlite
+python3 -m protocol.mcp_server --http 127.0.0.1:8765 --ingest-token "$EWP_INGEST_TOKEN" --db ./ewp.sqlite
 openclaw mcp add ewp --url http://127.0.0.1:8765/mcp
 ```
 
-Contract: `docs/MCP_CONTRACT.md`. Trusted origins require `ingest_attestation`.
+Contract: `docs/MCP_CONTRACT.md`. Stdio is Content-Length framed MCP. HTTP is JSON-RPC. Trusted writes need a server-side ingest role, not only `ingest_attestation`.
 
 | OpenClaw object | Role under EWP |
 |---|---|
@@ -329,7 +329,7 @@ graphiti-core 0.30.2 — NOT VALIDATED
 Fixture set sha256:
 910b6e98bee3148460f15303810c8e4c447721252b02c7f4805f3c0ce75b98db
 Evaluator set sha256:
-b791e6395a4c0272485c3c25d7f549e7ba832a50e50c21dc1923920713854d82
+b1067194eb02a2cc419f8ee56e92b380eb1840f36e3d25a2d1f311989b9ff77a
 Golden set sha256:
 95f26b124ac813ef7b6f895bd43c20832f2026bfb8a25513ce6bfd7302088dd3
 ```

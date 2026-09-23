@@ -30,6 +30,7 @@ class FakeEntityEdge:
     created_at: str | None = None
     reference_time: str | None = None
     source_episode_indices: list[int] = field(default_factory=list)
+    polarity: str = "supports"
 
 
 @dataclass

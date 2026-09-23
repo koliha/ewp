@@ -76,6 +76,7 @@ def edge_from_live(edge: Any) -> FakeEntityEdge:
         expired_at=_dt(attr(edge, "expired_at", default=None)),
         created_at=_dt(attr(edge, "created_at", default=None)),
         reference_time=_dt(attr(edge, "reference_time", default=None)),
+        polarity="opposes" if str(blob.get("polarity") or attr(edge, "polarity", default="supports")) == "opposes" else "supports",
     )
 
 

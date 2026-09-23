@@ -8,7 +8,7 @@ observed_at is after evaluated_at is not available at T.
 from __future__ import annotations
 
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 
 from .types import (
     ENDOGENOUS_ORIGINS,
@@ -33,14 +33,30 @@ _KNOWN_FAMILIES = ("server", "host", "node", "device", "serial")
 
 
 def parse_ts(ts: str) -> datetime:
-    return datetime.fromisoformat(ts.replace("Z", "+00:00"))
+    """Parse an instant. Naive values are UTC. Result is always aware."""
+    text = (ts or "").strip().replace("Z", "+00:00")
+    if not text:
+        raise ValueError("empty timestamp")
+    dt = datetime.fromisoformat(text)
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
 
 
 def available_at(observed_at: str, evaluated_at: str | None) -> bool:
-    """A record observed after T is not evidence available at T."""
+    """A record observed after T is not evidence available at T.
+
+    Missing or unparsable timestamps do not crash the evaluator; they
+    are treated as not available.
+    """
+    if not observed_at:
+        return False
     if evaluated_at is None:
         return True
-    return parse_ts(observed_at) <= parse_ts(evaluated_at)
+    try:
+        return parse_ts(observed_at) <= parse_ts(evaluated_at)
+    except (ValueError, TypeError):
+        return False
 
 
 def _entities(text: str) -> set[str]:
@@ -76,35 +92,26 @@ def _check_tokens(check: VerificationCheck) -> set[str]:
 
 
 def scope_applies(check: VerificationCheck, view: EvidenceView) -> bool:
-    """Cap when check and view name the same subject family but different ids.
+    """Cap when declared subjects name the same family but different ids.
 
-    Declared `subjects` on the check or view, when present, are identity
-    tokens. Otherwise the evaluator extracts identifier-shaped tokens from
-    `scope` and from the view text. A scope that is only an inspection
-    surface (`dashboard_screenshot`) does not cap.
+    Identity is `subjects[]` only. `scope` is an inspection surface
+    (`dashboard_screenshot`, a query name), not an identifier scrape.
+    A check with no subjects does not cap. A check that names subjects
+    the view did not declare cannot raise EXTERNAL/HUMAN.
     """
-    scope = (check.scope or "").strip()
-    if not scope and not check.subjects:
+    if not check.subjects:
         return True
 
-    if check.subjects and view.subjects:
-        check_ids = {s.lower() for s in check.subjects}
-        view_ids = {s.lower() for s in view.subjects}
-        if check_ids & view_ids:
-            return True
-        check_fams = {_family(s) for s in check_ids}
-        view_fams = {_family(s) for s in view_ids}
-        if check_fams & view_fams:
-            return False
+    check_ids = {s.lower() for s in check.subjects}
+    view_ids = {s.lower() for s in view.subjects}
+    if not view_ids:
+        return False
+    if check_ids & view_ids:
         return True
-
-    view_ents = _view_tokens(view)
-    scope_ents = _check_tokens(check)
-    for se in scope_ents:
-        fam = _family(se)
-        same = {v for v in view_ents if _family(v) == fam}
-        if same and se not in same:
-            return False
+    check_fams = {_family(s) for s in check_ids}
+    view_fams = {_family(s) for s in view_ids}
+    if check_fams & view_fams:
+        return False
     return True
 
 
@@ -166,18 +173,35 @@ def implied_open_conflict(view: EvidenceView, evaluated_at: str | None = None) -
     return has_support and has_oppose
 
 
-def supporting_items(view: EvidenceView) -> list[EvidenceItem]:
-    return [e for e in view.evidence if e.polarity == "supports"]
+def visible_assertions(view: EvidenceView, evaluated_at: str | None = None):
+    return [a for a in view.assertions if available_at(a.asserted_at, evaluated_at)]
 
 
-def opposing_items(view: EvidenceView) -> list[EvidenceItem]:
-    return [e for e in view.evidence if e.polarity == "opposes"]
+def supporting_items(view: EvidenceView, evaluated_at: str | None = None) -> list[EvidenceItem]:
+    return [
+        e
+        for e in view.evidence
+        if e.polarity == "supports" and available_at(e.observed_at, evaluated_at)
+    ]
 
 
-def independent_lineage_ids(view: EvidenceView) -> set[str]:
-    ids = {a.source.lineage_id for a in view.assertions}
-    ids |= {e.source.lineage_id for e in view.evidence}
-    ids |= {c.source.lineage_id for c in view.checks}
+def opposing_items(view: EvidenceView, evaluated_at: str | None = None) -> list[EvidenceItem]:
+    return [
+        e
+        for e in view.evidence
+        if e.polarity == "opposes" and available_at(e.observed_at, evaluated_at)
+    ]
+
+
+def visible_checks(view: EvidenceView, evaluated_at: str | None = None) -> list[VerificationCheck]:
+    return [c for c in view.checks if available_at(c.observed_at, evaluated_at)]
+
+
+def independent_lineage_ids(view: EvidenceView, evaluated_at: str | None = None) -> set[str]:
+    ids = {a.source.lineage_id for a in visible_assertions(view, evaluated_at)}
+    ids |= {e.source.lineage_id for e in supporting_items(view, evaluated_at)}
+    ids |= {e.source.lineage_id for e in opposing_items(view, evaluated_at)}
+    ids |= {c.source.lineage_id for c in visible_checks(view, evaluated_at)}
     return ids
 
 

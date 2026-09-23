@@ -164,6 +164,12 @@ def test_action_gate_is_separate():
     disputed = eval_view(fixture_compression_full())
     assert may_act(disputed, cancel, RiskPolicy()) == "DENY"
     assert may_act(disputed, precool, RiskPolicy()) == "REQUIRE_CONFIRMATION"
+    open_high = may_act(
+        disputed,
+        cancel,
+        RiskPolicy(high_requires_accepted=False, high_requires_no_open_conflict=True),
+    )
+    assert open_high == "DENY"
 
 
 if __name__ == "__main__":

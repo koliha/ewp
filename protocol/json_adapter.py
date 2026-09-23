@@ -184,7 +184,7 @@ class JsonFileAdapter:
             conflicts=conflicts,
             checks=checks,
             omitted_sources=omitted_sources if omitted_sources is not None else meta.get("omitted_sources", []),
-            retrieval_scope=retrieval_scope or meta.get("retrieval_scope", "complete"),
+            retrieval_scope=meta.get("retrieval_scope", "complete") if retrieval_scope is None else retrieval_scope,
             degraded=meta.get("degraded", False) if degraded is None else degraded,
             freshness_policy_seconds=(
                 freshness_policy_seconds

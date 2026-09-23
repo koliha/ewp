@@ -99,7 +99,7 @@ class GraphitiAdapter:
                     EvidenceItem(
                         evidence_id=f"{edge.uuid}:e:{i}",
                         proposition_id=proposition_id,
-                        polarity="supports",
+                        polarity="opposes" if getattr(edge, "polarity", "supports") == "opposes" else "supports",
                         source=source,
                         content=note,
                         observed_at=when,
@@ -140,12 +140,13 @@ class GraphitiAdapter:
             kind = str(inner.get("kind") or "")
             pid = inner.get("proposition_id")
             content = (ep.content or "").strip()
-            if kind == "ewp_parked" and pid in (None, proposition_id):
+            if kind == "ewp_parked" and pid == proposition_id:
                 return ep
-            if content in {"ewp-parked", f"ewp-parked:{proposition_id}"}:
-                if pid in (None, proposition_id):
-                    return ep
-            if ep.uuid.startswith("meta:") and ep.uuid == f"meta:{proposition_id}":
+            if content == f"ewp-parked:{proposition_id}":
+                return ep
+            if content == "ewp-parked" and pid == proposition_id:
+                return ep
+            if ep.uuid == f"meta:{proposition_id}":
                 return ep
         return None
 

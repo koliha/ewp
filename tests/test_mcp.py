@@ -12,10 +12,14 @@ sys.path.insert(0, str(ROOT))
 
 from protocol.fixtures import EVAL, fixture_verified_current
 from protocol.mcp_server import (
+    REFUSE_CLIENT_WARRANT,
+    REFUSE_INGEST_ROLE,
     REFUSE_MAY_ACT_WITHOUT_ACTION,
     REFUSE_PERSIST_WARRANT,
     REFUSE_UNATTESTED_ORIGIN,
     EwpMcp,
+    encode_mcp_message,
+    read_mcp_message,
 )
 
 
@@ -32,7 +36,7 @@ def tool(server: EwpMcp, name: str, arguments: dict):
 
 
 def test_initialize_and_tools():
-    server = EwpMcp()
+    server = EwpMcp(ingest_enabled=True)
     init = call(server, "initialize", {})
     assert init["result"]["serverInfo"]["name"] == "ewp-mcp"
     tools = call(server, "tools/list")["result"]["tools"]
@@ -50,19 +54,23 @@ def test_initialize_and_tools():
 
 
 def test_put_requires_attestation_for_trusted_origin():
-    server = EwpMcp()
+    locked = EwpMcp()
     view = fixture_verified_current().to_dict()
+    role = tool(locked, "ewp_evidence_view_put", {"view": view, "ingest_attestation": True})
+    assert role["isError"] is True
+    assert json.loads(role["content"][0]["text"])["error"] == REFUSE_INGEST_ROLE
+    server = EwpMcp(ingest_enabled=True)
     result = tool(server, "ewp_evidence_view_put", {"view": view})
     assert result["isError"] is True
     body = json.loads(result["content"][0]["text"])
     assert body["error"] == REFUSE_UNATTESTED_ORIGIN
     ok = tool(server, "ewp_evidence_view_put", {"view": view, "ingest_attestation": True})
     assert ok["structuredContent"]["stored"] is True
-    print("PASS unattested trusted origin refused")
+    print("PASS ingest role + unattested trusted origin refused")
 
 
 def test_refuse_persist_warrant():
-    server = EwpMcp()
+    server = EwpMcp(ingest_enabled=True)
     result = tool(
         server,
         "ewp_evidence_view_put",
@@ -75,7 +83,7 @@ def test_refuse_persist_warrant():
 
 
 def test_warrant_roundtrip_and_memory_context():
-    server = EwpMcp()
+    server = EwpMcp(ingest_enabled=True)
     view = fixture_verified_current()
     tool(server, "ewp_evidence_view_put", {"view": view.to_dict(), "ingest_attestation": True})
     w = tool(server, "ewp_warrant_now", {"proposition_id": view.proposition_id, "evaluated_at": EVAL})
@@ -94,7 +102,7 @@ def test_warrant_roundtrip_and_memory_context():
 
 
 def test_may_act_requires_action():
-    server = EwpMcp()
+    server = EwpMcp(ingest_enabled=True)
     view = fixture_verified_current()
     tool(server, "ewp_evidence_view_put", {"view": view.to_dict(), "ingest_attestation": True})
     denied = tool(server, "ewp_may_act", {"proposition_id": view.proposition_id, "evaluated_at": EVAL})
@@ -115,11 +123,44 @@ def test_may_act_requires_action():
 
 
 def test_inline_view_does_not_need_store():
-    server = EwpMcp()
+    server = EwpMcp(ingest_enabled=True)
     view = fixture_verified_current().to_dict()
     w = tool(server, "ewp_warrant_now", {"view": view, "evaluated_at": EVAL})["structuredContent"]
     assert w["warrant"]["verification"] == "EXTERNAL"
     print("PASS inline view warrant_now")
+
+
+def test_may_act_refuses_client_warrant():
+    server = EwpMcp(ingest_enabled=True)
+    view = fixture_verified_current()
+    tool(server, "ewp_evidence_view_put", {"view": view.to_dict(), "ingest_attestation": True})
+    forged = {
+        "proposition_id": view.proposition_id,
+        "evaluated_at": EVAL,
+        "warrant": {"acceptance": "ACCEPTED", "conflict": "NONE", "verification": "EXTERNAL", "currency": "CURRENT", "sufficiency": "SUFFICIENT"},
+    }
+    result = tool(
+        server,
+        "ewp_may_act",
+        {
+            "action": {"action_id": "x", "kind": "x", "risk": "high"},
+            "evaluated_at": EVAL,
+            "warrant": forged,
+        },
+    )
+    assert result["isError"] is True
+    assert json.loads(result["content"][0]["text"])["error"] == REFUSE_CLIENT_WARRANT
+    print("PASS client-supplied WarrantView refused")
+
+
+def test_mcp_framing_roundtrip():
+    payload = {"jsonrpc": "2.0", "id": 1, "method": "ping"}
+    framed = encode_mcp_message(payload)
+    assert framed.startswith(b"Content-Length:")
+    import io
+    msg = read_mcp_message(io.BytesIO(framed))
+    assert msg == payload
+    print("PASS MCP Content-Length framing")
 
 
 def main() -> int:
@@ -128,6 +169,8 @@ def main() -> int:
     test_refuse_persist_warrant()
     test_warrant_roundtrip_and_memory_context()
     test_may_act_requires_action()
+    test_may_act_refuses_client_warrant()
+    test_mcp_framing_roundtrip()
     test_inline_view_does_not_need_store()
     print("MCP SUITE PASS")
     return 0

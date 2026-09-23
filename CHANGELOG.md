@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.2.2 — 2026-09-22
+
+Policy tightening + adapter completeness. Protocol identity stays `EWP-0.2.0` / `reference-v1`. Frozen 26 goldens unchanged; evaluator lock moves.
+
+- Scope caps use declared `subjects[]` only. The `scope` string is not scraped for identifiers. A check with no subjects does not cap; a check that names subjects the view did not declare cannot raise `EXTERNAL`/`HUMAN`.
+- Graphiti ingest emits an edge for evidence whose text is not already an assertion, so opposing evidence-only lineages survive `raw_view` (`runner_graphiti` fixture 04).
+- Guide PDF rebuilt against the shipped MCP façade (framed stdio, ingest token, `subjects[]`).
+
+## 0.2.1 — 2026-09-22
+
+Operational hardening. Protocol identity stays `EWP-0.2.0` / `reference-v1`. Frozen 26 goldens unchanged; evaluator lock moves.
+
+- MCP stdio speaks Content-Length framed JSON-RPC. Line-delimited JSON is not MCP.
+- HTTP writes require `--ingest-token`. `ingest_attestation` is not authentication; trusted origins also need `--allow-ingest` on stdio.
+- `ewp_may_act` refuses a caller-built `WarrantView`. It evaluates the stored or inline view.
+- `warrant_now` rejects unknown `policy_id` / `policy_version` instead of echoing them onto ACCEPTED.
+- `available_at` applies to assertions and evidence, not only checks. Naive timestamps are UTC. Unparsable timestamps degrade instead of crashing.
+- `may_act` reads `high_requires_no_open_conflict` and `reversible`.
+- SQLite uses a lock + `check_same_thread=False`. Lineage rows are unique.
+- Graphiti parked sidecars require a matching `proposition_id`. Edges may carry `polarity=opposes`.
+- Incremental MCP records must supply `content_hash` and `observed_at`.
+
 ## 0.2.0-docs — 2026-09-22
 
 Documentation alignment only. Protocol number, policy id, and lock hashes unchanged.
