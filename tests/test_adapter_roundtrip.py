@@ -24,7 +24,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "tests"))
 
-from ewp.codec import view_from_dict
+from ewp.codec import canonical_dict, view_from_dict
 from ewp.fixtures import EVAL
 from ewp.graphiti_adapter import GraphitiAdapter
 from ewp.graphiti_client_adapter import GraphitiClientAdapter
@@ -103,15 +103,8 @@ def axes(view: EvidenceView, evaluated_at: str) -> dict:
 
 
 def canonical(view: EvidenceView) -> dict:
-    """Every SCHEMA.md field, order-independent. adapter_meta is adapter-local."""
-    d = view.to_dict()
-    d.pop("adapter_meta", None)
-    for part, key in (("assertions", "assertion_id"), ("evidence", "evidence_id"), ("checks", "check_id"), ("conflicts", "conflict_id")):
-        d[part] = sorted(d[part], key=lambda r: str(r[key]))
-    d["lineage"] = sorted(d["lineage"], key=lambda e: (e["from_id"], e["to_id"], e["kind"]))
-    for c in d["conflicts"]:
-        c["proposition_ids"] = sorted(c["proposition_ids"])
-    return d
+    """Every SCHEMA.md field, order-independent (the codec's canonical form)."""
+    return canonical_dict(view)
 
 
 def _source_key(s) -> tuple:
@@ -181,10 +174,105 @@ def test_live_graphiti_parks_subjects() -> None:
     print("PASS live Graphiti parked sidecar preserves view and check subjects")
 
 
+def test_mem0_snapshots() -> None:
+    import dataclasses
+
+    from ewp.fixtures import fixture_verified_current
+    from ewp.sqlite_adapter import ImmutableRecordError, MissingViewError
+
+    mem = Mem0Adapter(FakeMem0(), user_id="u1", infer=False)
+    base = fixture_verified_current()
+    v1 = dataclasses.replace(base, view_id="v1")
+    v2 = dataclasses.replace(base, view_id="v2", degraded=True,
+                             evidence=base.evidence + [dataclasses.replace(base.evidence[0], evidence_id="e2")])
+    mem.ingest_view(v1)
+    mem.ingest_view(v2)
+    assert canonical(mem.raw_view("P-win", "v1")) == canonical(v1)
+    assert canonical(mem.raw_view("P-win", "v2")) == canonical(v2)
+    assert mem.raw_view("P-win").view_id == "v2"
+    rows = len(mem.client.rows)
+    assert mem.ingest_view(v1)["stored"] is False and len(mem.client.rows) == rows, "identical re-ingest must be a no-op"
+    try:
+        mem.ingest_view(dataclasses.replace(v1, degraded=True))
+    except ImmutableRecordError:
+        pass
+    else:
+        raise AssertionError("changed snapshot under an existing view_id was accepted")
+    try:
+        mem.raw_view("P-win", "v-missing")
+    except MissingViewError:
+        pass
+    else:
+        raise AssertionError("unknown view_id returned a view")
+    # An interrupted ingest (memories written, sidecar not) is not a snapshot.
+    mem._add("half-written", {"ewp": {"kind": "evidence", "proposition_id": "P-win", "view_id": "v3",
+                                      "evidence_id": "e-half", "polarity": "opposes"}})
+    assert mem.raw_view("P-win").view_id == "v2"
+    assert "e-half" not in {e.evidence_id for e in mem.raw_view("P-win").evidence}
+    # A proposition whose only ingest was interrupted has no snapshot to read.
+    fresh = Mem0Adapter(FakeMem0(), user_id="u2", infer=False)
+    fresh._add("half-written", {"ewp": {"kind": "evidence", "proposition_id": "P-new", "view_id": "v1",
+                                        "evidence_id": "e-half", "polarity": "supports"}})
+    lone = fresh.raw_view("P-new")
+    assert lone.evidence == [] and lone.assertions == [], lone
+    # Search stays inside the chosen snapshot.
+    found = mem.search_view("P-win", "Windows", view_id="v1")
+    assert all(a.assertion_id == "a1" for a in found.assertions), found.assertions
+    print("PASS Mem0 snapshots: exact v1/v2, latest, idempotent re-ingest, immutable ids, interrupted ingest ignored")
+
+
+def test_stores_agree_on_snapshot_history() -> None:
+    """The same sequence of snapshot writes is accepted or refused identically
+    by every store: an id names one record across a proposition's snapshots."""
+    import dataclasses
+    from tempfile import TemporaryDirectory
+
+    from ewp.fixtures import fixture_verified_current
+    from ewp.sqlite_adapter import ImmutableRecordError
+    from ewp.types import Conflict
+
+    base = fixture_verified_current()
+    base = dataclasses.replace(base, subjects=("server01", "srv-1"),
+                               checks=[dataclasses.replace(base.checks[0], subjects=("server01", "srv-1"))])
+    e1 = base.evidence[0]
+    steps = [
+        ("v1 original", dataclasses.replace(base, view_id="v1"), True),
+        ("v2 redefines check k1", dataclasses.replace(base, view_id="v2", checks=[dataclasses.replace(base.checks[0], result="opposes")]), False),
+        ("v3 adds e2, keeps a1", dataclasses.replace(base, view_id="v3", evidence=[e1, dataclasses.replace(e1, evidence_id="e2")]), True),
+        ("v4 source with another lineage", dataclasses.replace(base, view_id="v4", evidence=[dataclasses.replace(
+            e1, evidence_id="e3", source=dataclasses.replace(e1.source, lineage_id="L-other"))], assertions=[], checks=[]), False),
+        ("v5 conflict c1 open", dataclasses.replace(base, view_id="v5", conflicts=[Conflict("c1", ("P-win",), "open")]), True),
+        ("v6 widens c1 participants", dataclasses.replace(base, view_id="v6", conflicts=[Conflict("c1", ("P-win", "P-x"), "open")]), False),
+        ("v7 resolves c1", dataclasses.replace(base, view_id="v7", conflicts=[Conflict("c1", ("P-win",), "resolved")]), True),
+        ("v8 reordered v3", dataclasses.replace(base, view_id="v8", evidence=[dataclasses.replace(e1, evidence_id="e2"), e1]), True),
+        ("v9 subjects reordered", dataclasses.replace(base, view_id="v9", subjects=("srv-1", "server01"),
+                                                      checks=[dataclasses.replace(base.checks[0], subjects=("srv-1", "server01"))]), True),
+        ("v1 again, identical", dataclasses.replace(base, view_id="v1"), True),
+        ("v1 again, changed", dataclasses.replace(base, view_id="v1", degraded=True), False),
+    ]
+    with TemporaryDirectory() as tmp:
+        stores = {
+            "SQLite": SQLiteAdapter().load_view,
+            "JSON": JsonFileAdapter(tmp).load_view,
+            "Mem0": Mem0Adapter(FakeMem0(), user_id="u9", infer=False).ingest_view,
+        }
+        for label, view, should_store in steps:
+            for name, write in stores.items():
+                try:
+                    write(view)
+                    stored = True
+                except ImmutableRecordError:
+                    stored = False
+                assert stored == should_store, f"{name}: {label} -> {'stored' if stored else 'refused'}"
+    print(f"PASS SQLite, JSON, and Mem0 agree on {len(steps)} snapshot writes (ids are stable across snapshots)")
+
+
 def main() -> int:
     test_every_fixture_through_every_adapter()
     test_every_field_round_trips()
     test_live_graphiti_parks_subjects()
+    test_mem0_snapshots()
+    test_stores_agree_on_snapshot_history()
     print("ADAPTER ROUND-TRIP SUITE PASS")
     return 0
 

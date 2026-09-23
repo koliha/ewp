@@ -14,6 +14,7 @@ from .classify import (
     implied_open_conflict,
     opposing_high_check,
     opposing_items,
+    parse_evaluated_at,
     parse_ts,
     superseding_edges,
     supporting_items,
@@ -40,7 +41,7 @@ def axes_only(view: EvidenceView, policy: Policy, evaluated_at: str) -> dict[str
             f"this evaluator implements {REFERENCE_POLICY[0]} only"
         )
     validate_view(view)
-    eval_dt = parse_ts(evaluated_at)
+    eval_dt = parse_evaluated_at(evaluated_at)
     assertions = visible_assertions(view, evaluated_at)
     supporting = supporting_items(view, evaluated_at)
     opposing = opposing_items(view, evaluated_at)

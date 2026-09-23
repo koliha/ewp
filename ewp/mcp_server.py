@@ -33,10 +33,10 @@ from pathlib import Path
 from typing import Any, Callable
 from urllib.parse import parse_qs, urlparse
 
-from .classify import InvalidEvidenceView, parse_ts
+from .classify import InvalidEvidenceView, check_verification_class, parse_ts
 from .codec import subjects_from, view_from_dict
 from .may_act import RISK_LEVELS, Action, RiskPolicy, may_act
-from .sqlite_adapter import ImmutableRecordError, MissingViewError, SQLiteAdapter
+from .sqlite_adapter import ImmutableRecordError, LedgerError, MissingViewError, SQLiteAdapter
 from .types import (
     TRUSTED_ORIGINS,
     Assertion,
@@ -143,7 +143,10 @@ class EwpMcp:
         max_clock_skew_seconds: int = DEFAULT_MAX_CLOCK_SKEW_SECONDS,
     ) -> None:
         self.db_path = db_path
-        self.store = SQLiteAdapter(db_path)
+        # A server that can never write opens its ledger read-only: a mistyped
+        # path is an error, not a new empty ledger, and the handle cannot write.
+        self.read_only = not ingest_enabled and not ingest_token and db_path != ":memory:"
+        self.store = SQLiteAdapter(db_path, read_only=self.read_only)
         self.ingest_enabled = ingest_enabled
         self.ingest_token = ingest_token
         self.clock = clock
@@ -154,11 +157,14 @@ class EwpMcp:
             mid = message.get("id") if isinstance(message, dict) else None
             return self._err(mid, -32600, "invalid request")
         method = message["method"]
-        mid = message.get("id")
-        params = message.get("params") or {}
-        if mid is None:
+        if "id" not in message:
             # JSON-RPC notification: never answered.
             return None
+        mid = message["id"]
+        if mid is None:
+            # MCP: request ids must not be null. Answer rather than leave the client waiting.
+            return self._err(None, -32600, "invalid request: id must not be null")
+        params = message.get("params") or {}
         try:
             if method == "initialize":
                 return self._ok(mid, self._initialize(params))
@@ -172,6 +178,8 @@ class EwpMcp:
                 return self._ok(mid, {"resources": self._resources()})
             if method == "resources/read":
                 return self._ok(mid, self._read_resource(params.get("uri") or ""))
+            if method == "resources/templates/list":
+                return self._ok(mid, {"resourceTemplates": RESOURCE_TEMPLATES})
             if method == "prompts/list":
                 return self._ok(mid, {"prompts": []})
             return self._err(mid, -32601, f"method not found: {method}")
@@ -494,6 +502,16 @@ class EwpMcp:
             warnings.append("currency=STALE")
         if w.currency == "SUPERSEDED":
             warnings.append("currency=SUPERSEDED")
+        opposing = sorted({
+            check_verification_class(c, view, evaluated_at)
+            for c in view.checks
+            if c.result == "opposes" and check_verification_class(c, view, evaluated_at) in {"EXTERNAL", "HUMAN"}
+        })
+        if opposing:
+            warnings.append(
+                f"a trusted {'/'.join(opposing)} check OPPOSES this claim — verification={w.verification} is the "
+                "strongest check's class, not a confirmation"
+            )
         if w.acceptance != "ACCEPTED":
             warnings.append(f"acceptance={w.acceptance} — fluency is not recollection")
         return {
@@ -567,6 +585,22 @@ def source_from_args(d: dict[str, Any], fallback: str) -> SourceRef:
         extractor_id=d.get("extractor_id"),
         parent_source_id=d.get("parent_source_id"),
     )
+
+
+RESOURCE_TEMPLATES = [
+    {
+        "uriTemplate": "ewp://proposition/{proposition_id}",
+        "name": "Stored EvidenceView",
+        "description": "The latest stored snapshot for a proposition.",
+        "mimeType": "application/json",
+    },
+    {
+        "uriTemplate": "ewp://proposition/{proposition_id}/warrant?evaluated_at={evaluated_at}",
+        "name": "Normative warrant",
+        "description": "The five axes for the latest snapshot at evaluated_at.",
+        "mimeType": "application/json",
+    },
+]
 
 
 TOOLS = [
@@ -820,13 +854,17 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if args.http and args.allow_ingest:
         parser.error("--allow-ingest is stdio-only; on HTTP use --ingest-token-file or EWP_INGEST_TOKEN")
-    if args.db != ":memory:":
+    token = _read_token(args.ingest_token_file) if args.http else ""
+    can_write = bool(args.allow_ingest or token)
+    if args.db == ":memory:" and not can_write:
+        parser.error("--db is required: the read-only server evaluates an existing ledger (create one with ewp-ingest)")
+    if can_write and args.db != ":memory:":
         Path(args.db).parent.mkdir(parents=True, exist_ok=True)
-    server = EwpMcp(
-        args.db,
-        ingest_enabled=bool(args.allow_ingest),
-        ingest_token=_read_token(args.ingest_token_file) if args.http else "",
-    )
+    try:
+        server = EwpMcp(args.db, ingest_enabled=bool(args.allow_ingest), ingest_token=token)
+    except LedgerError as exc:
+        sys.stderr.write(f"ewp-mcp: {exc}\n")
+        return 2
     if args.http:
         host, _, port = args.http.partition(":")
         serve_http(server, host or "127.0.0.1", int(port or "8765"))

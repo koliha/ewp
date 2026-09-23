@@ -404,6 +404,95 @@ def test_json_store_ids_cannot_collide_or_escape():
     print("PASS json store: hashed paths, no collisions or escapes, validates writes")
 
 
+_APPENDER = r"""
+import dataclasses, sys
+sys.path.insert(0, sys.argv[1])
+from ewp.fixtures import fixture_verified_current
+from ewp.sqlite_adapter import SQLiteAdapter
+base = fixture_verified_current().evidence[0]
+with SQLiteAdapter(sys.argv[2]) as db:
+    for i in range(int(sys.argv[4])):
+        db.extend_view("P-win", evidence=[dataclasses.replace(base, evidence_id=f"{sys.argv[3]}-{i}")])
+"""
+
+
+def test_sqlite_concurrent_processes_do_not_lose_appends():
+    import subprocess
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as tmp:
+        db = str(Path(tmp) / "ledger.sqlite")
+        with SQLiteAdapter(db) as store:
+            store.load_view(fixture_verified_current())
+        procs = [
+            subprocess.Popen([sys.executable, "-c", _APPENDER, str(Path(__file__).resolve().parents[1]), db, f"p{n}", "10"])
+            for n in range(4)
+        ]
+        codes = [p.wait(timeout=120) for p in procs]
+        assert codes == [0, 0, 0, 0], codes
+        with SQLiteAdapter(db) as store:
+            latest = store.get_view("P-win")
+            snapshots = len(store.view_ids("P-win"))
+        ids = {e.evidence_id for e in latest.evidence}
+        expected = {"e1"} | {f"p{n}-{i}" for n in range(4) for i in range(10)}
+        assert ids == expected, sorted(expected - ids)
+        assert snapshots == 41, snapshots
+    print("PASS sqlite: 4 processes x 10 concurrent appends, latest snapshot has all 40")
+
+
+def test_sqlite_read_only_ledger():
+    import tempfile
+
+    from ewp.sqlite_adapter import LedgerError
+
+    with tempfile.TemporaryDirectory() as tmp:
+        missing = Path(tmp) / "typo" / "ledger.sqlite"
+        try:
+            SQLiteAdapter(str(missing), read_only=True)
+        except LedgerError as exc:
+            assert "ledger not found" in str(exc)
+        else:
+            raise AssertionError("read-only open of a missing ledger succeeded")
+        assert not missing.exists() and not missing.parent.exists(), "read-only open created files"
+        db = str(Path(tmp) / "ledger.sqlite")
+        with SQLiteAdapter(db) as store:
+            store.load_view(fixture_verified_current())
+        with SQLiteAdapter(db, read_only=True) as ro:
+            assert ro.get_view("P-win").view_id == "v-ver"
+            try:
+                ro.load_view(dataclasses.replace(fixture_verified_current(), view_id="v2"))
+            except LedgerError:
+                pass
+            else:
+                raise AssertionError("read-only ledger accepted a write")
+            import sqlite3
+
+            try:
+                ro.conn.execute("DELETE FROM views")
+            except sqlite3.OperationalError:
+                pass
+            else:
+                raise AssertionError("read-only connection allowed a raw write")
+    print("PASS sqlite: read-only ledger refuses a missing path, writes, and raw SQL writes")
+
+
+def test_conflict_ids_are_per_proposition_and_order_is_not_content():
+    s = src("s", "L")
+    p1 = EvidenceView("v", "P1", assertions=[assertion("a", "P1", "X", s)], conflicts=[Conflict("c1", ("P1",), "open")])
+    p2 = EvidenceView("v", "P2", assertions=[assertion("a", "P2", "Y", s)], conflicts=[Conflict("c1", ("P2",), "open")])
+    db = SQLiteAdapter()
+    db.load_view(p1)
+    db.load_view(p2)
+    assert db.get_view("P2").conflicts[0].proposition_ids == ("P2",)
+    two = EvidenceView("v-two", "P1", assertions=[assertion("a", "P1", "X", s), assertion("b", "P1", "Z", s)])
+    db.load_view(two)
+    db.load_view(dataclasses.replace(two, assertions=list(reversed(two.assertions))))  # same content: no-op
+    from ewp.codec import content_view_id
+
+    assert content_view_id(two) == content_view_id(dataclasses.replace(two, assertions=list(reversed(two.assertions))))
+    print("PASS conflict ids are per proposition; record order is not content (ids, SQLite)")
+
+
 def main() -> int:
     test_future_assertion_and_evidence_not_available_at_t()
     test_naive_and_aware_timestamps_compare()
@@ -420,6 +509,9 @@ def main() -> int:
     test_sqlite_is_append_only()
     test_sqlite_views_are_snapshots()
     test_json_store_ids_cannot_collide_or_escape()
+    test_sqlite_concurrent_processes_do_not_lose_appends()
+    test_sqlite_read_only_ledger()
+    test_conflict_ids_are_per_proposition_and_order_is_not_content()
     print("HARDENING SUITE PASS")
     return 0
 

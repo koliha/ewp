@@ -22,7 +22,7 @@ from typing import Any
 
 from .classify import InvalidEvidenceView
 from .codec import view_from_dict
-from .sqlite_adapter import ImmutableRecordError, SQLiteAdapter
+from .sqlite_adapter import ImmutableRecordError, LedgerError, SQLiteAdapter
 from .types import TRUSTED_ORIGINS, EvidenceView, Policy
 from .warrant import warrant_now
 
@@ -57,7 +57,12 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     Path(args.db).parent.mkdir(parents=True, exist_ok=True)
-    with SQLiteAdapter(args.db) as store:
+    try:
+        store = SQLiteAdapter(args.db)
+    except LedgerError as exc:
+        print(f"ewp-ingest: {exc}", file=sys.stderr)
+        return 2
+    with store:
         return _ingest(store, args)
 
 

@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Any
 
 from .classify import validate_view
+from .codec import canonical_dict, record_identity_conflicts
 from .sqlite_adapter import ImmutableRecordError, MissingViewError
 from .types import (
     Assertion,
@@ -118,16 +119,29 @@ class JsonFileAdapter:
         pdir = self._pdir(view.proposition_id)
         path = pdir / "views" / f"{_key(view.view_id)}.json"
         if path.exists():
-            if path.read_text(encoding="utf-8") != body:
+            # Same content in a different record order is the same snapshot.
+            if canonical_dict(self.get_view(view.proposition_id, view.view_id)) != canonical_dict(view):
                 raise ImmutableRecordError(
                     f"view {view.view_id!r} of {view.proposition_id!r} is an immutable snapshot with different content"
                 )
             return
+        stored = [self.get_view(view.proposition_id, vid) for vid in self.view_ids(view.proposition_id)]
+        clashes = record_identity_conflicts(stored, view)
+        if clashes:
+            raise ImmutableRecordError(
+                f"{view.proposition_id!r}: ids already name different records in earlier snapshots: {', '.join(clashes)}"
+            )
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(body, encoding="utf-8", newline="\n")
         latest = pdir / "latest.json"
         history = json.loads(latest.read_text(encoding="utf-8"))["view_ids"] if latest.exists() else []
         latest.write_text(json.dumps({"claim": view.proposition_id, "view_ids": history + [view.view_id]}), encoding="utf-8")
+
+    def view_ids(self, proposition_id: str) -> list[str]:
+        latest = self._pdir(proposition_id) / "latest.json"
+        if not latest.exists():
+            return []
+        return list(json.loads(latest.read_text(encoding="utf-8"))["view_ids"])
 
     def get_view(
         self,

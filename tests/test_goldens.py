@@ -61,7 +61,6 @@ def test_implementer_pack_matches_reference():
 
 def test_invalid_pack_is_refused():
     """docs/implementer/invalid: the reference codec and evaluator refuse every one."""
-    from ewp.classify import InvalidEvidenceView
     from ewp.codec import view_from_dict
     from ewp.laundering import INVALID_PACK
 
@@ -71,13 +70,64 @@ def test_invalid_pack_is_refused():
     for path in files:
         raw = json.loads(path.read_text(encoding="utf-8"))
         try:
-            view_from_dict(raw)
-        except InvalidEvidenceView:
+            warrant_now(view_from_dict(raw), POLICY, raw["evaluated_at"])
+        except ValueError:  # InvalidEvidenceView, or an unparsable evaluated_at
             continue
         raise AssertionError(f"{path.name} was accepted")
 
 
+def _json_variants(raw: dict) -> list[tuple[str, dict]]:
+    """Same view, different but schema-equivalent JSON spellings."""
+    import copy
+
+    defaults = {"retrieval_scope": "complete", "degraded": False, "freshness_policy_seconds": 86400 * 30,
+                "omitted_sources": [], "subjects": []}
+    nulled = copy.deepcopy(raw)
+    for key, default in defaults.items():
+        if nulled.get(key) == default:
+            nulled[key] = None
+    sparse = copy.deepcopy(raw)
+    for part in ("assertions", "evidence", "checks"):
+        for record in sparse[part]:
+            if record.get("proposition_id") == sparse["proposition_id"]:
+                record.pop("proposition_id")
+            for key in ("extractor_id", "parent_source_id"):
+                if record["source"].get(key) is None:
+                    record["source"].pop(key, None)
+            if part == "checks" and not record.get("subjects"):
+                record.pop("subjects", None)
+    for key in ("adapter_meta", "subjects", "omitted_sources", "lineage", "conflicts"):
+        if not sparse.get(key):
+            sparse.pop(key, None)
+    return [("nulls", nulled), ("omitted", sparse)]
+
+
+def test_kernel_and_third_evaluator_agree_on_json_spellings():
+    """Null means default and optional fields may be omitted — in both evaluators."""
+    import importlib.util
+
+    from ewp.codec import view_from_dict
+
+    pack = Path(__file__).resolve().parents[1] / "docs" / "implementer"
+    spec = importlib.util.spec_from_file_location("third_eval", pack / "third_eval.py")
+    third = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(third)
+    axes = ("acceptance", "conflict", "verification", "currency", "sufficiency")
+    checked = 0
+    for path in sorted((pack / "fixtures").glob("*.json")):
+        raw = json.loads(path.read_text(encoding="utf-8"))
+        expected = json.loads((pack / "expected" / path.name).read_text(encoding="utf-8"))
+        for label, variant in _json_variants(raw):
+            kernel = warrant_now(view_from_dict(variant), POLICY, variant["evaluated_at"]).normative()["warrant"]
+            other = third.warrant_now(variant)
+            for axis in axes:
+                assert kernel[axis] == expected[axis] == other[axis], (path.name, label, axis, kernel[axis], other[axis])
+            checked += 1
+    print(f"PASS kernel and third evaluator agree on {checked} null/omitted JSON spellings")
+
+
 if __name__ == "__main__":
+    test_kernel_and_third_evaluator_agree_on_json_spellings()
     test_canonical_goldens()
     test_pathological_goldens()
     test_implementer_pack_matches_reference()

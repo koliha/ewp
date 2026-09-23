@@ -9,7 +9,7 @@ Memory is evidence, not truth.
 [![python](https://img.shields.io/badge/python-3.12%2B-3776ab)](#layout)
 [![license](https://img.shields.io/badge/license-MIT-5c6770)](LICENSE)
 
-**EWP-0.2.0 release candidate.** Policy `reference-v2`. To try it with Claude and your own data, see [`QUICKSTART.md`](QUICKSTART.md). EWP is an epistemic protocol, not an action-authorization framework. Other projects use *warrant* to describe permission to act; EWP uses *epistemic warrant* to describe what an agent is justified in accepting. `may_act()` is deliberately a later gate.
+**EWP-0.2.0.** Policy `reference-v2`. To try it with Claude and your own data, see [`QUICKSTART.md`](QUICKSTART.md). EWP is an epistemic protocol, not an action-authorization framework. Other projects use *warrant* to describe permission to act; EWP uses *epistemic warrant* to describe what an agent is justified in accepting. `may_act()` is deliberately a later gate.
 
 Stores adapt to the protocol. The protocol does not inherit the store’s epistemology.
 
@@ -231,7 +231,7 @@ The v0.2.0 *reference kernel*:
 - deterministic `warrant_now()` — no network, no LLM, no hidden writes
 - shared `ewp/classify.py` used by both reference evaluators
 - separate `may_act()`
-- 14 canonical + 12 pathological + 25 hardening fixtures (laundering, subject binding, time at T, supersession scope, zero freshness), plus 12 invalid views that must be refused
+- 14 canonical + 12 pathological + 25 hardening fixtures (laundering, subject binding, time at T, supersession scope, zero freshness), plus 23 invalid views that must be refused
 - 26 pinned golden `WarrantView`s; all 51 fixtures' expected axes pinned in `docs/implementer/`
 - an independent third evaluator (`docs/implementer/third_eval.py`) written from the policy text alone
 - SQLite and JSON reference adapters (immutable snapshots; SQLite over an append-only ledger)
@@ -308,7 +308,7 @@ python3 tests/runner.py
 python3 tests/runner_pathological.py
 ```
 
-CI enforces the fixture, evaluator, policy, golden, and implementer-pack lock hashes; all 26 goldens; all 51 fixtures through the codec, SQLite, JSON, Mem0, and fake Graphiti with identical axes and fields; 12 invalid views refused by all three evaluators; fake-Graphiti isolation; the hardening pack; live-adapter mappings; the MCP façade; and the third evaluator. Changing a golden, the pack, the policy text, or the evaluator requires an explicit version change, then `python3 tests/ci.py --write-lock`. `tests/report.py` only says `CONFORMANT` for a CI stamp taken on the exact tree it is run on.
+CI enforces the fixture, evaluator, policy, golden, and implementer-pack lock hashes; all 26 goldens; all 51 fixtures through the codec, SQLite, JSON, Mem0, and fake Graphiti with identical axes and fields; 23 invalid views refused by all three evaluators; fake-Graphiti isolation; the hardening pack; live-adapter mappings; the MCP façade; and the third evaluator. Changing a golden, the pack, the policy text, or the evaluator requires an explicit version change, then `python3 tests/ci.py --write-lock`. `tests/report.py` only says `CONFORMANT` for a CI stamp taken on the exact CI surface it is run on (kernel, adapters, MCP server, tests, implementer pack, examples, workflow).
 
 Failure classes: `INGEST_LOSS`, `ADAPTER_MAP_LOSS`, `WARRANT_MISMATCH`, `RETRIEVAL_LOSS`, `EXPECTED_DIVERGENCE`.
 
@@ -318,7 +318,7 @@ Pathological pack (among others): false supersession, open contradiction, real t
 
 ---
 
-## v0.2.0 release-candidate lock
+## v0.2.0 lock
 
 <a id="v020"></a>
 
@@ -328,7 +328,7 @@ Policy: reference-v2
 Canonical: 14/14
 Pathological: 12/12
 Hardening: 25/25
-Invalid refused: 12/12
+Invalid refused: 23/23
 SQLite PASS
 JSON PASS
 Fake Graphiti PASS
@@ -336,15 +336,15 @@ Mem0 (fake client) PASS
 graphiti-core 0.30.2 — NOT VALIDATED
 
 fixture_set_sha256:
-a6a9a1ea72608d70b695a5f7621978fca2c724dea877704c23ecead0ec8ed355
+b87f3c5f6f4032c390cf31067d5c425685cd0f9eec990f6ea7a3848e3fb7bfb9
 evaluator_set_sha256:
-2fedf99023f4d17f85a44b8b8c89b825dcbcf4a5748c29f55aac5948b3dff025
+fc7085c7014d13139f2d39635bc46a0e29334c5b4e2bf743c1a4450064ebaf0b
 policy_set_sha256:
-90b1c819beffad833c5a43f4e68b014feea88d59bca5f60032684018da1c8896
+8056fb34a42546166a21554a16af87cb78127540e1c0616dd7d9f681b56dc66a
 golden_set_sha256:
 1db7cab34639a87ce35c36635d4b6cffa46ba08855107fc9a04a4b89348a81c8
 implementer_pack_sha256:
-b13d6f36eb8e25419f45aab216991397fcff786468ee3e7c7596b76e72ee316c
+2abab1f3d426166d1cea8eed052def4fb7d5cc4262e1dd11e57c3817f061f2df
 ```
 
 A store that produces a different answer has an adapter or conformance problem, not a license to move the goldens.
@@ -382,7 +382,7 @@ That answer can be reproduced, tested, inspected, and challenged.
 
 ## Status
 
-EWP-0.2.0 is a **release candidate** under policy `reference-v2`: not yet tagged, and still open to change from review. The 26 golden axes are unchanged from 0.1.0; their identity fields now read `reference-v2` and `EWP-0.2.0`. The hardening pack (25) and the invalid pack (12) are locked. Known limits: conflict rows and lineage edges carry no timestamp, so they are not filtered by availability at T; assertions carry no polarity. See `CHANGELOG.md`.
+EWP-0.2.0 under policy `reference-v2` is not yet released and is still changing in review. The 26 golden axes are unchanged from 0.1.0; their identity fields now read `reference-v2` and `EWP-0.2.0`. The hardening pack (25) and the invalid pack (23) are locked. Known limits: conflict rows and lineage edges carry no timestamp, so they are not filtered by availability at T; assertions carry no polarity. See `CHANGELOG.md`.
 
 New stores may reveal adapter bugs, retrieval loss, missing tests, or a genuine hole. They do not redefine warrant.
 

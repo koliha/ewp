@@ -29,6 +29,8 @@ python3 -m ewp.mcp_server --http 127.0.0.1:8765 --ingest-token-file /etc/ewp/ing
 
 The token is read from `EWP_INGEST_TOKEN` or `--ingest-token-file`, never from argv. `--allow-ingest` is stdio-only: on HTTP it would grant every caller the ingest role, so the server refuses the combination.
 
+A server that can never write (no `--allow-ingest`, no token) opens its ledger **read-only**: `--db` is required, the file must already exist (a mistyped path exits with `ledger not found` instead of creating an empty ledger), and the database handle itself cannot write. Create the ledger with `ewp-ingest` (`QUICKSTART.md`).
+
 OpenClaw:
 
 ```bash
@@ -47,7 +49,7 @@ openclaw mcp add ewp --url http://127.0.0.1:8765/mcp
 | `ewp_check_record` | New snapshot = latest + one `VerificationCheck`; returns the new `view_id` (`new_view_id` optional) | No ingest role. Unknown proposition. Trusted origin without attestation. |
 | `ewp_evidence_record` | New snapshot = latest + one `EvidenceItem` (optional assertion text); `polarity` is required | No ingest role. Unknown proposition. Missing `polarity`. Trusted origin without attestation. |
 | `ewp_may_act` | Action gate over the **stored** view at **server time** | Inline views. A caller-built `WarrantView`. An action without `risk` (`low`/`medium`/`high`) and boolean `reversible`. `evaluated_at` more than 300 s from server time. `risk_policy` from a caller without the ingest role. |
-| `ewp_memory_context` | Axes, evidence ids, warnings; `evaluated_at` defaults to server time | A persona biography. `persona` is always `null`. |
+| `ewp_memory_context` | Axes, evidence ids, warnings; `evaluated_at` defaults to server time. When an `EXTERNAL`/`HUMAN` check *opposes* the claim, a warning says so: `verification=EXTERNAL` then means "checked and contradicted", not "confirmed". | A persona biography. `persona` is always `null`. |
 
 `ewp_warrant_now` returns `WarrantView.normative()` (`protocol_version`, identity including the stored `view_id`, time, five axes) plus diagnostics (`rationale_codes`, evidence ids, lineage count). `strength` and `rationale_codes` are not part of the equality contract.
 
@@ -63,7 +65,7 @@ Every write creates or names an immutable snapshot. Reading `(proposition_id, vi
 
 Writes with a trusted `origin_type` (`tool|document|human|api|vendor|sensor`) additionally need `ingest_attestation=true` on the call. The flag is an explicit declaration by the ingest pipeline. It is not authentication.
 
-The ledger is append-only. Re-sending an identical record is a no-op. Sending an existing assertion, evidence, check, or source id with different content, or changing a snapshot under an existing `view_id`, returns `EWP_REFUSE_IMMUTABLE_RECORD`. A conflict's participants are fixed across snapshots; its `status` and `note` belong to each snapshot, so resolving a conflict is a new snapshot.
+The ledger is append-only. Re-sending an identical record is a no-op. Sending an existing assertion, evidence, check, or source id with different content (in any snapshot of the proposition), or changing a snapshot under an existing `view_id`, returns `EWP_REFUSE_IMMUTABLE_RECORD`. A conflict's participants are fixed across snapshots; its `status` and `note` belong to each snapshot, so resolving a conflict is a new snapshot.
 
 ## Inline views
 
@@ -79,8 +81,10 @@ An inline `view` is hypothetical: the caller built it, so its provenance is what
 ## Resources
 
 - `ewp://protocol` — protocol identity
-- `ewp://proposition/{id}` — stored EvidenceView
+- `ewp://proposition/{id}` — latest stored EvidenceView
 - `ewp://proposition/{id}/warrant?evaluated_at=` — normative warrant
+
+The two proposition URIs are listed by `resources/templates/list`.
 
 ## Packet rules (also the system prompt)
 
@@ -111,7 +115,7 @@ An inline `view` is hypothetical: the caller built it, so its provenance is what
 | `EWP_REFUSE_MAY_ACT_WITHOUT_ACTION` | `may_act` without an action |
 | `EWP_MISSING_EVALUATED_AT` | `ewp_warrant_now` without `evaluated_at` |
 
-Error shapes follow MCP: a failing `tools/call` returns a result with `isError: true` and the code in its text content. A failing `resources/read` returns a JSON-RPC error (`-32002` for a missing proposition, `-32602` otherwise) with `data.ewp_code`.
+Error shapes follow MCP: a failing `tools/call` returns a result with `isError: true` and the code in its text content. A request whose `id` is `null` gets a JSON-RPC `-32600` reply (MCP forbids null ids; a message with no `id` is a notification and is never answered). A failing `resources/read` returns a JSON-RPC error (`-32002` for a missing proposition, `-32602` otherwise) with `data.ewp_code`.
 
 HTTP transport errors: `400` bad `Content-Length` or JSON, `404` unknown path, `413` body over 1 MiB (refused from headers, connection closed), `202` for a notification.
 

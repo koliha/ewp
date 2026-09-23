@@ -58,7 +58,7 @@ get_checks(proposition_id) -> VerificationCheck[]
 
 Stores MUST NOT present a local projection as universal belief. Stores MUST preserve every field in `docs/implementer/SCHEMA.md`, including `subjects[]`, completeness, and freshness, across a write/read round trip. A store whose data model cannot hold a field MUST list the loss explicitly, and MUST still preserve source provenance, times, polarity, and every warrant-relevant field.
 
-A `view_id` names an immutable snapshot. Reading `(proposition_id, view_id)` returns exactly the evidence stored under it; new evidence is a new snapshot with a new `view_id`.
+A `view_id` names an immutable snapshot. Reading `(proposition_id, view_id)` returns exactly the evidence stored under it; new evidence is a new snapshot with a new `view_id`. Within a proposition, a record id names one record across all of its snapshots: a later snapshot may add records or drop them, but may not reuse an assertion, evidence, check, or source id for different content, or change a conflict's participants. A conflict's status and note belong to each snapshot.
 
 ## Required types
 
@@ -110,7 +110,7 @@ Method name is not enough. Only origins `tool`, `document`, `human`, `api`, `ven
 
 ### Bounded views
 
-An `EvidenceView` is bounded to one proposition. Every assertion and evidence item MUST be about the view's `proposition_id` (or a `proposition_id:<suffix>` variant), and every conflict row MUST name it. A view that mixes propositions is invalid and MUST be refused, not filtered. Field types are part of the contract: `subjects` are lists of strings, `freshness_policy_seconds` is a non-negative integer (0 is valid), `degraded` is a boolean. `docs/implementer/invalid/` has one refused view per rule.
+An `EvidenceView` is bounded to one proposition. Every assertion and evidence item MUST be about the view's `proposition_id` (or a `proposition_id:<suffix>` variant), and every conflict row MUST name it. A view that mixes propositions is invalid and MUST be refused, not filtered. Record ids MUST be unique within a view and every use of a `source_id` MUST carry the same `SourceRef`; all ids, including `conflict_id`, are local to their proposition. Field types are part of the contract: `subjects` are lists of strings, `freshness_policy_seconds` is a non-negative integer (0 is valid), `degraded` is a boolean. `docs/implementer/invalid/` has one refused view per rule.
 
 ### WarrantView
 

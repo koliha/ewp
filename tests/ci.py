@@ -21,7 +21,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from ewp.release import LOCK_KEYS, ci_surface_hash, current_hashes, metadata, write_lock
+from ewp.release import LOCK_KEYS, ci_surface_hash, current_hashes, metadata, write_lock, write_text_atomic
 from ewp.versions import POLICY, PROTOCOL
 
 STAMP = ROOT / "tests" / ".last_ci.json"
@@ -58,7 +58,7 @@ def check_lock() -> None:
 def write_stamp(ok: bool, surface: str, **extra) -> None:
     """`surface` is hashed before the run starts: the stamp names the tree that was tested."""
     body = {"ok": ok, "protocol": PROTOCOL, "policy": POLICY, **current_hashes(), "ci_surface_sha256": surface, **extra}
-    STAMP.write_text(json.dumps(body, indent=2) + "\n", encoding="utf-8", newline="\n")
+    write_text_atomic(STAMP, json.dumps(body, indent=2) + "\n")
 
 
 def main() -> int:

@@ -37,17 +37,95 @@ def is_subject_list(value) -> bool:
     return value is None or (isinstance(value, list) and all(isinstance(s, str) and s for s in value))
 
 
+def is_string_list(value, allow_empty: bool = True) -> bool:
+    return isinstance(value, list) and (allow_empty or bool(value)) and all(isinstance(s, str) and s for s in value)
+
+
+SOURCE_FIELDS = (
+    "source_id", "lineage_id", "origin_type", "origin_locator", "snapshot_id",
+    "content_hash", "observed_at", "extractor_id", "parent_source_id",
+)
+DEFAULTS = {"retrieval_scope": "complete", "degraded": False, "freshness_policy_seconds": 86400 * 30,
+            "omitted_sources": [], "subjects": []}
+
+
+def about(record: dict, pid: str) -> str:
+    """A record's proposition; missing or null means the view's."""
+    value = record.get("proposition_id")
+    return pid if value is None else str(value)
+
+
+def field(view: dict, key: str):
+    """SCHEMA.md: a missing or null field takes its default; any present value is kept."""
+    value = view.get(key)
+    return DEFAULTS[key] if value is None else value
+
+
+# SCHEMA.md required fields (optional ones: proposition_id on records, subjects,
+# extractor_id, parent_source_id, note, and the view-level defaults).
+REQUIRED = {
+    "assertions": ("assertion_id", "text", "asserted_by", "assertion_confidence", "source", "asserted_at"),
+    "evidence": ("evidence_id", "polarity", "source", "content", "observed_at"),
+    "checks": ("check_id", "method", "scope", "source", "observed_at", "result"),
+    "conflicts": ("conflict_id", "status"),
+    "lineage": ("kind",),
+}
+REQUIRED_SOURCE = ("source_id", "lineage_id", "origin_type", "origin_locator", "snapshot_id", "content_hash", "observed_at")
+
+
+def check_required(view: dict) -> None:
+    if view.get("proposition_id") is None:
+        raise InvalidView("missing proposition_id")
+    for part, keys in REQUIRED.items():
+        records = view.get(part) or []
+        if not isinstance(records, list):
+            raise InvalidView(f"{part} must be a list")
+        for r in records:
+            if not isinstance(r, dict):
+                raise InvalidView(f"{part} entry is not an object")
+            for k in keys:
+                if r.get(k) is None:
+                    raise InvalidView(f"{part} record missing {k}")
+            if "source" in keys:
+                src = r["source"]
+                if not isinstance(src, dict) or any(src.get(k) is None for k in REQUIRED_SOURCE):
+                    raise InvalidView(f"{part} record has an incomplete source")
+            if part == "assertions":
+                try:
+                    float(r["assertion_confidence"])
+                except (TypeError, ValueError):
+                    raise InvalidView("assertion_confidence is not a number") from None
+
+
 def validate(view: dict) -> None:
-    """POLICY.md "Input validation": refuse, do not evaluate."""
+    """POLICY.md "Input validation" and SCHEMA.md required fields: refuse, do not evaluate."""
+    check_required(view)
     enums = POLICY["enums"]
     pid = view["proposition_id"]
+    try:
+        instant(view.get("evaluated_at") or "")
+    except ValueError:
+        raise InvalidView(f"evaluated_at {view.get('evaluated_at')!r}") from None
+    for part, key in (("assertions", "assertion_id"), ("evidence", "evidence_id"), ("checks", "check_id"), ("conflicts", "conflict_id")):
+        ids = [str(r.get(key)) for r in view.get(part) or []]
+        if len(ids) != len(set(ids)):
+            raise InvalidView(f"duplicate {key}")
+    sources: dict = {}
+    for part in ("assertions", "evidence", "checks"):
+        for r in view.get(part) or []:
+            s = r.get("source") or {}
+            canonical = json.dumps({k: None if s.get(k) is None else str(s.get(k)) for k in SOURCE_FIELDS}, sort_keys=True)
+            if sources.setdefault(str(s.get("source_id")), canonical) != canonical:
+                raise InvalidView(f"source_id {s.get('source_id')!r} has two SourceRefs")
+    if not is_string_list(field(view, "omitted_sources")):
+        raise InvalidView("omitted_sources must be a list of strings")
     for a in view.get("assertions") or []:
-        if not names_proposition(a.get("proposition_id", pid), pid):
+        if not names_proposition(about(a, pid), pid):
             raise InvalidView(f"assertion about {a.get('proposition_id')!r}")
     for e in view.get("evidence") or []:
         if e.get("polarity") not in enums["polarity"]:
             raise InvalidView(f"polarity {e.get('polarity')!r}")
-        if not names_proposition(e.get("proposition_id", pid), pid):
+        if not names_proposition(about(e, pid), pid):
             raise InvalidView(f"evidence about {e.get('proposition_id')!r}")
     for c in view.get("checks") or []:
         if c.get("result") not in enums["result"]:
@@ -57,19 +135,23 @@ def validate(view: dict) -> None:
     for c in view.get("conflicts") or []:
         if c.get("status") not in enums["conflict_status"]:
             raise InvalidView(f"status {c.get('status')!r}")
-        if not any(names_proposition(x, pid) for x in c.get("proposition_ids") or []):
+        if not is_string_list(c.get("proposition_ids"), allow_empty=False):
+            raise InvalidView("conflict proposition_ids must be a non-empty list of strings")
+        if not any(names_proposition(x, pid) for x in c["proposition_ids"]):
             raise InvalidView(f"conflict does not name {pid!r}")
     for e in view.get("lineage") or []:
         if e.get("kind") not in enums["lineage_kind"]:
             raise InvalidView(f"kind {e.get('kind')!r}")
-    if not is_subject_list(view.get("subjects")):
+        if not all(isinstance(e.get(k), str) and e.get(k) for k in ("from_id", "to_id")):
+            raise InvalidView("lineage endpoints must be non-empty strings")
+    if not is_subject_list(field(view, "subjects")):
         raise InvalidView(f"view subjects {view.get('subjects')!r}")
-    fresh = view.get("freshness_policy_seconds", 86400 * 30)
+    fresh = field(view, "freshness_policy_seconds")
     if type(fresh) is not int or fresh < 0:
         raise InvalidView(f"freshness_policy_seconds {fresh!r}")
-    if type(view.get("degraded", False)) is not bool:
+    if type(field(view, "degraded")) is not bool:
         raise InvalidView(f"degraded {view.get('degraded')!r}")
-    if not isinstance(view.get("retrieval_scope", "complete"), str):
+    if not isinstance(field(view, "retrieval_scope"), str):
         raise InvalidView(f"retrieval_scope {view.get('retrieval_scope')!r}")
 
 
@@ -156,11 +238,7 @@ def conflict_of(view: dict, evaluated_at: str | None = None) -> str:
 
 
 def sufficiency_of(view: dict, evaluated_at: str | None = None) -> str:
-    if (
-        view.get("degraded")
-        or view.get("omitted_sources")
-        or (view.get("retrieval_scope") or "complete") != "complete"
-    ):
+    if field(view, "degraded") or field(view, "omitted_sources") or field(view, "retrieval_scope") != "complete":
         return "DEGRADED"
     assertions = [a for a in view.get("assertions") or [] if available_at(a.get("asserted_at") or "", evaluated_at)]
     evidence = [e for e in view.get("evidence") or [] if available_at(e.get("observed_at") or "", evaluated_at)]
@@ -186,10 +264,7 @@ def currency_of(view: dict, verification: str, evaluated_at: str) -> tuple[str, 
     if conferring:
         newest = max(conferring, key=lambda c: instant(c["observed_at"]))
         age = (instant(evaluated_at) - instant(newest["observed_at"])).total_seconds()
-        limit = view.get("freshness_policy_seconds")
-        if limit is None:
-            limit = 86400 * 30
-        stale = age > limit
+        stale = age > field(view, "freshness_policy_seconds")
     if stale:
         return "STALE", True
     return "CURRENT", stale

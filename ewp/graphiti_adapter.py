@@ -27,7 +27,9 @@ def lineage_of(ep: FakeEpisode) -> tuple[str, str]:
     return ep.uuid, "fallback_episode_uuid"
 
 
-def _source(ep: FakeEpisode, observed_at: str) -> SourceRef:
+def _source(ep: FakeEpisode) -> SourceRef:
+    """One SourceRef per episode. Its time is the episode's own, not the time of
+    whichever edge cites it, so every record citing the episode agrees."""
     lid, _basis = lineage_of(ep)
     origin = str(ep.metadata.get("origin_type") or "episode")
     locator = str(ep.metadata.get("origin_locator") or f"graphiti:episode:{ep.uuid}")
@@ -42,7 +44,7 @@ def _source(ep: FakeEpisode, observed_at: str) -> SourceRef:
         origin_locator=locator,
         snapshot_id=snapshot,
         content_hash=digest,
-        observed_at=observed_at,
+        observed_at=ep.reference_time or ep.created_at,
         extractor_id=str(extractor) if extractor else None,
         parent_source_id=str(parent) if parent else None,
     )
@@ -75,7 +77,7 @@ class GraphitiAdapter:
             episode_ids = edge.episodes or [edge.uuid]
             for i, epid in enumerate(episode_ids):
                 ep = self.store.episodes.get(epid) or _fallback_episode(epid)
-                source = _source(ep, when)
+                source = _source(ep)
                 _lid, basis = lineage_of(ep)
                 lineage_basis[source.source_id] = basis
                 if "assertion" in edge.roles:

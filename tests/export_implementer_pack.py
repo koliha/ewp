@@ -52,7 +52,7 @@ def main() -> None:
     # Views every conforming evaluator must refuse. No expected axes exist.
     for name, make in INVALID_PACK:
         payload = make()
-        payload["evaluated_at"] = EVAL
+        payload.setdefault("evaluated_at", EVAL)
         _write(ROOT / "invalid" / f"{name}.json", payload)
         print(f"invalid/{name}")
     for name, cases in FIXTURES:

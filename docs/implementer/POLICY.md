@@ -24,7 +24,13 @@ The view is bounded to one proposition. It is also invalid if:
 
 Refuse such a view; do not filter the foreign records out. Silent filtering would hide an adapter that mixed propositions.
 
-Types are part of the contract. The view is invalid if `subjects` (on the view or any check) is not a list of non-empty strings — a bare string must never be read character by character — if `freshness_policy_seconds` is not a non-negative integer (`0` is valid and means any check older than `evaluated_at` is stale; booleans are not integers), if `degraded` is not a boolean, or if `retrieval_scope` is not a string. A missing field takes its schema default; a present field is never replaced by a default because it is falsy.
+Identity is part of the contract. The view is invalid if two assertions, two evidence items, two checks, or two conflicts share an id — even when the two records are identical — or if one `source_id` appears with two different `SourceRef`s (a different `lineage_id`, origin, time, …). Otherwise one source could count as two independent lineages. Records may share one identical `SourceRef`. Every id is local to its proposition, including `conflict_id`.
+
+Types are part of the contract. The view is invalid if `subjects` (on the view or any check), `omitted_sources`, or a conflict's `proposition_ids` is not a list of non-empty strings — a bare string must never be read character by character — if a conflict names no proposition, if a lineage edge lacks a non-empty `from_id` or `to_id`, if `freshness_policy_seconds` is not a non-negative integer (`0` is valid and means any check older than `evaluated_at` is stale; booleans are not integers), if `degraded` is not a boolean, or if `retrieval_scope` is not a string. A missing field takes its schema default; a present field is never replaced by a default because it is falsy.
+
+Every field `SCHEMA.md` lists as required must be present and not null (a null required id is missing, never the string "None"), records must be objects, and `assertion_confidence` must be a number.
+
+`evaluated_at` must be a parseable instant. A record with a bad timestamp is only unavailable; a bad `evaluated_at` leaves nothing to evaluate against, so the evaluation is refused.
 
 `docs/implementer/invalid/` holds one view per rule. A conforming evaluator refuses all of them.
 

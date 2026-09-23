@@ -8,3 +8,4 @@ venv/
 tests/.last_ci.json
 *.sqlite
 build/
+*.tmp

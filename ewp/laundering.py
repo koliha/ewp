@@ -477,6 +477,24 @@ INVALID_PACK = [
         "conflicts", [{"conflict_id": "c1", "proposition_ids": ["P-win"], "status": "Open", "note": ""}]))),
     ("unknown_lineage_kind", lambda: _mutated(_base, lambda d: d.__setitem__(
         "lineage", [{"from_id": "P-win", "to_id": "P-next", "kind": "replaced_by"}]))),
+    ("duplicate_assertion_id", lambda: _mutated(_base, lambda d: d["assertions"].append(
+        dict(d["assertions"][0], text="server01 runs Windows Server 2019")))),
+    ("duplicate_evidence_id", lambda: _mutated(_base, lambda d: d["evidence"].append(
+        dict(d["evidence"][0], polarity="opposes")))),
+    ("duplicate_check_id", lambda: _mutated(_base, lambda d: d["checks"].append(dict(d["checks"][0])))),
+    ("duplicate_conflict_id", lambda: _mutated(_base, lambda d: d.__setitem__("conflicts", [
+        {"conflict_id": "c1", "proposition_ids": ["P-win"], "status": "open", "note": ""},
+        {"conflict_id": "c1", "proposition_ids": ["P-win"], "status": "resolved", "note": ""},
+    ]))),
+    ("conflicting_source_ref", lambda: _mutated(_base, lambda d: d["evidence"][0].__setitem__(
+        "source", dict(d["evidence"][0]["source"], lineage_id="L-another")))),
+    ("omitted_sources_string", lambda: _mutated(_base, lambda d: d.__setitem__("omitted_sources", "possible-contradictor"))),
+    ("lineage_missing_endpoint", lambda: _mutated(_base, lambda d: d.__setitem__("lineage", [{"to_id": "P-next", "kind": "derived_from"}]))),
+    ("conflict_participants_string", lambda: _mutated(_base, lambda d: d.__setitem__(
+        "conflicts", [{"conflict_id": "c1", "proposition_ids": "P-win", "status": "open", "note": ""}]))),
+    ("unparsable_evaluated_at", lambda: _mutated(_base, lambda d: d.__setitem__("evaluated_at", "not-a-time"))),
+    ("missing_required_field", lambda: _mutated(_base, lambda d: d["evidence"][0].pop("content"))),
+    ("non_numeric_confidence", lambda: _mutated(_base, lambda d: d["assertions"][0].__setitem__("assertion_confidence", "high"))),
 ]
 
 

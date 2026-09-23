@@ -307,7 +307,7 @@ def test_stdio_with_official_sdk():
     negotiated: list[str] = []
 
     async def run() -> None:
-        params = StdioServerParameters(command=sys.executable, args=["-m", "ewp.mcp_server"], cwd=str(ROOT))
+        params = StdioServerParameters(command=sys.executable, args=["-m", "ewp.mcp_server", "--allow-ingest"], cwd=str(ROOT))
         async with stdio_client(params) as (read, write):
             async with ClientSession(read, write) as session:
                 init = await session.initialize()
@@ -409,6 +409,82 @@ def test_missing_views_and_error_shapes():
     print("PASS unknown proposition/view refused; argument errors are tool results; resource errors are JSON-RPC errors")
 
 
+def test_read_only_agent_server():
+    import tempfile
+
+    from ewp.ingest_cli import main as ingest
+
+    with tempfile.TemporaryDirectory() as tmp:
+        missing = Path(tmp) / "typo" / "ledger.sqlite"
+        proc = subprocess.run([sys.executable, "-m", "ewp.mcp_server", "--db", str(missing)],
+                              cwd=ROOT, input="", capture_output=True, text=True, timeout=30)
+        assert proc.returncode == 2 and "ledger not found" in proc.stderr, (proc.returncode, proc.stderr)
+        assert not missing.parent.exists(), "read-only server created directories"
+        nodb = subprocess.run([sys.executable, "-m", "ewp.mcp_server"], cwd=ROOT, input="", capture_output=True, text=True, timeout=30)
+        assert nodb.returncode == 2 and "--db is required" in nodb.stderr, nodb.stderr
+        db = str(Path(tmp) / "ledger.sqlite")
+        assert ingest(["--db", db, str(ROOT / "examples" / "quickstart.json"), "--attest-trusted-origins"]) == 0
+        server = EwpMcp(db)
+        assert server.read_only is True
+        assert error_code(tool(server, "ewp_evidence_view_put", {"view": fixture_verified_current().to_dict(), "ingest_attestation": True})) == REFUSE_INGEST_ROLE
+        import sqlite3
+
+        try:
+            server.store.conn.execute("DELETE FROM views")
+        except sqlite3.OperationalError:
+            pass
+        else:
+            raise AssertionError("agent-facing server's ledger handle is writable")
+        server.store.close()
+    print("PASS read-only agent server: missing ledger or no --db is a clear exit; handle cannot write")
+
+
+def test_memory_context_flags_contradicting_check():
+    import tempfile
+
+    from ewp.ingest_cli import main as ingest
+
+    with tempfile.TemporaryDirectory() as tmp:
+        db = str(Path(tmp) / "ledger.sqlite")
+        assert ingest(["--db", db, str(ROOT / "examples" / "quickstart.json"), "--attest-trusted-origins"]) == 0
+        server = EwpMcp(db)
+        ctx = tool(server, "ewp_memory_context", {"proposition_id": "P-prod-db-version"})["structuredContent"]
+        assert ctx["warrant"]["verification"] == "EXTERNAL", ctx
+        assert any("OPPOSES" in w for w in ctx["warnings"]), ctx["warnings"]
+        ok = tool(server, "ewp_memory_context", {"proposition_id": "P-deploys-from-main"})["structuredContent"]
+        assert not any("OPPOSES" in w for w in ok["warnings"]), ok["warnings"]
+        server.store.close()
+    print("PASS memory_context: an opposing EXTERNAL check is called out, not read as confirmation")
+
+
+def test_opposing_warning_names_the_opposing_class():
+    view = fixture_verified_current().to_dict()
+    human_src = dict(view["checks"][0]["source"], source_id="ops-lead", lineage_id="L-ops", origin_type="human")
+    view["checks"] = [
+        dict(view["checks"][0], check_id="k-human", method="human_attestation", result="supports", source=human_src),
+        dict(view["checks"][0], check_id="k-tool", result="opposes"),
+    ]
+    server = EwpMcp(ingest_enabled=True, clock=at_eval)
+    tool(server, "ewp_evidence_view_put", {"view": view, "ingest_attestation": True})
+    ctx = tool(server, "ewp_memory_context", {"proposition_id": "P-win"})["structuredContent"]
+    assert ctx["warrant"]["verification"] == "HUMAN", ctx["warrant"]
+    opposing = [w for w in ctx["warnings"] if "OPPOSES" in w]
+    assert opposing and "trusted EXTERNAL check" in opposing[0], ctx["warnings"]
+    print("PASS opposing-check warning names the opposing check's class, not the strongest class")
+
+
+def test_null_id_and_resource_templates():
+    server = EwpMcp()
+    reply = server.handle({"jsonrpc": "2.0", "id": None, "method": "tools/list"})
+    assert reply["error"]["code"] == -32600 and reply["id"] is None, reply
+    templates = call(server, "resources/templates/list")["result"]["resourceTemplates"]
+    assert {t["uriTemplate"] for t in templates} == {
+        "ewp://proposition/{proposition_id}",
+        "ewp://proposition/{proposition_id}/warrant?evaluated_at={evaluated_at}",
+    }
+    print("PASS id=null gets an error reply; resource templates are listed")
+
+
 def main() -> int:
     test_initialize_and_tools()
     test_every_write_requires_ingest_role()
@@ -428,6 +504,10 @@ def main() -> int:
     test_http_roles_and_limits()
     test_snapshots_and_discovery()
     test_missing_views_and_error_shapes()
+    test_read_only_agent_server()
+    test_memory_context_flags_contradicting_check()
+    test_opposing_warning_names_the_opposing_class()
+    test_null_id_and_resource_templates()
     print("MCP SUITE PASS")
     return 0
 

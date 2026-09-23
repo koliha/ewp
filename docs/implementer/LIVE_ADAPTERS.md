@@ -43,6 +43,8 @@ lineage, completeness, freshness, and the view's `subjects[]`. Losing any of
 them changes warrant; subject loss can turn a mismatched check into
 `EXTERNAL`.
 
+Graphiti is not a snapshot store here: each proposition has one parked sidecar, and re-ingesting replaces it, so only the latest view is readable. Use SQLite, JSON, or Mem0 when earlier `view_id`s must stay retrievable.
+
 Both `raw_view` and `search_view` apply the parked sidecar. EWP-ingested edges
 carry `roles` (`assertion`, `evidence`, or both) so an evidence-only record
 does not come back as a claim and an assertion-only record does not gain
@@ -93,6 +95,18 @@ print(adapter.search_view(view.proposition_id, "Windows").degraded)
 | `score` | `adapter_meta.retrieval_scores` | Never warrant strength. |
 | `get_all` vs `search` | `degraded` | Omitted memory ids listed. |
 | sidecar `kind=ewp_parked` | checks, conflicts, lineage, completeness, `subjects[]` | Mem0 has no first-class check table. |
+
+Snapshots: `ingest_view` tags every memory with the view's `view_id` and
+writes the parked sidecar last, with a content digest and a sequence number.
+`raw_view(pid, view_id)` rebuilds exactly that snapshot and `raw_view(pid)`
+the latest; `search_view` searches within one snapshot. Re-ingesting an
+identical snapshot is a no-op; different content under an existing `view_id`
+is refused. Memories tagged with a `view_id` but no sidecar (an interrupted
+ingest) are never read. Memories written outside EWP (no `view_id`) are read
+only when the proposition has no EWP snapshot. Mem0 has no transactions: two
+processes ingesting the same new `view_id` at the same moment can both write
+it, and the resulting view is refused at evaluation for duplicate ids. Give
+each ingest its own `view_id` (or let EWP derive one from the content).
 
 Untagged memories (no `metadata.ewp.proposition_id`) do not enter a named
 proposition view. They are `Mem0Adapter.unscoped_items()`, not evidence for P.

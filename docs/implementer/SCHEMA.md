@@ -24,7 +24,9 @@ subjects[]        declared subject ids of the proposition; may be empty
 
 The enums in parentheses are closed. A value outside them makes the view invalid: refuse it, do not evaluate it.
 
-The view is bounded: every assertion and evidence `proposition_id` equals the view's (or is `proposition_id:<suffix>`), and every conflict's `proposition_ids` include it. `subjects` are JSON arrays of non-empty strings, never a bare string. `freshness_policy_seconds` is a non-negative integer (`0` is valid; booleans are not integers). `degraded` is a boolean. A missing field takes the default shown; a present value is never replaced because it is falsy. `invalid/` has one view per rule.
+The view is bounded: every assertion and evidence `proposition_id` equals the view's (or is `proposition_id:<suffix>`), and every conflict's `proposition_ids` include it. Ids are unique within a view (no repeated `assertion_id`, `evidence_id`, `check_id`, or `conflict_id`, even for identical records), every use of a `source_id` carries the same `SourceRef`, and every id — `conflict_id` included — is local to its proposition. `subjects`, `omitted_sources`, and conflict `proposition_ids` are JSON arrays of non-empty strings, never a bare string; lineage `from_id` / `to_id` are non-empty strings. `evaluated_at` is an ISO 8601 instant.
+
+Stores keep ids stable across a proposition's snapshots: a later snapshot may not reuse an assertion, evidence, check, or source id for different content, or change a conflict's participants (status and note may change). This is a store rule; an evaluator only ever sees one view. `freshness_policy_seconds` is a non-negative integer (`0` is valid; booleans are not integers). `degraded` is a boolean. A missing field takes the default shown; a present value is never replaced because it is falsy. `invalid/` has one view per rule.
 
 ## SourceRef
 

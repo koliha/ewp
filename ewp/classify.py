@@ -32,8 +32,24 @@ class InvalidEvidenceView(ValueError):
     """The view carries a value outside a closed enum. Refuse; do not evaluate."""
 
 
-def _is_subject_list(value) -> bool:
-    return isinstance(value, (list, tuple)) and all(isinstance(s, str) and s for s in value)
+def _is_string_list(value, *, allow_empty: bool = True) -> bool:
+    """A list/tuple of non-empty strings. A bare string is never a list: it
+    would be iterated as characters."""
+    return (
+        isinstance(value, (list, tuple))
+        and (allow_empty or len(value) > 0)
+        and all(isinstance(s, str) and s for s in value)
+    )
+
+
+def _duplicates(ids) -> list[str]:
+    seen: set[str] = set()
+    dups: list[str] = []
+    for i in ids:
+        if i in seen and i not in dups:
+            dups.append(i)
+        seen.add(i)
+    return dups
 
 
 def validate_view(view: EvidenceView) -> None:
@@ -46,13 +62,36 @@ def validate_view(view: EvidenceView) -> None:
       view's proposition (or a `proposition_id:<suffix>` variant), and every
       conflict row names it. Records about another proposition are an
       adapter error, not evidence; filtering them silently would hide it.
-    - `subjects` are lists of non-empty strings. A bare string would be
-      iterated as characters and match on shared letters.
-    - `freshness_policy_seconds` is a non-negative int (not bool);
+    - Identity is unambiguous: assertion, evidence, check, and conflict ids
+      are unique within the view (a repeat is refused even if identical),
+      and every use of a `source_id` carries the same SourceRef. One source
+      with two lineage ids would otherwise count as two independent sources.
+    - Types: `subjects`, `omitted_sources`, and conflict `proposition_ids`
+      are lists of non-empty strings (a bare string would be iterated as
+      characters); lineage endpoints are non-empty strings;
+      `freshness_policy_seconds` is a non-negative int (not bool);
       `degraded` is a bool; `retrieval_scope` is a string.
     """
     problems: list[str] = []
     pid = view.proposition_id
+
+    for label, ids in (
+        ("assertion_id", [a.assertion_id for a in view.assertions]),
+        ("evidence_id", [e.evidence_id for e in view.evidence]),
+        ("check_id", [c.check_id for c in view.checks]),
+        ("conflict_id", [c.conflict_id for c in view.conflicts]),
+    ):
+        for dup in _duplicates(ids):
+            problems.append(f"duplicate {label} {dup!r}")
+    sources: dict[str, object] = {}
+    inconsistent: list[str] = []
+    for record in [*view.assertions, *view.evidence, *view.checks]:
+        s = record.source
+        if sources.setdefault(s.source_id, s) != s and s.source_id not in inconsistent:
+            inconsistent.append(s.source_id)
+    for sid in inconsistent:
+        problems.append(f"source_id {sid!r} carries different SourceRefs (lineage, origin, time, ...) within one view")
+
     for a in view.assertions:
         if not about_proposition(a.proposition_id, pid):
             problems.append(f"assertion {a.assertion_id}: proposition_id={a.proposition_id!r} is not {pid!r}")
@@ -64,18 +103,24 @@ def validate_view(view: EvidenceView) -> None:
     for c in view.checks:
         if c.result not in CHECK_RESULTS:
             problems.append(f"check {c.check_id}: result={c.result!r}")
-        if not _is_subject_list(c.subjects):
+        if not _is_string_list(c.subjects):
             problems.append(f"check {c.check_id}: subjects={c.subjects!r} must be a list of strings")
     for c in view.conflicts:
         if c.status not in CONFLICT_STATUSES:
             problems.append(f"conflict {c.conflict_id}: status={c.status!r}")
-        if not any(about_proposition(x, pid) for x in c.proposition_ids):
+        if not _is_string_list(c.proposition_ids, allow_empty=False):
+            problems.append(f"conflict {c.conflict_id}: proposition_ids={c.proposition_ids!r} must be a non-empty list of strings")
+        elif not any(about_proposition(x, pid) for x in c.proposition_ids):
             problems.append(f"conflict {c.conflict_id}: proposition_ids={list(c.proposition_ids)!r} do not name {pid!r}")
     for edge in view.lineage:
         if edge.kind not in LINEAGE_KINDS:
             problems.append(f"lineage {edge.from_id}->{edge.to_id}: kind={edge.kind!r}")
-    if not _is_subject_list(view.subjects):
+        if not (isinstance(edge.from_id, str) and edge.from_id and isinstance(edge.to_id, str) and edge.to_id):
+            problems.append(f"lineage edge {edge.from_id!r}->{edge.to_id!r}: endpoints must be non-empty strings")
+    if not _is_string_list(view.subjects):
         problems.append(f"subjects={view.subjects!r} must be a list of strings")
+    if not _is_string_list(view.omitted_sources):
+        problems.append(f"omitted_sources={view.omitted_sources!r} must be a list of strings")
     fresh = view.freshness_policy_seconds
     if type(fresh) is not int or fresh < 0:
         problems.append(f"freshness_policy_seconds={fresh!r} must be a non-negative integer")
@@ -96,6 +141,15 @@ def parse_ts(ts: str) -> datetime:
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=timezone.utc)
     return dt.astimezone(timezone.utc)
+
+
+def parse_evaluated_at(evaluated_at: str) -> datetime:
+    """T must be a parseable instant. Records with bad times are merely
+    unavailable; a bad T means there is nothing to evaluate against."""
+    try:
+        return parse_ts(evaluated_at)
+    except (ValueError, TypeError) as exc:
+        raise ValueError(f"evaluated_at {evaluated_at!r} is not a parseable ISO 8601 instant") from exc
 
 
 def available_at(observed_at: str, evaluated_at: str | None) -> bool:

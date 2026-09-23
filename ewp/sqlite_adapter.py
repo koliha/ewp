@@ -11,8 +11,14 @@ Two layers:
   a no-op; changing one is refused. `get_view(pid, view_id)` returns exactly
   that snapshot; `get_view(pid)` returns the latest.
 
-Conflict participants are fixed at first sight across all views; a conflict's
+Every id is proposition-local, including conflict_id. A conflict's
+participants are fixed at first sight across that proposition's views; its
 status and note belong to each snapshot, so resolving a conflict is a new view.
+
+Writes run in `BEGIN IMMEDIATE` transactions, so a read-then-write (extend_view)
+is atomic across processes sharing the file, not only across threads.
+`read_only=True` opens an existing ledger with SQLite's read-only mode and
+refuses a path that does not exist.
 """
 
 from __future__ import annotations
@@ -20,6 +26,7 @@ from __future__ import annotations
 import json
 import sqlite3
 import threading
+from pathlib import Path
 from typing import Any, Iterable
 
 from .classify import validate_view
@@ -34,7 +41,7 @@ from .types import (
     VerificationCheck,
 )
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS sources (
@@ -83,8 +90,10 @@ CREATE TABLE IF NOT EXISTS checks (
   PRIMARY KEY (owner, check_id)
 );
 CREATE TABLE IF NOT EXISTS conflict_participants (
-  conflict_id TEXT PRIMARY KEY,
-  proposition_ids TEXT NOT NULL
+  owner TEXT NOT NULL,
+  conflict_id TEXT NOT NULL,
+  proposition_ids TEXT NOT NULL,
+  PRIMARY KEY (owner, conflict_id)
 );
 CREATE TABLE IF NOT EXISTS views (
   seq INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -121,10 +130,28 @@ def _pid_json(ids: Iterable[str]) -> str:
     return json.dumps(sorted(ids))
 
 
+class LedgerError(RuntimeError):
+    """The ledger file cannot be used: missing (read-only), or an older schema."""
+
+
 class SQLiteAdapter:
-    def __init__(self, path: str = ":memory:") -> None:
+    def __init__(self, path: str = ":memory:", *, read_only: bool = False) -> None:
         self._lock = threading.Lock()
-        self.conn = sqlite3.connect(path, check_same_thread=False, timeout=5)
+        self.read_only = read_only
+        if read_only:
+            if path == ":memory:":
+                raise LedgerError("a read-only ledger needs a file path")
+            file = Path(path).resolve()
+            if not file.is_file():
+                raise LedgerError(
+                    f"ledger not found: {file}. The read-only server opens an existing ledger; "
+                    "create one with ewp-ingest, and check the --db path."
+                )
+            target, uri = file.as_uri() + "?mode=ro", True
+        else:
+            target, uri = path, False
+        # Autocommit mode: transactions are explicit BEGIN IMMEDIATE ... COMMIT.
+        self.conn = sqlite3.connect(target, check_same_thread=False, timeout=5, isolation_level=None, uri=uri)
         self.conn.row_factory = sqlite3.Row
         self.conn.execute("PRAGMA busy_timeout=5000")
         version = self.conn.execute("PRAGMA user_version").fetchone()[0]
@@ -132,13 +159,18 @@ class SQLiteAdapter:
             "SELECT count(*) FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
         ).fetchone()[0]
         if has_tables and version != SCHEMA_VERSION:
-            raise RuntimeError(
-                f"{path}: SQLite schema version {version}, expected {SCHEMA_VERSION}. "
-                "This database predates the EWP-0.2.0 snapshot schema; re-ingest into a new file."
+            self.conn.close()
+            raise LedgerError(
+                f"{path}: ledger schema version {version}, expected {SCHEMA_VERSION}. "
+                "It was created by an earlier development build of EWP; start a new --db file and re-ingest."
             )
+        if read_only:
+            if not has_tables:
+                self.conn.close()
+                raise LedgerError(f"{path} is not an EWP ledger (no tables); create it with ewp-ingest")
+            return
         self.conn.executescript(SCHEMA)
         self.conn.execute(f"PRAGMA user_version={SCHEMA_VERSION}")
-        self.conn.commit()
 
     def close(self) -> None:
         with self._lock:
@@ -186,13 +218,14 @@ class SQLiteAdapter:
             },
         )
 
-    def _fix_participants(self, c: Conflict) -> None:
+    def _fix_participants(self, owner: str, c: Conflict) -> None:
         participants = _pid_json(c.proposition_ids)
         existing = self.conn.execute(
-            "SELECT proposition_ids FROM conflict_participants WHERE conflict_id=?", (c.conflict_id,)
+            "SELECT proposition_ids FROM conflict_participants WHERE owner=? AND conflict_id=?",
+            (owner, c.conflict_id),
         ).fetchone()
         if existing is None:
-            self.conn.execute("INSERT INTO conflict_participants VALUES (?,?)", (c.conflict_id, participants))
+            self.conn.execute("INSERT INTO conflict_participants VALUES (?,?,?)", (owner, c.conflict_id, participants))
         elif existing["proposition_ids"] != participants:
             raise ImmutableRecordError(
                 f"conflict {c.conflict_id} participants are fixed: "
@@ -201,15 +234,21 @@ class SQLiteAdapter:
 
     # -- view writes ------------------------------------------------------
 
+    def _begin(self) -> None:
+        if self.read_only:
+            raise LedgerError("this ledger is open read-only")
+        self.conn.execute("BEGIN IMMEDIATE")
+
     def load_view(self, view: EvidenceView) -> None:
         """Store `view` as the immutable snapshot (proposition_id, view_id)."""
         validate_view(view)
         with self._lock:
+            self._begin()
             try:
                 self._store_view(view)
-                self.conn.commit()
+                self.conn.execute("COMMIT")
             except Exception:
-                self.conn.rollback()
+                self.conn.execute("ROLLBACK")
                 raise
 
     def extend_view(
@@ -227,6 +266,7 @@ class SQLiteAdapter:
         concurrent appends cannot drop each other's records from "latest".
         """
         with self._lock:
+            self._begin()
             try:
                 base = self._get_view_unlocked(proposition_id, None)
                 view = EvidenceView(
@@ -246,10 +286,10 @@ class SQLiteAdapter:
                 validate_view(view)
                 view.view_id = new_view_id or content_view_id(view)
                 self._store_view(view)
-                self.conn.commit()
+                self.conn.execute("COMMIT")
                 return view
             except Exception:
-                self.conn.rollback()
+                self.conn.execute("ROLLBACK")
                 raise
 
     def _store_view(self, view: EvidenceView) -> None:
@@ -307,12 +347,12 @@ class SQLiteAdapter:
                     "source_id": c.source.source_id,
                     "observed_at": c.observed_at,
                     "result": c.result,
-                    "subjects": json.dumps(list(c.subjects)),
+                    "subjects": json.dumps(sorted(c.subjects)),  # a set: order is not content
                 },
             )
             members.append(("check", c.check_id))
         for c in view.conflicts:
-            self._fix_participants(c)
+            self._fix_participants(owner, c)
             members.append(("conflict", json.dumps(
                 {"conflict_id": c.conflict_id, "proposition_ids": list(c.proposition_ids), "status": c.status, "note": c.note}
             )))
@@ -340,12 +380,6 @@ class SQLiteAdapter:
         )
 
     # -- reads ------------------------------------------------------------
-
-    def has_proposition(self, proposition_id: str) -> bool:
-        with self._lock:
-            return self.conn.execute(
-                "SELECT 1 FROM views WHERE owner=? LIMIT 1", (proposition_id,)
-            ).fetchone() is not None
 
     def list_propositions(self, query: str | None = None, limit: int = 50) -> list[dict[str, Any]]:
         """Propositions with their latest snapshot id and assertion texts.

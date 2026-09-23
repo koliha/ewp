@@ -10,6 +10,7 @@ from .classify import (
     independent_lineage_ids,
     opposing_high_check,
     opposing_items,
+    parse_evaluated_at,
     parse_ts,
     superseding_edges,
     supporting_items,
@@ -46,7 +47,7 @@ def warrant_now(view: EvidenceView, policy: Policy, evaluated_at: str) -> Warran
         )
     validate_view(view)
     codes: list[str] = []
-    eval_dt = parse_ts(evaluated_at)
+    eval_dt = parse_evaluated_at(evaluated_at)
 
     assertions = visible_assertions(view, evaluated_at)
     supporting = supporting_items(view, evaluated_at)

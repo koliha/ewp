@@ -2,7 +2,7 @@
 
 ## [Unreleased] — EWP-0.2.0
 
-Not yet released. Protocol `EWP-0.2.0`, policy `reference-v2`. The development iterations previously listed as 0.2.0, 0.2.0-docs, 0.2.1, and 0.2.2 are folded into this entry; none of them was a release. The 26 golden axes are unchanged from 0.1.0 (only their identity fields changed); the hardening pack grew to 25 fixtures, a 12-view invalid pack was added, and all of it is locked.
+Not yet released. Protocol `EWP-0.2.0`, policy `reference-v2`. The development iterations previously listed as 0.2.0, 0.2.0-docs, 0.2.1, and 0.2.2 are folded into this entry; none of them was a release. The 26 golden axes are unchanged from 0.1.0 (only their identity fields changed); the hardening pack grew to 25 fixtures, a 23-view invalid pack was added, and all of it is locked.
 
 ### Identity
 
@@ -22,6 +22,10 @@ Not yet released. Protocol `EWP-0.2.0`, policy `reference-v2`. The development i
 - Views are bounded: an assertion or evidence item about another proposition, or a conflict row that does not name the proposition, makes the view invalid. Previously a `P-win` view whose records were all about another proposition evaluated to `ACCEPTED`.
 - Field types are enforced: `subjects` must be lists of strings (a bare string was iterated as characters, so `customer-99` could verify `customer-42` on shared letters); `freshness_policy_seconds` must be a non-negative int, not bool; `degraded` a bool; `retrieval_scope` a string.
 - Checks whose subjects do not bind still count toward implied conflict (stated explicitly in `POLICY.md`).
+- Identity is unambiguous: repeated assertion/evidence/check/conflict ids in one view are refused (even identical repeats), and one `source_id` must carry one `SourceRef`. Previously one source with two `lineage_id`s counted as two independent lineages in memory while SQLite refused the same view.
+- `omitted_sources` and conflict `proposition_ids` must be lists of strings (a string was iterated as characters); lineage endpoints must be non-empty strings (a missing endpoint was stored as `"None"`).
+- A missing or null required field, a record that is not an object, or a non-numeric confidence is refused as an invalid view with a clear message (the codec used to raise a bare `KeyError`/`TypeError`, and turned a null id into the string `"None"`); the third evaluator checks the same required fields.
+- An unparsable `evaluated_at` is refused with a clear message by both reference evaluators and the third evaluator (the third evaluator used to return `UNACCEPTED`).
 
 ### Action gate
 
@@ -45,6 +49,16 @@ Not yet released. Protocol `EWP-0.2.0`, policy `reference-v2`. The development i
 - Graphiti edges carry `roles`, so an evidence-only record no longer comes back as an assertion (which could lift `UNACCEPTED` to `TENTATIVE`) and an assertion-only record no longer gains supporting evidence. Ingest stores `snapshot_id`/`extractor_id`; parked `subjects` and `view_id` are decoded safely.
 - Live Graphiti (**experimental**): `search_view` applies the parked sidecar (it used to drop checks, conflicts, lineage, subjects, and freshness); ingest writes evidence-only sources and sets `reference_time` from the source's `observed_at`.
 - New `ewp-ingest` command loads EvidenceViews from JSON into a ledger; trusted origins require `--attest-trusted-origins`.
+- All ids are proposition-local, including `conflict_id` (it was ledger-global in SQLite, so unrelated propositions could not both use `c1`). Schema version 4.
+- One canonical, record-order-independent form of a view (`codec.canonical_dict`) drives content-derived ids, SQLite and JSON snapshot comparison, and adapter conformance. Reordered but identical snapshots were refused as mutations and got different ids.
+- SQLite writes run in `BEGIN IMMEDIATE` transactions, so `extend_view` is atomic across processes sharing a ledger: concurrent appends from separate processes used to drop records from the latest snapshot. `SQLiteAdapter(path, read_only=True)` opens an existing ledger read-only and refuses a missing path.
+- Mem0 implements immutable snapshots: every memory is tagged with its `view_id`, the sidecar (written last) carries a digest and sequence, `raw_view(pid, id)` returns exactly that snapshot, identical re-ingest is a no-op, and changed content under an existing id is refused. `raw_view("P", "v1")` used to return every record ever written for `P`, with duplicates.
+- The docs state that the Graphiti mappings keep one current view per proposition and are not snapshot stores.
+- Graphiti sources take their `observed_at` from the episode, not from whichever edge cites it, so one episode behind two facts is one consistent `SourceRef`.
+- `ewp-ingest` reports an unusable ledger (older schema) with a message instead of a traceback.
+- Record ids are stable across a proposition's snapshots in every store: the JSON store and Mem0 now refuse a later snapshot that reuses an assertion/evidence/check/source id for different content or changes a conflict's participants, as SQLite's ledger already did (one shared check, `codec.record_identity_conflicts`). SQLite stores check subjects sorted, so reordered subjects are not a change. A cross-store test runs one sequence of writes against all three.
+- The JSON codec reads lineage endpoints from `from_id` / `to_id` only (undocumented `from` / `to` aliases were accepted by the codec but not by the third evaluator).
+- Mem0: memories tagged with a `view_id` but no sidecar (an interrupted ingest) are never read, including when the proposition has no completed snapshot yet.
 
 ### MCP façade
 
@@ -60,6 +74,10 @@ Not yet released. Protocol `EWP-0.2.0`, policy `reference-v2`. The development i
 - A proposition or `view_id` that was never stored returns `EWP_REFUSE_MISSING_VIEW` instead of silently evaluating an empty view.
 - `ewp_evidence_record` requires `polarity`. The ingest role is checked before the payload is examined.
 - Error shapes follow MCP: tool argument errors are `isError` results (`EWP_REFUSE_INVALID_ARGUMENTS`), resource errors are JSON-RPC errors (`-32002` for a missing proposition).
+- A server that cannot write opens its ledger read-only: `--db` is required, a missing file exits with `ledger not found` instead of creating an empty ledger, and the handle itself cannot write.
+- `ewp_memory_context` warns when an `EXTERNAL`/`HUMAN` check opposes the claim, since `verification=EXTERNAL` then means checked and contradicted.
+- A request with `"id": null` gets a `-32600` reply instead of silence. `resources/templates/list` lists the proposition resources.
+- The opposing-check warning names the class of the check that opposes (it used to name the strongest class, which can come from a different, supporting check).
 
 ### Conformance and release
 
@@ -71,10 +89,13 @@ Not yet released. Protocol `EWP-0.2.0`, policy `reference-v2`. The development i
 - `tests/test_mcp.py` drives the real server over stdio as a subprocess and, when the `mcp` package is installed, through the official MCP Python SDK client (verified against `mcp` 2.2.0, negotiating `2025-06-18`). The GitHub workflow installs `mcp` so this runs in CI.
 - Removed `protocol/pathological_fixtures.py`, which was not valid Python and was not imported.
 - `tests/test_adapter_roundtrip.py` also compares every `SCHEMA.md` field: the codec, SQLite, JSON, and Mem0 must return views unchanged; fake Graphiti may lose only the fields listed in `GRAPHITI_FIELD_LOSSES`.
-- Hardening fixture `zero_freshness_is_stale`; invalid pack of 12 views (one per input rule) in `docs/implementer/invalid/`, refused by the kernel, the codec, and the third evaluator.
+- Hardening fixture `zero_freshness_is_stale`; invalid pack of 23 views (one per input rule) in `docs/implementer/invalid/`, refused by the kernel, the codec, and the third evaluator.
 - The CI stamp carries `ci_surface_sha256` over every file CI exercises (kernel, adapters, MCP, tests, implementer pack, examples, workflow), hashed before the run; `tests/report.py` requires it to match. Report counts come from the packs.
 - CI runs `runner_pathological.py` and `test_ingest_cli.py`, and a tester-path job: `pip install .`, `ewp-ingest` on the example, and an `ewp-mcp` handshake.
+- `RELEASE.lock.json` and the CI stamp are written atomically (temp file + replace, with a short retry), so a Windows scanner briefly holding the file no longer fails `--write-lock`. Unused `SQLiteAdapter.has_proposition` removed.
 - Removed `protocol/validate.py` (unused), a dead expression in `runner_graphiti.py`, and a test assertion that could not fail.
+- Tests: four OS processes appending concurrently to one ledger; read-only ledger (missing path, tool writes, raw SQL writes); per-proposition conflict ids and order-independent snapshots; Mem0 v1/v2 snapshots, idempotent re-ingest, interrupted ingest; read-only agent server end to end; the opposing-check warning; null ids and resource templates.
+- The third evaluator treats a `null` field as its schema default and compares `SourceRef`s field by field, like the kernel (it refused 50 valid null/omitted-field spellings). A parity test runs every fixture through both evaluators in those spellings.
 
 ### Documentation
 
@@ -83,7 +104,8 @@ Not yet released. Protocol `EWP-0.2.0`, policy `reference-v2`. The development i
 - README, CONFORMANCE, CONTRIBUTING, SECURITY, VERSION, `docs/MCP_CONTRACT.md`, `docs/PLATFORMS.md`, `docs/DESIGN_NOTE.md`, and the implementer pack describe `reference-v2`, the ingest role, stdio framing, and the lock.
 - Security: origin metadata is assumed established at the ingestion/adapter boundary. EWP does not authenticate evidence entering the ledger.
 - `QUICKSTART.md` and `examples/quickstart.json`: install, load evidence, connect Claude Code or Claude Desktop, bring your own data.
-- README marks 0.2.0 as a release candidate until tagged. `POLICY.md`, `SCHEMA.md`, `PROTOCOL.md`, `MCP_CONTRACT.md`, `CONFORMANCE.md`, and `LIVE_ADAPTERS.md` describe bounded views, typed fields, snapshots, field-level round trips, discovery, and the experimental live Graphiti mapping.
+- `POLICY.md`, `SCHEMA.md`, `PROTOCOL.md`, `MCP_CONTRACT.md`, `CONFORMANCE.md`, and `LIVE_ADAPTERS.md` describe bounded views, typed fields, snapshots, field-level round trips, discovery, and the experimental live Graphiti mapping.
+- README, QUICKSTART, and the PDF describe 0.2.0 as unreleased without any other version label. `tests/report.py` wording says "exact CI surface". The example data notes that its `ACCEPTED` row turns `STALE` after 2027-09-20.
 
 ### Known limits
 

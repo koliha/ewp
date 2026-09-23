@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
+import time
 from pathlib import Path
 
 from .versions import FIXTURES, GRAPHITI_PIN, POLICY, PROTOCOL
@@ -103,7 +105,7 @@ CI_SURFACE_GLOBS = (
 def ci_surface_hash() -> str:
     """Everything tests/ci.py exercises: kernel, adapters, MCP, tests,
     implementer pack, workflow. Not part of the protocol lock; it ties a CI
-    stamp to the exact tree it ran on."""
+    stamp to the exact CI surface it ran on."""
     files: set[Path] = set()
     for pattern in CI_SURFACE_GLOBS:
         files.update(p for p in ROOT.glob(pattern) if p.is_file() and "__pycache__" not in p.parts)
@@ -136,7 +138,22 @@ def metadata() -> dict:
     }
 
 
+def write_text_atomic(path: Path, text: str, attempts: int = 10) -> None:
+    """Write via a temp file and os.replace, retrying briefly: on Windows a
+    scanner or indexer can hold a just-written file for a moment."""
+    tmp = path.with_name(path.name + ".tmp")
+    tmp.write_text(text, encoding="utf-8", newline="\n")
+    for attempt in range(attempts):
+        try:
+            os.replace(tmp, path)
+            return
+        except OSError:
+            if attempt == attempts - 1:
+                raise
+            time.sleep(0.2)
+
+
 def write_lock() -> Path:
     path = ROOT / "RELEASE.lock.json"
-    path.write_text(json.dumps(metadata(), indent=2) + "\n", encoding="utf-8", newline="\n")
+    write_text_atomic(path, json.dumps(metadata(), indent=2) + "\n")
     return path

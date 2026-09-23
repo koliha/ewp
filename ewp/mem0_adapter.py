@@ -20,6 +20,13 @@ Mem0 stores extracted memories, not EWP records. Mapping rules:
   outside EWP) maps to an assertion plus supporting evidence.
 * Checks / conflicts are parked as sibling memories with
   `metadata.ewp.kind` in {ewp_check, ewp_conflict, ewp_parked}.
+* Snapshots: `ingest_view` tags every memory with the view's `view_id` and
+  writes the parked sidecar last, carrying a content digest and a sequence
+  number. `raw_view(pid, view_id)` rebuilds exactly that snapshot;
+  `raw_view(pid)` the latest. Re-ingesting an identical snapshot is a no-op;
+  different content under an existing `view_id` is refused. Memories with no
+  sidecar (written outside EWP, or an interrupted ingest) are only read when
+  the proposition has no EWP snapshots at all.
 """
 
 from __future__ import annotations
@@ -35,7 +42,9 @@ from .live_util import (
     iso,
     unwrap_collection,
 )
-from .codec import subjects_from
+from .classify import InvalidEvidenceView, validate_view
+from .codec import content_view_id, record_identity_conflicts, subjects_from
+from .sqlite_adapter import ImmutableRecordError, MissingViewError
 from .types import (
     Assertion,
     Conflict,
@@ -133,7 +142,11 @@ def items_to_view(
             checks.extend(_checks_from_blob(blob))
             conflicts.extend(_conflicts_from_blob(blob))
             lineage.extend(_lineage_from_blob(blob))
-            parked_omitted.extend(str(x) for x in blob.get("omitted_sources") or [])
+            parked = blob.get("omitted_sources")
+            if isinstance(parked, list):
+                parked_omitted.extend(parked)
+            elif parked is not None:
+                raise InvalidEvidenceView(f"parked omitted_sources={parked!r} must be a list of strings")
             degraded = degraded or blob.get("degraded") is True
             if blob.get("retrieval_scope") is not None and scope == "complete":
                 scope = blob["retrieval_scope"]
@@ -326,17 +339,46 @@ class Mem0Adapter:
                 out.append(item)
         return out
 
+    def _sidecars(self, items: list[Any]) -> list[Any]:
+        """EWP snapshot sidecars for a proposition, oldest first."""
+        cars = [it for it in items if _kind(it) == "ewp_parked" and ewp_blob(it).get("view_id")]
+        return sorted(cars, key=lambda it: int(ewp_blob(it).get("seq") or 0))
+
+    def _snapshot(self, proposition_id: str, view_id: str | None) -> tuple[list[Any], str | None, Any]:
+        """(member memories, snapshot view_id, sidecar).
+
+        With no completed EWP snapshot, fall back to memories written outside
+        EWP (no view_id tag). Memories tagged with a view_id belong to an EWP
+        snapshot; without its sidecar that snapshot is incomplete and unread.
+        """
+        items = self._for_proposition(self._all_items(), proposition_id)
+        cars = self._sidecars(items)
+        if not cars:
+            if view_id is not None:
+                raise MissingViewError(f"no stored view for {proposition_id!r} with view_id {view_id!r}")
+            return [it for it in items if not ewp_blob(it).get("view_id")], None, None
+        if view_id is None:
+            car = cars[-1]
+        else:
+            matching = [c for c in cars if ewp_blob(c).get("view_id") == view_id]
+            if not matching:
+                raise MissingViewError(f"no stored view for {proposition_id!r} with view_id {view_id!r}")
+            car = matching[-1]
+        chosen = ewp_blob(car)["view_id"]
+        members = [it for it in items if _kind(it) in MEMORY_KINDS and ewp_blob(it).get("view_id") == chosen]
+        return members, chosen, car
+
     def raw_view(
         self,
         proposition_id: str,
         view_id: str | None = None,
     ) -> EvidenceView:
-        """All memories for the proposition. view_id defaults to the one parked at ingest."""
-        items = self._for_proposition(self._all_items(), proposition_id)
+        """Exactly the stored snapshot; the latest one when view_id is None."""
+        members, chosen, car = self._snapshot(proposition_id, view_id)
         return items_to_view(
-            items,
+            members + ([car] if car is not None else []),
             proposition_id=proposition_id,
-            view_id=view_id,
+            view_id=chosen,
             retrieval_scope="complete",
         )
 
@@ -344,25 +386,22 @@ class Mem0Adapter:
         self,
         proposition_id: str,
         query: str,
-        view_id: str = "mem0-search",
+        view_id: str | None = None,
         limit: int = 20,
     ) -> EvidenceView:
-        raw = self._for_proposition(self._all_items(), proposition_id)
-        hits = self._for_proposition(self._search_items(query, limit), proposition_id)
-        hit_ids = {_item_id(h) for h in hits}
-        raw_ids = {_item_id(r) for r in raw if _kind(r) in MEMORY_KINDS}
-        omitted = sorted(raw_ids - hit_ids)
-        # Keep parked sidecar records so checks/conflicts survive search.
-        parked = [
-            it
-            for it in raw
-            if _kind(it).startswith("ewp_")
-        ]
+        """Search within one snapshot (the latest by default). Dropped members
+        are listed in omitted_sources and mark the view DEGRADED."""
+        members, chosen, car = self._snapshot(proposition_id, view_id)
+        member_ids = {_item_id(m) for m in members if _kind(m) in MEMORY_KINDS}
+        hits = [h for h in self._for_proposition(self._search_items(query, limit), proposition_id) if _item_id(h) in member_ids]
+        omitted = sorted(member_ids - {_item_id(h) for h in hits})
+        parked = [car] if car is not None else [m for m in members if _kind(m).startswith("ewp_")]
+        raw_ids = member_ids
         combined = list(hits) + parked
         view = items_to_view(
             combined,
             proposition_id=proposition_id,
-            view_id=view_id,
+            view_id=f"{chosen or 'mem0'}#search",
             retrieval_scope="mem0.search",
             raw_count=len(raw_ids),
             omitted=omitted,
@@ -377,11 +416,31 @@ class Mem0Adapter:
         One memory per record, so polarity and timestamps survive. Uses
         infer=False by default so Mem0 does not rewrite the text.
         """
-        report = {"memories": 0, "checks_parked": 0, "conflicts_parked": 0, "infer": self.infer}
+        validate_view(view)
+        report = {"memories": 0, "checks_parked": 0, "conflicts_parked": 0, "infer": self.infer, "stored": True}
+        digest = content_view_id(view)
+        cars = self._sidecars(self._for_proposition(self._all_items(), view.proposition_id))
+        for car in cars:
+            blob = ewp_blob(car)
+            if blob.get("view_id") == view.view_id:
+                if blob.get("digest") != digest:
+                    raise ImmutableRecordError(
+                        f"view {view.view_id!r} of {view.proposition_id!r} is an immutable snapshot with different content"
+                    )
+                report["stored"] = False  # identical snapshot already present
+                return report
+        stored = [self.raw_view(view.proposition_id, ewp_blob(c)["view_id"]) for c in cars]
+        clashes = record_identity_conflicts(stored, view)
+        if clashes:
+            raise ImmutableRecordError(
+                f"{view.proposition_id!r}: ids already name different records in earlier snapshots: {', '.join(clashes)}"
+            )
+        seq = 1 + max((int(ewp_blob(c).get("seq") or 0) for c in cars), default=0)
 
         def source_meta(src: SourceRef) -> dict[str, Any]:
             return {
                 "proposition_id": view.proposition_id,
+                "view_id": view.view_id,
                 "lineage_id": src.lineage_id,
                 "origin_type": src.origin_type,
                 "origin_locator": src.origin_locator,
@@ -446,8 +505,11 @@ class Mem0Adapter:
                 "freshness_policy_seconds": view.freshness_policy_seconds,
                 "subjects": list(view.subjects),
                 "view_id": view.view_id,
+                "digest": digest,
+                "seq": seq,
             }
         }
+        # Written last: a snapshot exists only once all its memories do.
         self._add(f"ewp-parked:{view.proposition_id}", park)
         report["checks_parked"] = len(view.checks)
         report["conflicts_parked"] = len(view.conflicts)

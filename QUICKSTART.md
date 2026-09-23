@@ -1,6 +1,6 @@
 # EWP quickstart for testers
 
-EWP-0.2.0 release candidate. This gets you from a clone to Claude checking its remembered claims against evidence, using your own data.
+EWP-0.2.0 (unreleased). This gets you from a clone to Claude checking its remembered claims against evidence, using your own data.
 
 The setup has two roles on purpose:
 
@@ -66,6 +66,8 @@ If the client cannot find `ewp-mcp`, give the full path (`which ewp-mcp` on macO
 
 Then ask something your memory covers, for example: *"Which PostgreSQL version is production on? Check EWP before answering."* Claude should find the proposition with `ewp_list_propositions`, call `ewp_memory_context`, and tell you the claim is disputed instead of repeating the remembered version.
 
+For that claim you will see `verification=EXTERNAL` next to `conflict=OPEN`. `verification` says how strong the best check was, not which way it went: here a tool *checked and contradicted* the memory. `ewp_memory_context` adds a warning that the check opposes the claim.
+
 A line you can add to your project instructions:
 
 > Before relying on anything remembered from earlier sessions, look it up with `ewp_list_propositions` and `ewp_memory_context`. If `conflict=OPEN`, say so. If `acceptance` is not `ACCEPTED`, treat the claim as unverified.
@@ -101,7 +103,10 @@ Updating a claim: ingest a new view for the same `proposition_id` containing eve
 | `EWP_REFUSE_MISSING_VIEW` | No such proposition in this ledger. Check `--db` and use `ewp_list_propositions`. |
 | `is an immutable snapshot with different content` | You changed a view but kept its `view_id`. Use a new one. |
 | `must be a list of strings`, `is not 'P-…'` | Input validation. `subjects` must be a list; every record in a view must be about that view's `proposition_id`. |
-| `schema version … expected 3` | The ledger was created by an older development build. Start a new `--db` file. |
+| `ledger not found` from `ewp-mcp` | The read-only server opens an existing ledger. Check the absolute `--db` path, or create it with `ewp-ingest`. |
+| `--db is required` | The agent-facing server needs a ledger file. |
+| `ledger schema version … expected 4` | The ledger was created by an older development build. Start a new `--db` file. |
+| `duplicate … id`, `carries different SourceRefs` | Each id may appear once per view, and one `source_id` must always describe the same source. |
 | `EWP_REFUSE_INGEST_ROLE` from Claude | Expected: the agent-facing server is read-only. Load data with `ewp-ingest`. |
 
 What the five axes mean, and why EWP refuses to collapse them into one "true/false": `README.md`. The MCP tools and error codes: `docs/MCP_CONTRACT.md`.

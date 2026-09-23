@@ -1,9 +1,12 @@
 {
+  "note": "Example evidence for QUICKSTART.md. The checks are dated 2026-09-20 with a one-year freshness window: after 2027-09-20 P-deploys-from-main reads STALE instead of ACCEPTED. Only 'views' is read by ewp-ingest.",
   "views": [
     {
       "proposition_id": "P-prod-db-version",
       "view_id": "quickstart-db-1",
-      "subjects": ["db-prod-1"],
+      "subjects": [
+        "db-prod-1"
+      ],
       "freshness_policy_seconds": 31536000,
       "assertions": [
         {
@@ -45,7 +48,9 @@
           "check_id": "k-psql-version",
           "method": "tool_observation",
           "scope": "SELECT version() on db-prod-1",
-          "subjects": ["db-prod-1"],
+          "subjects": [
+            "db-prod-1"
+          ],
           "result": "opposes",
           "observed_at": "2026-09-20T09:00:00Z",
           "source": {
@@ -63,7 +68,9 @@
     {
       "proposition_id": "P-deploys-from-main",
       "view_id": "quickstart-deploy-1",
-      "subjects": ["repo-webapp"],
+      "subjects": [
+        "repo-webapp"
+      ],
       "freshness_policy_seconds": 31536000,
       "assertions": [
         {
@@ -88,7 +95,9 @@
           "check_id": "k-ci-yaml",
           "method": "tool_observation",
           "scope": "on.push.branches in deploy.yml",
-          "subjects": ["repo-webapp"],
+          "subjects": [
+            "repo-webapp"
+          ],
           "result": "supports",
           "observed_at": "2026-09-20T09:05:00Z",
           "source": {
