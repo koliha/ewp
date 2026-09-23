@@ -28,6 +28,7 @@
       "observed_at": "2026-09-21T18:31:00+00:00",
       "result": "supports",
       "scope": "server02",
+      "subjects": ["server02"],
       "source": {
         "content_hash": "sha256:winrm",
         "extractor_id": null,
@@ -69,5 +70,6 @@
   "omitted_sources": [],
   "proposition_id": "P-win",
   "retrieval_scope": "complete",
+  "subjects": ["server01"],
   "view_id": "l-scope"
 }
