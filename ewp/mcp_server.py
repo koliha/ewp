@@ -1,4 +1,4 @@
-"""EWP MCP façade — shipped in 0.2.0.
+"""EWP MCP façade (`ewp-mcp`).
 
 Stdio is MCP's stdio transport: newline-delimited JSON-RPC 2.0, one message
 per line, no embedded newlines, no header framing. HTTP POST /mcp is plain

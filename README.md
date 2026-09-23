@@ -13,9 +13,9 @@ Memory is evidence, not truth.
 
 Stores adapt to the protocol. The protocol does not inherit the store’s epistemology.
 
-v0.2.0 binds verification to declared `subjects[]` as exact ids, scopes supersession to the proposition, treats future, missing, and unparsable times as unavailable at T, refuses values outside the closed enums, refuses views that mix propositions, stores immutable `(proposition, view_id)` snapshots over an append-only ledger, requires adapters to round-trip every field (Graphiti's unavoidable losses are listed), and ships an MCP façade where every write needs a server-side ingest role. Those judgments changed, so the policy is `reference-v2`. `WarrantView` carries `protocol_version`.
+v0.2.0 binds verification to declared `subjects[]` as exact ids, scopes supersession to the proposition, treats future, missing, and unparsable times as unavailable at T, refuses invalid input (values outside the closed enums, views that mix propositions, duplicate or ambiguous ids, mistyped fields), stores immutable `(proposition, view_id)` snapshots over an append-only ledger, requires adapters to round-trip every field (Graphiti's unavoidable losses are listed), and ships an MCP façade where every write needs a server-side ingest role. Those judgments changed, so the policy is `reference-v2`. `WarrantView` carries `protocol_version`.
 
-See `NAME.md`, `docs/PROTOCOL.md`, `docs/DESIGN_NOTE.md`, `docs/implementer/`, `docs/PLATFORMS.md`, `docs/implementer/LIVE_ADAPTERS.md`, `docs/MCP_CONTRACT.md`, `CONFORMANCE.md`. MCP server: `python3 -m ewp.mcp_server`. The pre-freeze claim/confidence sketch is `historical/docs/MCP_CONTRACT.md` (superseded).
+See `NAME.md`, `docs/PROTOCOL.md`, `docs/DESIGN_NOTE.md`, `docs/implementer/`, `docs/PLATFORMS.md`, `docs/implementer/LIVE_ADAPTERS.md`, `docs/MCP_CONTRACT.md`, `CONFORMANCE.md`. MCP server: `ewp-mcp --db <ledger>` (`python3 -m ewp.mcp_server`), over a ledger loaded with `ewp-ingest`. The pre-freeze claim/confidence sketch is `historical/docs/MCP_CONTRACT.md` (superseded).
 
 Boundary. Policy. Observations. Permission. Four things. None gets to wear the others' clothes.
 
@@ -59,7 +59,7 @@ result = warrant_now(view, Policy(), EVAL)
 print(result.warrant)
 ```
 
-There is no packaged install yet. The repository itself is currently the reference implementation and conformance suite.
+`pip install .` from a checkout installs the `ewp` package and the `ewp-ingest` and `ewp-mcp` commands (`QUICKSTART.md`). It is not on PyPI. The repository is the reference implementation and the conformance suite.
 
 ---
 
@@ -106,7 +106,7 @@ Those local projections are inputs. They are not automatically agent beliefs.
 warrant_now(evidence_view, policy, evaluated_at) -> WarrantView
 ```
 
-`warrant_now()` is deterministic. It performs no I/O and no LLM inference. Policy identity is `reference-v2` (rules: `docs/implementer/POLICY.md`). It refuses a policy identity it does not implement, and refuses a view with a value outside the closed enums.
+`warrant_now()` is deterministic. It performs no I/O and no LLM inference. Policy identity is `reference-v2` (rules: `docs/implementer/POLICY.md`). It refuses a policy identity it does not implement, and refuses an invalid view (a value outside a closed enum, a record about another proposition, a duplicate or ambiguous id, a mistyped or missing field; `POLICY.md` lists every rule).
 
 ```
 same protocol version + same EvidenceView + same policy + same evaluated_at
@@ -231,7 +231,7 @@ The v0.2.0 *reference kernel*:
 - deterministic `warrant_now()` — no network, no LLM, no hidden writes
 - shared `ewp/classify.py` used by both reference evaluators
 - separate `may_act()`
-- 14 canonical + 12 pathological + 26 hardening fixtures (laundering, subject binding, time at T, supersession scope, zero freshness), plus 24 invalid views that must be refused
+- 14 canonical + 12 pathological + 26 hardening fixtures (laundering, subject binding, time at T, supersession scope, zero freshness, variant record propositions), plus 24 invalid views that must be refused
 - 26 pinned golden `WarrantView`s; all 52 fixtures' expected axes pinned in `docs/implementer/`
 - an independent third evaluator (`docs/implementer/third_eval.py`) written from the policy text alone
 - SQLite and JSON reference adapters (immutable snapshots; SQLite over an append-only ledger)
@@ -272,11 +272,11 @@ Dreaming may rewrite `MEMORY.md`. EWP treats that rewrite as a new assertion, no
 
 ### Claude, Codex, other MCP clients
 
-Same contract over stdio: `python3 -m ewp.mcp_server --db ./ewp.sqlite`. Point several clients at the same `--db` to share one ledger. Prompt rules: fluency is not recollection; `conflict=OPEN` is said out loud; `DEGRADED` means the view is incomplete; store-native write tools stay disconnected.
+Same contract over stdio: `ewp-mcp --db ./ewp.sqlite`, over a ledger created with `ewp-ingest`. Without `--allow-ingest` the server opens the ledger read-only. Point several clients at the same `--db` to share one ledger. Prompt rules: fluency is not recollection; `conflict=OPEN` is said out loud; `DEGRADED` means the view is incomplete; store-native write tools stay disconnected.
 
 ### Graphiti / Mem0 / Particles / SQLite
 
-Graphiti can be used as a temporal/entity evidence substrate or mirror. Inject `lineage_id` in episode metadata. `invalid_at` is store-local. `valid_at` is not a verification check. Search collapse marks the view `DEGRADED`. Mem0 is an extract-and-retrieve store: default origin is `extract`; retrieval score is not warrant. Particles is a good immutable substrate — agents write only through EWP. SQLite and JSON prove store neutrality.
+Graphiti can be used as a temporal/entity evidence substrate or mirror. Inject `lineage_id` in episode metadata. `invalid_at` is store-local. `valid_at` is not a verification check. Search collapse marks the view `DEGRADED`. Mem0 is an extract-and-retrieve store: default origin is `extract`; retrieval score is not warrant. Particles is a good immutable substrate; writes go only through EWP's ingest role, never from the agent. SQLite and JSON prove store neutrality.
 
 Full notes: `docs/PLATFORMS.md`. Live client mappings: `docs/implementer/LIVE_ADAPTERS.md`.
 
@@ -363,7 +363,7 @@ docs/              PROTOCOL.md, design note, platforms, implementer pack, PDFs
 historical/        pre-freeze warrantmem ledger/MCP/Postgres sketches
                    including historical/docs/MCP_CONTRACT.md (superseded)
 RELEASE.lock.json  fixture + evaluator + policy + golden + implementer-pack hashes
-pyproject.toml     package metadata (no published install yet; ewp-mcp entry point)
+pyproject.toml     package metadata; ewp-ingest and ewp-mcp commands (pip install .)
 ```
 
 ---
@@ -382,7 +382,7 @@ That answer can be reproduced, tested, inspected, and challenged.
 
 ## Status
 
-EWP-0.2.0 under policy `reference-v2` is not yet released and is still changing in review. The 26 golden axes are unchanged from 0.1.0; their identity fields now read `reference-v2` and `EWP-0.2.0`. The hardening pack (26) and the invalid pack (24) are locked. Known limits: conflict rows and lineage edges carry no timestamp, so they are not filtered by availability at T; assertions carry no polarity. See `CHANGELOG.md`.
+EWP-0.2.0, policy `reference-v2`. The 26 golden axes are unchanged from 0.1.0; their identity fields now read `reference-v2` and `EWP-0.2.0`. The hardening pack (26) and the invalid pack (24) are locked. Known limits: conflict rows and lineage edges carry no timestamp, so they are not filtered by availability at T; assertions carry no polarity. See `CHANGELOG.md`.
 
 New stores may reveal adapter bugs, retrieval loss, missing tests, or a genuine hole. They do not redefine warrant.
 

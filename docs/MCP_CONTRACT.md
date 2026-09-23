@@ -1,6 +1,6 @@
 # MCP contract — EWP-0.2.0
 
-This is the shipped façade. `python3 -m ewp.mcp_server` speaks the MCP **stdio transport**: newline-delimited JSON-RPC 2.0, one message per line, no header framing. It negotiates MCP protocol revisions `2025-06-18`, `2025-03-26`, and `2024-11-05`.
+`ewp-mcp` (`python3 -m ewp.mcp_server`) speaks the MCP **stdio transport**: newline-delimited JSON-RPC 2.0, one message per line, no header framing. It negotiates MCP protocol revisions `2025-06-18`, `2025-03-26`, and `2024-11-05`.
 
 `--http 127.0.0.1:8765` serves **plain JSON-RPC** at `POST /mcp` for OpenClaw-style clients. It is not MCP Streamable HTTP (no SSE, no session header). Use stdio for standard MCP clients.
 
@@ -100,8 +100,8 @@ The two proposition URIs are listed by `resources/templates/list`.
 |---|---|
 | `EWP_REFUSE_INGEST_ROLE` | A write without the server-side ingest role |
 | `EWP_REFUSE_UNATTESTED_TRUSTED_ORIGIN` | Trusted origin without `ingest_attestation=true` |
-| `EWP_REFUSE_IMMUTABLE_RECORD` | A stored record id re-sent with different content |
-| `EWP_REFUSE_INVALID_EVIDENCE_VIEW` | A value outside a closed enum, a record about another proposition, a conflict that does not name the proposition, or a mistyped field (`subjects` not a list, bad freshness, non-boolean `degraded`) |
+| `EWP_REFUSE_IMMUTABLE_RECORD` | A stored record id re-sent with different content, a conflict's participants changed, or a stored `view_id` re-sent with a different snapshot |
+| `EWP_REFUSE_INVALID_EVIDENCE_VIEW` | Any input rule in `docs/implementer/POLICY.md`: a value outside a closed enum, a record about another proposition, a conflict that does not name the proposition, a duplicate id or two `SourceRef`s for one `source_id`, a mistyped field (`subjects` not a list, bad freshness, non-boolean `degraded`, non-finite confidence), or a missing required field |
 | `EWP_REFUSE_LEDGER_UNAVAILABLE` | The ledger could not be read or written (busy beyond the timeout, locked, corrupt) |
 | `EWP_REFUSE_INVALID_ARGUMENTS` | A required tool argument is missing or has the wrong type (e.g. `evidence.polarity`) |
 | `EWP_REFUSE_PERSIST_WARRANT` | Caller tried to store a WarrantView |
@@ -115,6 +115,8 @@ The two proposition URIs are listed by `resources/templates/list`.
 | `EWP_REFUSE_MISSING_VIEW` | No stored snapshot for that proposition (or that `view_id`) |
 | `EWP_REFUSE_MAY_ACT_WITHOUT_ACTION` | `may_act` without an action |
 | `EWP_MISSING_EVALUATED_AT` | `ewp_warrant_now` without `evaluated_at` |
+| `EWP_UNKNOWN_TOOL` | `tools/call` names a tool this server does not have |
+| `EWP_UNKNOWN_RESOURCE` | `resources/read` of a URI this server does not serve (JSON-RPC `-32002`) |
 
 Error shapes follow MCP: a failing `tools/call` returns a result with `isError: true` and the code in its text content. A request whose `id` is `null` gets a JSON-RPC `-32600` reply (MCP forbids null ids; a message with no `id` is a notification and is never answered). A failing `resources/read` returns a JSON-RPC error (`-32002` for a missing proposition, `-32602` otherwise) with `data.ewp_code`.
 

@@ -12,7 +12,7 @@ There are 52 fixtures: 14 canonical, 12 pathological, and 26 in the hardening pa
 
 You are not given `ewp/warrant.py`, `ewp/warrant_b.py`, helper names, or the repository test assertions.
 
-`third_eval.py` in this directory is a clean evaluator: policy.json + fixture JSON only, no `protocol.*` imports. Gate: `python3 docs/implementer/third_eval.py`.
+`third_eval.py` in this directory is a clean evaluator: policy.json + fixture JSON only, no `ewp.*` imports. Gate: `python3 docs/implementer/third_eval.py`.
 
 `LIVE_ADAPTERS.md` in this directory documents live Graphiti and Mem0 mappings. It is not part of the third-implementation pack and is not needed to emit the five axes.
 

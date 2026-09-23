@@ -1,8 +1,8 @@
 # Changelog
 
-## [Unreleased] — EWP-0.2.0
+## EWP-0.2.0
 
-Not yet released. Protocol `EWP-0.2.0`, policy `reference-v2`. The development iterations previously listed as 0.2.0, 0.2.0-docs, 0.2.1, and 0.2.2 are folded into this entry; none of them was a release. The 26 golden axes are unchanged from 0.1.0 (only their identity fields changed); the hardening pack grew to 26 fixtures, a 24-view invalid pack was added, and all of it is locked.
+Protocol `EWP-0.2.0`, policy `reference-v2`. The development iterations previously listed as 0.2.0, 0.2.0-docs, 0.2.1, and 0.2.2 are folded into this entry; none of them was a release. The 26 golden axes are unchanged from 0.1.0 (only their identity fields changed); the hardening pack grew to 26 fixtures, a 24-view invalid pack was added, and all of it is locked.
 
 ### Identity
 
@@ -43,7 +43,7 @@ Not yet released. Protocol `EWP-0.2.0`, policy `reference-v2`. The development i
 - Graphiti ingest emits an edge for evidence whose text is not already an assertion, so opposing evidence-only lineages survive `raw_view`. Edges may carry `polarity=opposes`. Parked sidecars need a matching `proposition_id` and are found by kind/content/name, not by Graphiti's assigned UUID.
 - Mem0 memories without `metadata.ewp.proposition_id` do not enter a proposition view.
 - The JSON codec keeps falsy values: `freshness_policy_seconds: 0` used to become 30 days and an empty `retrieval_scope` used to read as `complete`. A missing `view_id` is derived from the content.
-- SQLite views are immutable `(proposition_id, view_id)` snapshots with explicit membership over the append-only ledger. `get_view(pid, id)` returns exactly that snapshot; `get_view(pid)` the latest; `extend_view` appends atomically. Previously a second view for a proposition replaced the first's metadata and merged its evidence under the old `view_id`. Unknown propositions raise `MissingViewError`. Schema version 3; older development databases are refused. `SQLiteAdapter` closes as a context manager.
+- SQLite views are immutable `(proposition_id, view_id)` snapshots with explicit membership over the append-only ledger. `get_view(pid, id)` returns exactly that snapshot; `get_view(pid)` the latest; `extend_view` appends atomically. Previously a second view for a proposition replaced the first's metadata and merged its evidence under the old `view_id`. Unknown propositions raise `MissingViewError`. Older development databases are refused. `SQLiteAdapter` closes as a context manager.
 - JSON store: files are named by hashes of the ids (a proposition id could previously escape the store root, and `a/b` collided with `a_b`), writes and reads are validated (a `status: "Open"` conflict used to be stored as resolved), and views are immutable snapshots like SQLite.
 - Mem0 keeps every `SourceRef` field (`source_id`, `observed_at`, `extractor_id`), `assertion_confidence: 0`, and the `view_id`.
 - Graphiti edges carry `roles`, so an evidence-only record no longer comes back as an assertion (which could lift `UNACCEPTED` to `TENTATIVE`) and an assertion-only record no longer gains supporting evidence. Ingest stores `snapshot_id`/`extractor_id`; parked `subjects` and `view_id` are decoded safely.
@@ -84,11 +84,11 @@ Not yet released. Protocol `EWP-0.2.0`, policy `reference-v2`. The development i
 
 ### Conformance and release
 
-- Hardening pack (`ewp/laundering.py`) adds subject-binding cases (`customer-42`/`invoice-999`, `server01`/`customer-42`, omitted check subjects, a shared subject that verifies), an unparsable check time, and an unrelated `superseded_by` edge: 24 fixtures.
-- `tests/test_adapter_roundtrip.py` runs all 50 fixtures through SQLite, JSON, fake Graphiti, and Mem0 and requires identical normative axes. It found the Mem0 polarity and timestamp losses above.
+- Hardening pack (`ewp/laundering.py`) adds subject-binding cases (`customer-42`/`invoice-999`, `server01`/`customer-42`, omitted check subjects, a shared subject that verifies), an unparsable check time, and an unrelated `superseded_by` edge (26 fixtures with the two below).
+- `tests/test_adapter_roundtrip.py` runs all 52 fixtures through SQLite, JSON, fake Graphiti, and Mem0 and requires identical normative axes. It found the Mem0 polarity and timestamp losses above.
 - `RELEASE.lock.json` hashes fixtures (now including the hardening pack), evaluator (now including `versions.py`), the policy text (`POLICY.md`, `policy.json`), goldens, and the implementer pack. Hashes are over LF-normalized content; `.gitattributes` keeps checkouts LF.
 - `tests/report.py` prints `CONFORMANT` only for a CI stamp whose hashes match the current tree; a stale stamp reports `CLAIM_ONLY`.
-- `docs/implementer/third_eval.py` implements `reference-v2` from `POLICY.md` / `policy.json` only and matches all 50 expected files. `tests/test_goldens.py` checks the reference evaluator against the same 50.
+- `docs/implementer/third_eval.py` implements `reference-v2` from `POLICY.md` / `policy.json` only and matches all 52 expected files. `tests/test_goldens.py` checks the reference evaluator against the same 52.
 - `tests/test_mcp.py` drives the real server over stdio as a subprocess and, when the `mcp` package is installed, through the official MCP Python SDK client (verified against `mcp` 2.2.0, negotiating `2025-06-18`). The GitHub workflow installs `mcp` so this runs in CI.
 - Removed `protocol/pathological_fixtures.py`, which was not valid Python and was not imported.
 - `tests/test_adapter_roundtrip.py` also compares every `SCHEMA.md` field: the codec, SQLite, JSON, and Mem0 must return views unchanged; fake Graphiti may lose only the fields listed in `GRAPHITI_FIELD_LOSSES`.
@@ -98,7 +98,7 @@ Not yet released. Protocol `EWP-0.2.0`, policy `reference-v2`. The development i
 - `RELEASE.lock.json` and the CI stamp are written atomically (temp file + replace, with a short retry), so a Windows scanner briefly holding the file no longer fails `--write-lock`. Unused `SQLiteAdapter.has_proposition` removed.
 - Removed `protocol/validate.py` (unused), a dead expression in `runner_graphiti.py`, and a test assertion that could not fail.
 - Tests: four OS processes appending concurrently to one ledger; read-only ledger (missing path, tool writes, raw SQL writes); per-proposition conflict ids and order-independent snapshots; Mem0 v1/v2 snapshots, idempotent re-ingest, interrupted ingest; read-only agent server end to end; the opposing-check warning; null ids and resource templates.
-- The third evaluator treats a `null` field as its schema default and compares `SourceRef`s field by field, like the kernel (it refused 50 valid null/omitted-field spellings). A parity test runs every fixture through both evaluators in those spellings.
+- The third evaluator treats a `null` field as its schema default and compares `SourceRef`s field by field, like the kernel (it refused valid views that spelled an optional field as `null` or omitted it). A parity test runs every fixture through both evaluators in those spellings.
 
 ### Documentation
 
@@ -108,7 +108,7 @@ Not yet released. Protocol `EWP-0.2.0`, policy `reference-v2`. The development i
 - Security: origin metadata is assumed established at the ingestion/adapter boundary. EWP does not authenticate evidence entering the ledger.
 - `QUICKSTART.md` and `examples/quickstart.json`: install, load evidence, connect Claude Code or Claude Desktop, bring your own data.
 - `POLICY.md`, `SCHEMA.md`, `PROTOCOL.md`, `MCP_CONTRACT.md`, `CONFORMANCE.md`, and `LIVE_ADAPTERS.md` describe bounded views, typed fields, snapshots, field-level round trips, discovery, and the experimental live Graphiti mapping.
-- README, QUICKSTART, and the PDF describe 0.2.0 as unreleased without any other version label. `tests/report.py` wording says "exact CI surface". The example data notes that its `ACCEPTED` row turns `STALE` after 2027-09-20.
+- README, QUICKSTART, and the PDF name the version as EWP-0.2.0 only. `tests/report.py` wording says "exact CI surface". The example data notes that its `ACCEPTED` row turns `STALE` after 2027-09-20.
 
 ### Known limits
 

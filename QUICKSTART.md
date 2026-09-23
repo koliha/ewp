@@ -1,6 +1,6 @@
 # EWP quickstart for testers
 
-EWP-0.2.0 (unreleased). This gets you from a clone to Claude checking its remembered claims against evidence, using your own data.
+EWP-0.2.0. This gets you from a clone to Claude checking its remembered claims against evidence, using your own data.
 
 The setup has two roles on purpose:
 
@@ -105,6 +105,7 @@ Updating a claim: ingest a new view for the same `proposition_id` containing eve
 | `must be a list of strings`, `is not 'P-…'` | Input validation. `subjects` must be a list; every record in a view must be about that view's `proposition_id`. |
 | `ledger not found` from `ewp-mcp` | The read-only server opens an existing ledger. Check the absolute `--db` path, or create it with `ewp-ingest`. |
 | `--db is required` | The agent-facing server needs a ledger file. |
+| `EWP_REFUSE_LEDGER_UNAVAILABLE`, `database is locked` | Another process held the ledger past the timeout, or the file is damaged. Retry; if it persists, check the file. |
 | `ledger schema version … expected 4` | The ledger was created by an older development build. Start a new `--db` file. |
 | `duplicate … id`, `carries different SourceRefs` | Each id may appear once per view, and one `source_id` must always describe the same source. |
 | `EWP_REFUSE_INGEST_ROLE` from Claude | Expected: the agent-facing server is read-only. Load data with `ewp-ingest`. |

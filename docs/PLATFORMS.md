@@ -52,7 +52,7 @@ Do not let Dreaming rebase `X is disputed` into `X`. Compression monotonicity is
 
 ## Claude, Codex, and other MCP clients
 
-Same MCP surface over the standard stdio transport. Each client launches its own `python3 -m ewp.mcp_server --db <path>`; point them at the same `--db` file to share one ledger. The agent-facing process runs without `--allow-ingest`, so the agent can evaluate but not write. Load evidence with `ewp-ingest` (see `QUICKSTART.md`) or a separate `--allow-ingest` process.
+Same MCP surface over the standard stdio transport. Each client launches its own `ewp-mcp --db <path>` (`python3 -m ewp.mcp_server`); point them at the same `--db` file to share one ledger. The ledger must already exist. The agent-facing process runs without `--allow-ingest`, so the agent can evaluate but not write. Load evidence with `ewp-ingest` (see `QUICKSTART.md`) or a separate `--allow-ingest` process.
 
 Rules that belong in the client system prompt, not in the store:
 

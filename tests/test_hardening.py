@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Pre-release 0.2.0 holes: time, policy identity, enums, may_act, adapters, sqlite."""
+"""Regression tests for 0.2.0 fixes: time, policy identity, enums, may_act, adapters, sqlite."""
 
 from __future__ import annotations
 

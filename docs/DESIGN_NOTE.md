@@ -28,7 +28,7 @@ An implementation of EWP must:
 6. Mark incomplete retrieval `sufficiency=DEGRADED`.
 7. Treat later timestamps as evidence of order, not as supersession.
 8. Leave action authorization to a later gate.
-9. Refuse input outside the closed enums instead of evaluating it. An unknown value must fail closed.
+9. Refuse invalid input instead of evaluating it: values outside the closed enums, records about another proposition, duplicate or ambiguous ids, mistyped or missing fields. An unknown value must fail closed.
 
 Same protocol version + same view + same policy identity + same `evaluated_at` → same five axes.
 

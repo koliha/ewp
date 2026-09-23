@@ -124,7 +124,7 @@ def build():
     story.append(p(s, "CoverKicker", "EPISTEMIC WARRANT PROTOCOL"))
     story.append(p(s, "CoverTitle", "What an agent is justified<br/>in accepting — and why"))
     story.append(p(s, "CoverSub", f"{LOCK['protocol']}  ·  Policy {LOCK['policy']}"))
-    story.append(p(s, "CoverSub", "MIT  ·  Python 3.12+  ·  Canonical 14  ·  Pathological 12  ·  Hardening 26  ·  Goldens 26"))
+    story.append(p(s, "CoverSub", "MIT  ·  Python 3.12+  ·  Canonical 14  ·  Pathological 12  ·  Hardening 26  ·  Invalid 24  ·  Goldens 26"))
     story.append(Spacer(1, 0.12 * inch))
     story.append(p(s, "Lead", "EWP defines the deterministic boundary between what an AI agent's memory contains and what the agent is epistemically justified in accepting."))
     story.append(p(s, "RuleLine", "Memory is evidence, not truth."))
@@ -140,10 +140,10 @@ def build():
     ))
     story.append(p(s, "H2", "Quick start"))
     story.append(Preformatted(
-        "python3 tests/ci.py\npython3 tests/report.py\n\nfrom ewp.types import Policy\nfrom ewp.warrant import warrant_now\nfrom ewp.fixtures import fixture_verified_current, EVAL\nprint(warrant_now(fixture_verified_current(), Policy(), EVAL).warrant)",
+        "pip install .\newp-ingest --db ./ewp.sqlite examples/quickstart.json --attest-trusted-origins\newp-mcp --db ./ewp.sqlite\n\npython3 tests/ci.py\npython3 tests/report.py\n\nfrom ewp.types import Policy\nfrom ewp.warrant import warrant_now\nfrom ewp.fixtures import fixture_verified_current, EVAL\nprint(warrant_now(fixture_verified_current(), Policy(), EVAL).warrant)",
         s["CodeBlock"],
     ))
-    story.append(p(s, "Body", "There is no packaged install yet. The repository itself is currently the reference implementation and conformance suite."))
+    story.append(p(s, "Body", "pip install . from a checkout installs the ewp package and the ewp-ingest and ewp-mcp commands; it is not on PyPI. QUICKSTART.md connects Claude to your own evidence. The repository is the reference implementation and the conformance suite."))
 
     story.append(p(s, "H1", "2. Why this exists"))
     story.append(p(s, "Body", "Agents keep conversations, observations, documents, tool results, inferred facts, summaries, and prior decisions. Remembering something is not the same as knowing it is true. Most systems store and retrieve those records. EWP asks: given the evidence available at time T, under policy P, what may this agent accept — and why?"))
@@ -161,7 +161,7 @@ def build():
     story.append(p(s, "H2", "Evidence interchange"))
     story.append(p(s, "Body", "Stores expose assertions, evidence, provenance, lineage, conflicts, and verification records as an EvidenceView. Local current-fact, invalidation, ranking, and confidence machinery are inputs. They are not automatically agent beliefs."))
     story.append(p(s, "H2", "Warrant evaluation"))
-    story.append(p(s, "Body", "warrant_now(evidence_view, policy, evaluated_at) is deterministic. No I/O. No LLM. Same protocol version + same EvidenceView + same policy + same evaluated_at yields the same normative WarrantView. Values outside the closed enums are refused, not evaluated. Warrant is a function, not a stored truth field."))
+    story.append(p(s, "Body", "warrant_now(evidence_view, policy, evaluated_at) is deterministic. No I/O. No LLM. Same protocol version + same EvidenceView + same policy + same evaluated_at yields the same normative WarrantView. Invalid views are refused, not evaluated: values outside the closed enums, records about another proposition, duplicate or ambiguous ids, mistyped or missing fields. Warrant is a function, not a stored truth field."))
     story.append(p(s, "H2", "Decision gating"))
     story.append(p(s, "Body", "An agent may be justified in accepting that a customer requested cancellation and still need confirmation before cancelling a $2M contract. Risk, reversibility, authorization, privacy, money, and safety belong in action policy."))
 
@@ -174,7 +174,7 @@ def build():
         ["currency", "CURRENT / STALE / SUPERSEDED"],
         ["sufficiency", "SUFFICIENT / INSUFFICIENT / DEGRADED"],
     ], [1.7 * inch, 5.1 * inch]))
-    story.append(p(s, "Body", "Verification is a record (method, source, scope, time, result, freshness policy), not a badge. result=opposes opens conflict and blocks ACCEPTED. result=inconclusive cannot raise EXTERNAL or HUMAN. Endogenous origin caps human and external methods at INDIRECT. Identity is declared subjects[], compared as exact ids: a check raises EXTERNAL or HUMAN only if neither side declares subjects or they share one. There is no family inference, and the scope string is never scraped. Currency is computed at evaluation time from checks that confer the chosen class. A later summary cannot refresh an old tool observation. History is not rewritten."))
+    story.append(p(s, "Body", "Verification is a record (method, source, scope, time, result, freshness policy), not a badge. result=opposes opens conflict and blocks ACCEPTED. result=inconclusive cannot raise EXTERNAL or HUMAN. Endogenous origin caps human and external methods at INDIRECT. Identity is declared subjects[], compared as exact, case-insensitive ids: a check raises EXTERNAL or HUMAN only if neither side declares subjects or they share one. There is no family inference, and the scope string is never scraped. Currency is computed at evaluation time from checks that confer the chosen class. A later summary cannot refresh an old tool observation. History is not rewritten."))
 
     story.append(PageBreak())
     story.append(p(s, "H1", "5. Lineage and the three confidences"))
@@ -213,10 +213,11 @@ def build():
     ], [2.15 * inch, 4.65 * inch]))
     story.append(p(s, "Body", "Dreaming may rewrite MEMORY.md. EWP treats that rewrite as a new assertion, not as verification. Compression must not turn \"X is disputed\" into \"X.\""))
     story.append(p(s, "H2", "Claude, Codex, other MCP clients"))
-    story.append(p(s, "Body", "Same contract. python3 -m ewp.mcp_server speaks the MCP stdio transport (newline-delimited JSON-RPC). --http 127.0.0.1:8765 serves plain JSON-RPC POST /mcp for OpenClaw; it is not MCP Streamable HTTP. Every write requires the server-side ingest role (--allow-ingest on stdio, the token from EWP_INGEST_TOKEN on HTTP); without it the server is evaluate-only. Trusted origins also need ingest_attestation=true. Inline views are hypothetical: ewp_warrant_now demotes their trusted origins and ewp_may_act refuses them. ewp_may_act evaluates stored evidence at server time. The pre-freeze claim/confidence sketch stays in historical/docs/MCP_CONTRACT.md and is not the shipped façade."))
+    story.append(p(s, "Body", "Same contract. ewp-mcp (python3 -m ewp.mcp_server) speaks the MCP stdio transport (newline-delimited JSON-RPC). --http 127.0.0.1:8765 serves plain JSON-RPC POST /mcp for OpenClaw; it is not MCP Streamable HTTP. Every write requires the server-side ingest role (--allow-ingest on stdio, the token from EWP_INGEST_TOKEN on HTTP); without it the server is evaluate-only and opens an existing ledger read-only (create it with ewp-ingest). Trusted origins also need ingest_attestation=true. Inline views are hypothetical: ewp_warrant_now demotes their trusted origins and ewp_may_act refuses them. ewp_may_act evaluates stored evidence at server time. The pre-freeze claim/confidence sketch stays in historical/docs/MCP_CONTRACT.md and is not the shipped façade."))
     story.append(Preformatted(
-        "python3 -m ewp.mcp_server --db ./ewp.sqlite\n"
-        "EWP_INGEST_TOKEN=... python3 -m ewp.mcp_server --http 127.0.0.1:8765 --db ./ewp.sqlite\n"
+        "ewp-ingest --db ./ewp.sqlite evidence.json\n"
+        "ewp-mcp --db ./ewp.sqlite\n"
+        "EWP_INGEST_TOKEN=... ewp-mcp --http 127.0.0.1:8765 --db ./ewp.sqlite\n"
         "openclaw mcp add ewp --url http://127.0.0.1:8765/mcp",
         s["CodeBlock"],
     ))
@@ -262,7 +263,7 @@ def build():
 
     story.append(p(s, "H1", "11. What EWP is not"))
     story.append(p(s, "Body", "Not a vector database, knowledge graph, memory engine, truth oracle, LLM fact-checker, or authorization framework. It does not ask what is ultimately true. It asks a narrower, computable question: given this bounded evidence view, at this time, under this versioned policy, what may the agent accept — and why?"))
-    story.append(p(s, "Body", "v0.2.0 tightened generic scope binding, refused future-dated checks at T, persisted SQLite view completeness, and narrowed the serialized WarrantView. Later 0.2.x hardening shipped the MCP façade with framed stdio and an ingest role, time-filtered assertions and evidence, and required subjects[] for scope caps. The 26 goldens stay. New stores may reveal adapter bugs; they do not redefine warrant."))
+    story.append(p(s, "Body", "EWP-0.2.0 binds verification to declared subjects[] as exact ids, scopes supersession to the proposition, treats future, missing, and unparsable times as unavailable at T, refuses invalid views, stores immutable snapshots, requires adapters to round-trip every field, and ships an MCP façade where every write needs the ingest role. The 26 golden axes are unchanged from 0.1.0. New stores may reveal adapter bugs; they do not redefine warrant."))
     story.append(p(s, "RuleLine", "Stores keep evidence. Warrant is computed. Action is a later gate."))
 
     doc = SimpleDocTemplate(

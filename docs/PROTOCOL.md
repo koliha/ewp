@@ -110,7 +110,7 @@ Method name is not enough. Only origins `tool`, `document`, `human`, `api`, `ven
 
 ### Bounded views
 
-An `EvidenceView` is bounded to one proposition. Every assertion and evidence item MUST be about the view's `proposition_id` (or a `proposition_id:<suffix>` variant), and every conflict row MUST name it. A view that mixes propositions is invalid and MUST be refused, not filtered. Record ids MUST be unique within a view and every use of a `source_id` MUST carry the same `SourceRef`; all ids, including `conflict_id`, are local to their proposition. Field types are part of the contract: `subjects` are lists of strings, `freshness_policy_seconds` is a non-negative integer (0 is valid), `degraded` is a boolean. `docs/implementer/invalid/` has one refused view per rule.
+An `EvidenceView` is bounded to one proposition. Every assertion and evidence item MUST be about the view's `proposition_id` (or a `proposition_id:<suffix>` variant), and every conflict row MUST name it. A view that mixes propositions is invalid and MUST be refused, not filtered. Record ids MUST be unique within a view and every use of a `source_id` MUST carry the same `SourceRef`; all ids, including `conflict_id`, are local to their proposition. Field types are part of the contract: `subjects` are lists of strings, `freshness_policy_seconds` is a non-negative integer (0 is valid), `degraded` is a boolean, `assertion_confidence` is a finite number, required fields are present and not null, and `evaluated_at` parses as an instant. `docs/implementer/invalid/` has one refused view per rule.
 
 ### WarrantView
 
@@ -181,7 +181,7 @@ Conflict rows and lineage edges carry no timestamp in 0.2.0, so they are not fil
 
 ## Subjects
 
-`VerificationCheck.scope` is opaque text and is never scraped for identifiers. Identity is declared `subjects[]`, on the view and on each check, compared as exact ids:
+`VerificationCheck.scope` is opaque text and is never scraped for identifiers. Identity is declared `subjects[]`, on the view and on each check, compared as exact, case-insensitive ids:
 
 - neither declares subjects → the check applies
 - both declare subjects and share at least one → the check applies
