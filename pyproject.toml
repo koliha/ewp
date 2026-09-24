@@ -3,7 +3,8 @@ name = "ewp"
 version = "0.2.0"
 description = "Epistemic Warrant Protocol — deterministic boundary between agent memory and justified acceptance"
 readme = "README.md"
-license = { file = "LICENSE" }
+license = "MIT"
+license-files = ["LICENSE"]
 requires-python = ">=3.12"
 authors = [{ name = "Rob Koliha" }]
 keywords = ["epistemic", "warrant", "agent-memory", "ai-agents"]
@@ -19,5 +20,5 @@ ewp-ingest = "ewp.ingest_cli:main"
 include = ["ewp*"]
 
 [build-system]
-requires = ["setuptools>=68"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"

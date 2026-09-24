@@ -179,7 +179,7 @@ def test_mem0_snapshots() -> None:
     import dataclasses
 
     from ewp.fixtures import fixture_verified_current
-    from ewp.sqlite_adapter import ImmutableRecordError, MissingViewError
+    from ewp.sqlite_adapter import ImmutableRecordError, LedgerError, MissingViewError
 
     mem = Mem0Adapter(FakeMem0(), user_id="u1", infer=False)
     base = fixture_verified_current()
@@ -216,10 +216,56 @@ def test_mem0_snapshots() -> None:
                                         "evidence_id": "e-half", "polarity": "supports"}})
     lone = fresh.raw_view("P-new")
     assert lone.evidence == [] and lone.assertions == [], lone
+    # Retrying an interrupted ingest: the orphans of the failed attempt, with
+    # the same record ids, do not leak into the committed snapshot.
+    v3 = dataclasses.replace(base, view_id="v3", evidence=base.evidence + [dataclasses.replace(base.evidence[0], evidence_id="e3")])
+    for e in v3.evidence:
+        mem._add(e.content, {"ewp": {"kind": "evidence", "proposition_id": "P-win", "view_id": "v3", "ingest_id": "crashed",
+                                     "evidence_id": e.evidence_id, "polarity": e.polarity, "observed_at": e.observed_at}})
+    mem.ingest_view(v3)
+    assert canonical(mem.raw_view("P-win", "v3")) == canonical(v3), "retry after an interrupted ingest must return exactly v3"
+    assert canonical(mem.raw_view("P-win")) == canonical(v3)
+    # Two ingests racing on one new view_id: identical content is one
+    # snapshot; different content is refused on read, never half-merged.
+    race = Mem0Adapter(FakeMem0(), user_id="u3", infer=False)
+    race.ingest_view(v1)
+    sidecar_count = lambda m: sum(1 for r in m.client.rows if r["metadata"]["ewp"].get("kind") == "ewp_parked")
+    other = Mem0Adapter(race.client, user_id="u3", infer=False)
+    other._sidecars = lambda items: []  # the other writer checked before the first sidecar landed
+    other.ingest_view(v1)
+    assert sidecar_count(race) == 2 and canonical(race.raw_view("P-win", "v1")) == canonical(v1)
+    other.ingest_view(dataclasses.replace(v1, degraded=True))
+    try:
+        race.raw_view("P-win", "v1")
+    except LedgerError:
+        pass
+    else:
+        raise AssertionError("two different snapshots committed under one view_id were read")
+    # ...and the proposition is not wedged: a new view_id still ingests and reads.
+    v4 = dataclasses.replace(v1, view_id="v4", degraded=True)
+    race.ingest_view(v4)
+    assert canonical(race.raw_view("P-win")) == canonical(v4)
+    # A read that loses a committed memory (lagging index, partial page) is
+    # refused, not returned as the complete snapshot.
+    lossy = Mem0Adapter(mem.client, user_id="u1", infer=False)
+    real_get_all = mem.client.get_all
+
+    def drop_one(*, filters=None, top_k=20, **kw):
+        payload = real_get_all(filters=filters, top_k=top_k, **kw)
+        payload["results"] = [r for r in payload["results"] if r["metadata"]["ewp"].get("evidence_id") != "e3"]
+        return payload
+
+    lossy.client = type("Lossy", (), {"get_all": staticmethod(drop_one), "search": mem.client.search})()
+    try:
+        lossy.raw_view("P-win", "v3")
+    except LedgerError:
+        pass
+    else:
+        raise AssertionError("a partial Mem0 read was returned as the complete snapshot")
     # Search stays inside the chosen snapshot.
     found = mem.search_view("P-win", "Windows", view_id="v1")
     assert all(a.assertion_id == "a1" for a in found.assertions), found.assertions
-    print("PASS Mem0 snapshots: exact v1/v2, latest, idempotent re-ingest, immutable ids, interrupted ingest ignored")
+    print("PASS Mem0 snapshots: exact v1/v2, latest, idempotent re-ingest, immutable ids, interrupted ingest ignored and retried, racing commits")
 
 
 def test_stores_agree_on_snapshot_history() -> None:

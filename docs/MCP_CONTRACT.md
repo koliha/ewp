@@ -48,10 +48,14 @@ openclaw mcp add ewp --url http://127.0.0.1:8765/mcp
 | `ewp_evidence_view_get` | Load a stored snapshot (latest unless `view_id` is given) | Unknown proposition or `view_id`. |
 | `ewp_check_record` | New snapshot = latest + one `VerificationCheck`; returns the new `view_id` (`new_view_id` optional) | No ingest role. Unknown proposition. Trusted origin without attestation. |
 | `ewp_evidence_record` | New snapshot = latest + one `EvidenceItem` (optional assertion text); `polarity` is required | No ingest role. Unknown proposition. Missing `polarity`. Trusted origin without attestation. |
-| `ewp_may_act` | Action gate over the **stored** view at **server time** | Inline views. A caller-built `WarrantView`. An action without `risk` (`low`/`medium`/`high`) and boolean `reversible`. `evaluated_at` more than 300 s from server time. `risk_policy` from a caller without the ingest role. |
+| `ewp_may_act` | Action gate over the **latest stored** view at **server time**; returns the `view_id` it gated on | Inline views. A caller-built `WarrantView`. A `view_id` that is not the latest snapshot. An action without `risk` (`low`/`medium`/`high`) and boolean `reversible`. `evaluated_at` more than 300 s from server time. `risk_policy` from a caller without the ingest role. |
 | `ewp_memory_context` | Axes, evidence ids, warnings; `evaluated_at` defaults to server time. When an `EXTERNAL`/`HUMAN` check *opposes* the claim, a warning says so: `verification=EXTERNAL` then means "checked and contradicted", not "confirmed". | A persona biography. `persona` is always `null`. |
 
 `ewp_warrant_now` returns `WarrantView.normative()` (`protocol_version`, identity including the stored `view_id`, time, five axes) plus diagnostics (`rationale_codes`, evidence ids, lineage count). `strength` and `rationale_codes` are not part of the equality contract.
+
+## Arguments
+
+Tool `arguments` must be an object. Ids (`proposition_id`, `view_id`, `new_view_id`, record ids) are non-empty strings (numbers are converted); `null` is missing, never the string `"None"`. `check`, `evidence`, `action`, `source`, `risk_policy`, and an inline `view` must be objects. `assertion_confidence` is a JSON number (`"0.99"` or `true` is refused). In incremental writes a missing `source_id` defaults to the record id, `lineage_id` and `snapshot_id` to the `source_id`, `origin_type` to `extract`, and `scope` to the proposition; a value that is present is kept as given, even when empty.
 
 ## Snapshots
 
@@ -63,7 +67,7 @@ Every write creates or names an immutable snapshot. Reading `(proposition_id, vi
 
 **Every write requires the ingest role**, checked before the payload is examined: `--allow-ingest` on stdio, or `Authorization: Bearer <token>` (or `X-EWP-Ingest-Token`) matching the configured token on HTTP. That covers conflicts, lineage edges, and view metadata (`degraded`, `omitted_sources`, `freshness_policy_seconds`, `subjects`), not only records with a trusted origin. Without the role the server is evaluate-only and every write returns `EWP_REFUSE_INGEST_ROLE`.
 
-Writes with a trusted `origin_type` (`tool|document|human|api|vendor|sensor`) additionally need `ingest_attestation=true` on the call. The flag is an explicit declaration by the ingest pipeline. It is not authentication.
+Writes with a trusted `origin_type` (`tool|document|human|api|vendor|sensor`) additionally need `ingest_attestation` set to JSON `true` on the call (`"true"`, `1`, or any other value does not count). The flag is an explicit declaration by the ingest pipeline. It is not authentication.
 
 The ledger is append-only. Re-sending an identical record is a no-op. Sending an existing assertion, evidence, check, or source id with different content (in any snapshot of the proposition), or changing a snapshot under an existing `view_id`, returns `EWP_REFUSE_IMMUTABLE_RECORD`. A conflict's participants are fixed across snapshots; its `status` and `note` belong to each snapshot, so resolving a conflict is a new snapshot.
 
@@ -76,7 +80,7 @@ An inline `view` is hypothetical: the caller built it, so its provenance is what
 
 ## Time
 
-`ewp_warrant_now` takes any `evaluated_at`: replaying a past T is an audit operation. `ewp_may_act` is a live gate and evaluates at the server clock. A supplied `evaluated_at` must be within 300 s of it.
+`ewp_warrant_now` takes any `evaluated_at`: replaying a past T is an audit operation. `ewp_may_act` is a live gate: it always decides at the server clock, on the latest snapshot. A supplied `evaluated_at` is only a sanity check (refused when more than 300 s from the server clock); it never becomes the decision time, so a caller cannot choose a moment before a recent opposing check or after a future-dated supporting one. A supplied `view_id` must be the latest snapshot: it lets a caller act on exactly what it read, never on an older snapshot that lacks newer evidence.
 
 ## Resources
 
@@ -84,7 +88,7 @@ An inline `view` is hypothetical: the caller built it, so its provenance is what
 - `ewp://proposition/{id}` — latest stored EvidenceView
 - `ewp://proposition/{id}/warrant?evaluated_at=` — normative warrant
 
-The two proposition URIs are listed by `resources/templates/list`.
+The two proposition URIs are listed by `resources/templates/list`. They decode as URIs: the proposition id is a percent-encoded path segment (encode `/`, spaces, and `+` in an id), and the query is a URI query, so a raw `+` in a time offset (`+00:00`) is kept as `+`. Encoding it as `%2B` works too.
 
 ## Packet rules (also the system prompt)
 
@@ -103,12 +107,13 @@ The two proposition URIs are listed by `resources/templates/list`.
 | `EWP_REFUSE_IMMUTABLE_RECORD` | A stored record id re-sent with different content, a conflict's participants changed, or a stored `view_id` re-sent with a different snapshot |
 | `EWP_REFUSE_INVALID_EVIDENCE_VIEW` | Any input rule in `docs/implementer/POLICY.md`: a value outside a closed enum, a record about another proposition, a conflict that does not name the proposition, a duplicate id or two `SourceRef`s for one `source_id`, a mistyped field (`subjects` not a list, bad freshness, non-boolean `degraded`, non-finite confidence), or a missing required field |
 | `EWP_REFUSE_LEDGER_UNAVAILABLE` | The ledger could not be read or written (busy beyond the timeout, locked, corrupt) |
-| `EWP_REFUSE_INVALID_ARGUMENTS` | A required tool argument is missing or has the wrong type (e.g. `evidence.polarity`) |
+| `EWP_REFUSE_INVALID_ARGUMENTS` | A required tool argument is missing or has the wrong type (e.g. `evidence.polarity`, a `view` that is not an object) |
 | `EWP_REFUSE_PERSIST_WARRANT` | Caller tried to store a WarrantView |
 | `EWP_REFUSE_CLIENT_SUPPLIED_WARRANT` | `ewp_may_act` was handed a WarrantView |
 | `EWP_REFUSE_INLINE_VIEW_FOR_ACTION` | `ewp_may_act` was handed an inline EvidenceView |
 | `EWP_REFUSE_INVALID_ACTION` | Action `risk` not `low`/`medium`/`high`, or `reversible` not a boolean |
 | `EWP_REFUSE_EVALUATED_AT_SKEW` | `ewp_may_act` `evaluated_at` too far from server time |
+| `EWP_REFUSE_STALE_VIEW_FOR_ACTION` | `ewp_may_act` was given a `view_id` that is not the latest snapshot |
 | `EWP_REFUSE_CLIENT_RISK_POLICY` | `risk_policy` from a caller without the ingest role, or a non-boolean flag |
 | `EWP_REFUSE_MISSING_CONTENT_HASH` | Incremental record omitted `content_hash` |
 | `EWP_REFUSE_MISSING_OBSERVED_AT` | Incremental record omitted `observed_at` |
@@ -118,9 +123,9 @@ The two proposition URIs are listed by `resources/templates/list`.
 | `EWP_UNKNOWN_TOOL` | `tools/call` names a tool this server does not have |
 | `EWP_UNKNOWN_RESOURCE` | `resources/read` of a URI this server does not serve (JSON-RPC `-32002`) |
 
-Error shapes follow MCP: a failing `tools/call` returns a result with `isError: true` and the code in its text content. A request whose `id` is `null` gets a JSON-RPC `-32600` reply (MCP forbids null ids; a message with no `id` is a notification and is never answered). A failing `resources/read` returns a JSON-RPC error (`-32002` for a missing proposition, `-32602` otherwise) with `data.ewp_code`.
+Error shapes follow MCP: a failing `tools/call` returns a result with `isError: true` and the code in its text content. A request whose `id` is `null`, or not a string or integer, gets a JSON-RPC `-32600` reply with a null id (MCP requires string or integer ids; a message with no `id` is a notification and is never answered). `params` that is not an object, or a `name`, `uri`, or `protocolVersion` that is not a string, gets `-32602`. A failing `resources/read` returns a JSON-RPC error (`-32002` for a missing proposition, `-32602` otherwise) with `data.ewp_code`.
 
-HTTP transport errors: `400` bad `Content-Length` or JSON, `404` unknown path, `413` body over 1 MiB (refused from headers, connection closed), `202` for a notification.
+HTTP transport errors: `400` bad `Content-Length` or JSON, `404` unknown path, `405` for standard methods other than GET and POST, `413` body over 1 MiB (refused from headers, connection closed), `202` for a notification.
 
 ## What this server does not do
 

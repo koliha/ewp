@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 
 from reportlab.lib.colors import HexColor, white
@@ -25,6 +26,16 @@ from reportlab.platypus import (
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "docs" / "EWP_v0.2.0.pdf"
 LOCK = json.loads((ROOT / "RELEASE.lock.json").read_text(encoding="utf-8"))
+
+# Counts come from the packs themselves, like tests/report.py, so the guide
+# cannot drift from the locked fixtures.
+sys.path.insert(0, str(ROOT))
+from ewp.laundering import INVALID_PACK, PACK as HARDENING  # noqa: E402
+from ewp.pathological import PACK as PATHOLOGICAL  # noqa: E402
+from tests.runner import FIXTURES as CANONICAL  # noqa: E402
+
+N_CANON, N_PATHO, N_HARD, N_INVALID = len(CANONICAL), len(PATHOLOGICAL), len(HARDENING), len(INVALID_PACK)
+N_ALL = N_CANON + N_PATHO + N_HARD
 LOCK_KEYS = (
     "fixture_set_sha256",
     "evaluator_set_sha256",
@@ -124,7 +135,7 @@ def build():
     story.append(p(s, "CoverKicker", "EPISTEMIC WARRANT PROTOCOL"))
     story.append(p(s, "CoverTitle", "What an agent is justified<br/>in accepting — and why"))
     story.append(p(s, "CoverSub", f"{LOCK['protocol']}  ·  Policy {LOCK['policy']}"))
-    story.append(p(s, "CoverSub", "MIT  ·  Python 3.12+  ·  Canonical 14  ·  Pathological 12  ·  Hardening 26  ·  Invalid 24  ·  Goldens 26"))
+    story.append(p(s, "CoverSub", f"MIT  ·  Python 3.12+  ·  Canonical {N_CANON}  ·  Pathological {N_PATHO}  ·  Hardening {N_HARD}  ·  Invalid {N_INVALID}  ·  Goldens {N_CANON + N_PATHO}"))
     story.append(Spacer(1, 0.12 * inch))
     story.append(p(s, "Lead", "EWP defines the deterministic boundary between what an AI agent's memory contains and what the agent is epistemically justified in accepting."))
     story.append(p(s, "RuleLine", "Memory is evidence, not truth."))
@@ -213,7 +224,7 @@ def build():
     ], [2.15 * inch, 4.65 * inch]))
     story.append(p(s, "Body", "Dreaming may rewrite MEMORY.md. EWP treats that rewrite as a new assertion, not as verification. Compression must not turn \"X is disputed\" into \"X.\""))
     story.append(p(s, "H2", "Claude, Codex, other MCP clients"))
-    story.append(p(s, "Body", "Same contract. ewp-mcp (python3 -m ewp.mcp_server) speaks the MCP stdio transport (newline-delimited JSON-RPC). --http 127.0.0.1:8765 serves plain JSON-RPC POST /mcp for OpenClaw; it is not MCP Streamable HTTP. Every write requires the server-side ingest role (--allow-ingest on stdio, the token from EWP_INGEST_TOKEN on HTTP); without it the server is evaluate-only and opens an existing ledger read-only (create it with ewp-ingest). Trusted origins also need ingest_attestation=true. Inline views are hypothetical: ewp_warrant_now demotes their trusted origins and ewp_may_act refuses them. ewp_may_act evaluates stored evidence at server time. The pre-freeze claim/confidence sketch stays in historical/docs/MCP_CONTRACT.md and is not the shipped façade."))
+    story.append(p(s, "Body", "Same contract. ewp-mcp (python3 -m ewp.mcp_server) speaks the MCP stdio transport (newline-delimited JSON-RPC). --http 127.0.0.1:8765 serves plain JSON-RPC POST /mcp for OpenClaw; it is not MCP Streamable HTTP. Every write requires the server-side ingest role (--allow-ingest on stdio, the token from EWP_INGEST_TOKEN on HTTP); without it the server is evaluate-only and opens an existing ledger read-only (create it with ewp-ingest). Trusted origins also need ingest_attestation=true. Inline views are hypothetical: ewp_warrant_now demotes their trusted origins and ewp_may_act refuses them. ewp_may_act evaluates the latest stored snapshot at server time. The pre-freeze claim/confidence sketch stays in historical/docs/MCP_CONTRACT.md and is not the shipped façade."))
     story.append(Preformatted(
         "ewp-ingest --db ./ewp.sqlite evidence.json\n"
         "ewp-mcp --db ./ewp.sqlite\n"
@@ -222,7 +233,7 @@ def build():
         s["CodeBlock"],
     ))
     story.append(p(s, "H2", "Graphiti, Mem0, Particles, SQLite"))
-    story.append(p(s, "Body", "Graphiti can be used as a temporal/entity evidence substrate or mirror. Inject lineage_id in episode metadata. invalid_at is store-local. valid_at is not a verification check. Search collapse marks the view DEGRADED. Every fixture must round-trip through the fake Graphiti and Mem0 paths with identical axes. Live Graphiti and Mem0 mappings live in ewp/graphiti_client_adapter.py and ewp/mem0_adapter.py; notes in docs/implementer/LIVE_ADAPTERS.md. Live graphiti-core 0.30.2 is not validated. Mem0 default origin is extract; retrieval score is not warrant. Particles is a good immutable substrate; writes go only through EWP's ingest role. SQLite and JSON prove store neutrality."))
+    story.append(p(s, "Body", "Graphiti can be used as a temporal/entity evidence substrate or mirror. Inject lineage_id in episode metadata. invalid_at is store-local. valid_at is neither a verification check nor an observation time. Records belong to a proposition by the proposition_id their episodes declare, not by Graphiti group, and only the adapter's own group is read. Search collapse marks the view DEGRADED. Every fixture must round-trip through the fake Graphiti and Mem0 paths with identical axes. Live Graphiti and Mem0 mappings live in ewp/graphiti_client_adapter.py and ewp/mem0_adapter.py; notes in docs/implementer/LIVE_ADAPTERS.md. Live graphiti-core 0.30.2 is not validated. The Mem0 adapter targets the mem0ai 2.x clients and is tested against a real OSS mem0.Memory; every snapshot read is checked against the digest written at ingest. Mem0 default origin is extract; retrieval score is not warrant. Particles is a good immutable substrate; writes go only through EWP's ingest role. SQLite and JSON prove store neutrality."))
     story.append(p(s, "RuleLine", "Graphiti adapts to the protocol. The protocol does not adapt to Graphiti."))
 
     story.append(PageBreak())
@@ -239,7 +250,7 @@ def build():
         "python3 tests/ci.py\npython3 tests/report.py\npython3 tests/runner.py\npython3 tests/runner_pathological.py",
         s["CodeBlock"],
     ))
-    story.append(p(s, "Body", "CI enforces the fixture, evaluator, policy, golden, and implementer-pack lock hashes; all 26 goldens; all 52 fixtures through the codec, SQLite, JSON, Mem0, and fake Graphiti with identical axes and fields (Graphiti's listed losses aside); 24 invalid views refused; the hardening pack; the MCP façade; and an independent third evaluator. Changing a golden, the pack, the policy text, or the evaluator requires a protocol or policy version change, then python3 tests/ci.py --write-lock."))
+    story.append(p(s, "Body", f"CI enforces the fixture, evaluator, policy, golden, and implementer-pack lock hashes; all {N_CANON + N_PATHO} goldens; all {N_ALL} fixtures through the codec, SQLite, JSON, Mem0, and fake Graphiti with identical axes and fields (Graphiti's listed losses aside); {N_INVALID} invalid views refused; the hardening pack; the Mem0 adapter against a real mem0ai 2.2.0 client; the MCP façade, including the official MCP SDK client; differential fuzz tests for evaluator parity, store neutrality, MCP arguments, and the JSON-RPC and HTTP transport; and an independent third evaluator. Changing a golden, the pack, the policy text, or the evaluator requires a protocol or policy version change, then python3 tests/ci.py --write-lock."))
     story.append(table(s, ["Class", "Meaning"], [
         ["INGEST_LOSS", "Store dropped assertions, sources, lineage, checks, or conflicts."],
         ["ADAPTER_MAP_LOSS", "Store has the rows; EvidenceView is incomplete."],
@@ -253,7 +264,7 @@ def build():
     story.append(Preformatted(
         f"Epistemic Warrant Protocol {LOCK['protocol']}\n"
         f"Policy: {LOCK['policy']}\n"
-        "Canonical: 14/14   Pathological: 12/12   Hardening: 26/26   Invalid refused: 24/24\n"
+        f"Canonical: {N_CANON}/{N_CANON}   Pathological: {N_PATHO}/{N_PATHO}   Hardening: {N_HARD}/{N_HARD}   Invalid refused: {N_INVALID}/{N_INVALID}\n"
         "SQLite PASS    JSON PASS    Fake Graphiti PASS    Mem0 (fake client) PASS\n"
         f"graphiti-core {LOCK['graphiti_pin']} — NOT VALIDATED\n"
         + "".join(f"{key}:\n{LOCK[key]}\n" for key in LOCK_KEYS).rstrip("\n"),

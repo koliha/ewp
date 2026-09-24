@@ -205,13 +205,37 @@ def test_may_act_uses_server_clock():
     pid = fixture_verified_current().proposition_id
     near = tool(server, "ewp_may_act", {"proposition_id": pid, "action": HIGH_IRREVERSIBLE, "evaluated_at": "2026-09-21T21:02:00+00:00"})
     assert near["structuredContent"]["decision"] == "MAY_ACT"
+    assert near["structuredContent"]["evaluated_at"] == EVAL, "a supplied T is a sanity check, never the decision time"
     far = tool(server, "ewp_may_act", {"proposition_id": pid, "action": HIGH_IRREVERSIBLE, "evaluated_at": "2026-09-22T00:00:00+00:00"})
     assert error_code(far) == REFUSE_EVALUATED_AT_SKEW
     late = EwpMcp(ingest_enabled=True, clock=lambda: "2026-12-01T00:00:00+00:00")
     tool(late, "ewp_evidence_view_put", {"view": fixture_verified_current().to_dict(), "ingest_attestation": True})
     stale = tool(late, "ewp_may_act", {"proposition_id": pid, "action": HIGH_IRREVERSIBLE})["structuredContent"]
     assert stale["decision"] == "DENY", stale
-    print("PASS may_act evaluates at server time; distant evaluated_at refused")
+    # A caller-chosen T inside the skew window must not hide a check from a
+    # minute ago, or admit a supporting check dated a minute ahead.
+    opposing = seeded()
+    src = {"source_id": "s-opp", "content_hash": "h", "observed_at": "2026-09-21T20:59:00+00:00", "origin_type": "tool"}
+    tool(opposing, "ewp_check_record", {"proposition_id": pid, "ingest_attestation": True, "check": {
+        "check_id": "k-opp", "method": "tool_observation", "observed_at": "2026-09-21T20:59:00+00:00",
+        "result": "opposes", "source": src}})
+    before = tool(opposing, "ewp_may_act", {"proposition_id": pid, "action": HIGH_IRREVERSIBLE, "evaluated_at": "2026-09-21T20:58:00+00:00"})
+    assert before["structuredContent"]["decision"] == "DENY", before
+    print("PASS may_act evaluates at server time; a supplied T only sanity-checks; distant evaluated_at refused")
+
+
+def test_may_act_uses_latest_snapshot():
+    server = seeded()
+    pid = fixture_verified_current().proposition_id
+    first = tool(server, "ewp_evidence_view_get", {"proposition_id": pid})["structuredContent"]["view_id"]
+    src = {"source_id": "s-opp", "content_hash": "h", "observed_at": EVAL, "origin_type": "tool"}
+    latest = tool(server, "ewp_check_record", {"proposition_id": pid, "ingest_attestation": True, "check": {
+        "check_id": "k-opp", "method": "tool_observation", "observed_at": EVAL, "result": "opposes", "source": src}})["structuredContent"]["view_id"]
+    old = tool(server, "ewp_may_act", {"proposition_id": pid, "view_id": first, "action": HIGH_IRREVERSIBLE})
+    assert error_code(old) == "EWP_REFUSE_STALE_VIEW_FOR_ACTION", old
+    current = tool(server, "ewp_may_act", {"proposition_id": pid, "view_id": latest, "action": HIGH_IRREVERSIBLE})["structuredContent"]
+    assert current["decision"] == "DENY" and current["view_id"] == latest, current
+    print("PASS may_act gates on the latest snapshot; an older view_id is refused")
 
 
 def test_risk_policy_is_operator_only():
@@ -487,6 +511,30 @@ def test_ledger_errors_are_tool_errors():
     print("PASS a busy or broken ledger is an isError tool result, not a JSON-RPC crash")
 
 
+def test_resource_uris_decode_like_uris():
+    """Resource ids are percent-decoded path segments; the query is a URI
+    query, so a raw "+" in a time offset stays "+" (it used to become a space
+    and the time failed to parse)."""
+    import dataclasses
+    from urllib.parse import quote
+
+    server = EwpMcp(ingest_enabled=True, clock=at_eval)
+    base = fixture_verified_current()
+    for pid in ("team/db version", "warrant", "a+b"):
+        view = dataclasses.replace(base, proposition_id=pid,
+                                   assertions=[dataclasses.replace(a, proposition_id=pid) for a in base.assertions],
+                                   evidence=[dataclasses.replace(e, proposition_id=pid) for e in base.evidence])
+        tool(server, "ewp_evidence_view_put", {"view": view.to_dict(), "ingest_attestation": True})
+        enc = quote(pid, safe="")
+        for suffix in ("", "/warrant?evaluated_at=2026-09-21T21:00:00+00:00",
+                       "/warrant?evaluated_at=" + quote("2026-09-21T21:00:00+00:00", safe="")):
+            reply = call(server, "resources/read", {"uri": f"ewp://proposition/{enc}{suffix}"})
+            assert "result" in reply and pid in reply["result"]["contents"][0]["text"], (pid, suffix, reply)
+    reply = call(server, "resources/read", {"uri": "ewp://proposition/P-win/extra/junk"})
+    assert reply["error"]["data"]["ewp_code"] == "EWP_UNKNOWN_RESOURCE", reply
+    print("PASS resource URIs: encoded ids, raw and encoded time offsets, a proposition named warrant")
+
+
 def test_null_id_and_resource_templates():
     server = EwpMcp()
     reply = server.handle({"jsonrpc": "2.0", "id": None, "method": "tools/list"})
@@ -497,6 +545,96 @@ def test_null_id_and_resource_templates():
         "ewp://proposition/{proposition_id}/warrant?evaluated_at={evaluated_at}",
     }
     print("PASS id=null gets an error reply; resource templates are listed")
+
+
+def test_attestation_must_be_literal_true():
+    view = fixture_verified_current().to_dict()
+    for fake in ("false", "true", 1, [1], {"yes": True}, 0, [], {}):
+        server = EwpMcp(ingest_enabled=True)
+        result = tool(server, "ewp_evidence_view_put", {"view": view, "ingest_attestation": fake})
+        assert error_code(result) == REFUSE_UNATTESTED_ORIGIN, (fake, result)
+        src = {"source_id": "s-t", "content_hash": "h", "observed_at": EVAL, "origin_type": "tool"}
+        result = tool(seeded(), "ewp_check_record", {"proposition_id": "P-win", "ingest_attestation": fake, "check": {
+            "check_id": "k-t", "method": "tool_observation", "observed_at": EVAL, "result": "supports", "source": src}})
+        assert error_code(result) == REFUSE_UNATTESTED_ORIGIN, (fake, result)
+        w = tool(server, "ewp_warrant_now", {"view": view, "evaluated_at": EVAL, "ingest_attestation": fake})["structuredContent"]
+        assert w["inline_origins_demoted"] == ["tool"], (fake, w)
+    print("PASS ingest_attestation counts only as JSON true (\"false\", 1, [], {} do not)")
+
+
+def test_view_argument_must_be_an_object():
+    server = EwpMcp(ingest_enabled=True)
+    for bad in (False, "", 0, [], "view"):
+        result = tool(server, "ewp_evidence_view_put", {"view": bad, "proposition_id": "P-win"})
+        assert error_code(result) == "EWP_REFUSE_INVALID_ARGUMENTS", (bad, result)
+        result = tool(server, "ewp_warrant_now", {"view": bad, "proposition_id": "P-win", "evaluated_at": EVAL})
+        assert error_code(result) == "EWP_REFUSE_INVALID_ARGUMENTS", (bad, result)
+    for bad in (False, {}, ""):
+        result = tool(seeded(), "ewp_may_act", {"proposition_id": "P-win", "view": bad, "action": HIGH_IRREVERSIBLE})
+        assert error_code(result) == REFUSE_INLINE_VIEW, (bad, result)
+    print("PASS a non-object view argument is refused, not read as absent")
+
+
+def test_incremental_source_ids_are_strings():
+    server = seeded()
+    src = {"source_id": 77, "content_hash": "h", "observed_at": EVAL, "origin_type": "extract",
+           "extractor_id": 7, "parent_source_id": 8}
+    tool(server, "ewp_check_record", {"proposition_id": "P-win", "check": {
+        "check_id": "k-n", "method": "inference", "observed_at": EVAL, "result": "supports", "source": src}})
+    got = [c for c in server.store.get_view("P-win").checks if c.check_id == "k-n"][0].source
+    assert (got.source_id, got.extractor_id, got.parent_source_id) == ("77", "7", "8"), got
+    print("PASS incremental writes normalize optional source ids like full views")
+
+
+def test_argument_shapes_are_checked():
+    from ewp.codec import view_from_dict
+
+    src = {"source_id": "s-x", "content_hash": "h", "observed_at": EVAL, "origin_type": "extract"}
+    chk = {"check_id": "k-x", "method": "inference", "observed_at": EVAL, "result": "supports", "source": src}
+    evd = {"evidence_id": "e-x", "content": "c", "observed_at": EVAL, "polarity": "supports", "source": src}
+    invalid = "EWP_REFUSE_INVALID_ARGUMENTS"
+    cases = [
+        ("ewp_check_record", {"proposition_id": None, "check": chk}, invalid),
+        ("ewp_check_record", {"proposition_id": "P-win", "check": "x"}, invalid),
+        ("ewp_check_record", {"proposition_id": "P-win", "check": dict(chk, source=False)}, invalid),
+        ("ewp_check_record", {"proposition_id": "P-win", "check": dict(chk, check_id=None)}, invalid),
+        ("ewp_check_record", {"proposition_id": "P-win", "check": dict(chk, method=None)}, invalid),
+        ("ewp_check_record", {"proposition_id": "P-win", "check": chk, "new_view_id": {"a": 1}}, invalid),
+        ("ewp_evidence_record", {"proposition_id": "P-win", "evidence": 5}, invalid),
+        ("ewp_evidence_record", {"proposition_id": "P-win", "evidence": dict(evd, polarity=None)}, invalid),
+        ("ewp_evidence_view_get", {"proposition_id": None}, invalid),
+        ("ewp_warrant_now", {"proposition_id": "P-win", "view_id": "", "evaluated_at": EVAL}, invalid),
+        ("ewp_may_act", {"proposition_id": "P-win", "action": "x"}, REFUSE_INVALID_ACTION),
+        ("ewp_may_act", {"proposition_id": "P-win", "action": {"risk": "low", "reversible": True}, "risk_policy": False}, REFUSE_CLIENT_RISK_POLICY),
+    ]
+    for name, args, code in cases:
+        result = tool(seeded(), name, args)
+        assert error_code(result) == code, (name, args, result)
+    reply = call(seeded(), "tools/call", {"name": "ewp_warrant_now", "arguments": "x"})["result"]
+    assert error_code(reply) == invalid, reply
+    server = seeded()
+    ok = tool(server, "ewp_check_record", {"proposition_id": "P-win", "check": chk, "new_view_id": 5})["structuredContent"]
+    assert ok["view_id"] == "5", ok
+    # An empty lineage_id means the same thing as in a full view: it is kept, not replaced.
+    tool(server, "ewp_evidence_record", {"proposition_id": "P-win", "evidence": dict(evd, source=dict(src, source_id="s-e", lineage_id=""))})
+    stored = [e for e in server.store.get_view("P-win").evidence if e.evidence_id == "e-x"][0].source
+    via_codec = view_from_dict(dict(fixture_verified_current().to_dict(), evidence=[dict(
+        fixture_verified_current().to_dict()["evidence"][0], source=dict(fixture_verified_current().to_dict()["evidence"][0]["source"], source_id="s-e2", lineage_id=""))]))
+    assert stored.lineage_id == via_codec.evidence[0].source.lineage_id == "", (stored, via_codec.evidence[0].source)
+    for bad in (True, "0.99"):
+        result = tool(seeded(), "ewp_evidence_record", {"proposition_id": "P-win", "evidence": dict(evd, evidence_id="e-c"),
+                                                        "text": "t", "assertion_confidence": bad})
+        assert error_code(result) == invalid, (bad, result)
+    for bad in ({"text": ["t"]}, {"text": 5}):
+        result = tool(seeded(), "ewp_evidence_record", {"proposition_id": "P-win", "evidence": dict(evd, evidence_id="e-c"), **bad})
+        assert error_code(result) == invalid, (bad, result)
+    for bad in (0, False, [], {}):
+        result = tool(seeded(), "ewp_memory_context", {"proposition_id": "P-win", "evaluated_at": bad})
+        assert error_code(result) == invalid, (bad, result)
+    ok = tool(seeded(), "ewp_evidence_record", {"proposition_id": "P-win", "evidence": dict(evd, evidence_id="e-c"),
+                                                "text": "t", "assertion_confidence": 1})
+    assert not ok.get("isError"), ok
+    print("PASS tool arguments: null ids, non-objects, bad view ids, and non-number confidence are refused; incremental and full ingest agree")
 
 
 def main() -> int:
@@ -523,6 +661,12 @@ def main() -> int:
     test_opposing_warning_names_the_opposing_class()
     test_ledger_errors_are_tool_errors()
     test_null_id_and_resource_templates()
+    test_resource_uris_decode_like_uris()
+    test_attestation_must_be_literal_true()
+    test_view_argument_must_be_an_object()
+    test_incremental_source_ids_are_strings()
+    test_argument_shapes_are_checked()
+    test_may_act_uses_latest_snapshot()
     print("MCP SUITE PASS")
     return 0
 

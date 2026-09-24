@@ -438,28 +438,15 @@ class SQLiteAdapter:
         self,
         proposition_id: str,
         view_id: str | None = None,
-        *,
-        omitted_sources: list[str] | None = None,
-        retrieval_scope: str | None = None,
-        degraded: bool | None = None,
-        freshness_policy_seconds: int | None = None,
     ) -> EvidenceView:
         """Exactly the stored snapshot; the latest one when view_id is None.
 
-        Raises MissingViewError when nothing is stored. Keyword overrides
-        replace completeness metadata on the returned object only.
+        Raises MissingViewError when nothing is stored. There are no
+        overrides: a view with different completeness metadata is a
+        different snapshot and needs its own view_id.
         """
         with self._lock:
-            view = self._get_view_unlocked(proposition_id, view_id)
-        if omitted_sources is not None:
-            view.omitted_sources = omitted_sources
-        if retrieval_scope is not None:
-            view.retrieval_scope = retrieval_scope
-        if degraded is not None:
-            view.degraded = degraded
-        if freshness_policy_seconds is not None:
-            view.freshness_policy_seconds = freshness_policy_seconds
-        return view
+            return self._get_view_unlocked(proposition_id, view_id)
 
     def _get_view_unlocked(self, owner: str, view_id: str | None) -> EvidenceView:
         if view_id is None:

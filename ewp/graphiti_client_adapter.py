@@ -22,13 +22,15 @@ Rules (EWP-0.2.0, not negotiable):
 from __future__ import annotations
 
 import json
+import dataclasses
 from typing import Any, Iterable
 
-from .graphiti_adapter import GraphitiAdapter
-from .graphiti_ingest import ingest_view as ingest_into_fake
+from .graphiti_adapter import GraphitiAdapter, episodes_for, unloaded
+from .graphiti_ingest import episode_record_times, ingest_view as ingest_into_fake
 from .graphiti_records import FakeEntityEdge, FakeEpisode, FakeGraphitiStore
 from .classify import parse_ts
-from .live_util import EWP_META_KEY, as_list, attr, ewp_blob, iso, unwrap_collection
+from .live_util import EWP_META_KEY, as_list, attr, ewp_blob, iso, observed_time, unwrap_collection
+from .sqlite_adapter import LedgerError
 from .types import EvidenceView
 
 
@@ -45,7 +47,7 @@ def _is_parked_blob(blob: dict[str, Any]) -> bool:
 def episode_from_live(ep: Any) -> FakeEpisode:
     blob = ewp_blob(ep)
     uuid = str(attr(ep, "uuid", "id", default=""))
-    created = iso(attr(ep, "created_at", "valid_at", "reference_time", default=None))
+    created = observed_time(attr(ep, "created_at", "valid_at", "reference_time", default=None))
     metadata = dict(attr(ep, "metadata", default={}) or {})
     name = str(attr(ep, "name", default="") or "")
     if blob:
@@ -85,11 +87,33 @@ def edge_from_live(edge: Any) -> FakeEntityEdge:
     )
 
 
+def _newest_parked(cars: list[FakeEpisode]) -> FakeEpisode:
+    def when(ep: FakeEpisode):
+        try:
+            return parse_ts(ep.created_at)
+        except (ValueError, TypeError):
+            return None
+
+    times = [when(c) for c in cars]
+    if any(t is None for t in times):
+        raise LedgerError("a Graphiti parked sidecar has no readable created_at; its age cannot be ordered")
+    latest = max(times)
+    newest = [c for c, t in zip(cars, times) if t == latest]
+    payloads = {json.dumps({k: v for k, v in c.metadata.items() if k != "lineage_id"}, sort_keys=True, default=str) for c in newest}
+    if len(payloads) > 1:
+        raise LedgerError(
+            f"Graphiti holds {len(newest)} different parked sidecars created at the same instant for one "
+            "proposition; which is current cannot be known. Re-ingest the view."
+        )
+    return newest[0]
+
+
 def store_from_live(
     edges: Iterable[Any],
     episodes: Iterable[Any] | None = None,
 ) -> FakeGraphitiStore:
     store = FakeGraphitiStore()
+    parked_by_pid: dict[str, list[FakeEpisode]] = {}
     for ep in episodes or []:
         fe = episode_from_live(ep)
         store.add_episode(fe)
@@ -97,17 +121,22 @@ def store_from_live(
         pid = blob.get("proposition_id")
         parked = _is_parked_blob(blob) or str(fe.content).startswith("ewp-parked")
         if parked and pid:
-            alias = f"meta:{pid}"
-            if alias != fe.uuid:
-                store.add_episode(
-                    FakeEpisode(
-                        uuid=alias,
-                        content=fe.content if str(fe.content).startswith("ewp-parked") else "ewp-parked",
-                        created_at=fe.created_at,
-                        reference_time=fe.reference_time,
-                        metadata=dict(fe.metadata),
-                    )
-                )
+            parked_by_pid.setdefault(str(pid), []).append(fe)
+    # Live Graphiti never replaces an episode: every ingest adds a new parked
+    # sidecar. The one that applies is the newest by Graphiti's own created_at,
+    # never whichever the listing returned last. Two different sidecars tied
+    # for newest cannot be ordered, and the read is refused.
+    for pid, cars in parked_by_pid.items():
+        newest = _newest_parked(cars)
+        store.add_episode(
+            FakeEpisode(
+                uuid=f"meta:{pid}",
+                content="ewp-parked",
+                created_at=newest.created_at,
+                reference_time=newest.reference_time,
+                metadata=dict(newest.metadata),
+            )
+        )
     for edge in edges:
         fe = edge_from_live(edge)
         store.add_edge(fe)
@@ -118,9 +147,10 @@ def store_from_live(
                     FakeEpisode(
                         uuid=epid,
                         content=fe.fact,
-                        created_at=fe.created_at or iso(None),
+                        created_at=fe.created_at or "",
                         reference_time=fe.reference_time,
                         metadata={
+                            "ewp_unloaded": True,
                             "lineage_id": blob.get("lineage_id", epid),
                             "origin_type": blob.get("origin_type", "episode"),
                             "origin_locator": blob.get("origin_locator", f"graphiti:episode:{epid}"),
@@ -227,6 +257,58 @@ class GraphitiClientAdapter:
         raw = await self.client.search(query, group_ids=[self.group_id], num_results=limit)
         return list(unwrap_collection(raw))
 
+    def _episodes_in_group(self, episodes: list[Any]) -> list[Any]:
+        """Episodes that state another group are dropped: checks, conflicts,
+        subjects, and provenance come from episodes, so they obey the same
+        boundary as edges. (An edge that cites a dropped episode reports it
+        as unloaded.)"""
+        return [
+            ep for ep in episodes
+            if attr(ep, "group_id", default=None) in (None, "") or str(attr(ep, "group_id")) == self.group_id
+        ]
+
+    def _in_group(self, edges: list[Any]) -> list[Any]:
+        """Edges of the configured group only. The group is the privacy
+        boundary (often one user); it is enforced here even if a client's
+        search or listing filter does not, and an edge that does not say its
+        group is not trusted to be in it."""
+        return [e for e in edges if str(attr(e, "group_id", default="") or "") == self.group_id]
+
+    def _scoped(self, store: FakeGraphitiStore) -> tuple[FakeGraphitiStore, list[str]]:
+        """A Graphiti group (e.g. one user) can hold many propositions. An
+        episode belongs to this proposition when it declares it; an episode
+        declaring nothing belongs only when the edge's group *is* the
+        proposition (one group per proposition). An episode declared for
+        another proposition never does. An edge keeps the episodes that
+        belong and is left out only when none do. Episodes that could not be
+        loaded are returned as unresolved: the view lists them as omitted."""
+        unresolved: list[str] = []
+        for uid, edge in list(store.edges.items()):
+            group_is_proposition = edge.group_id == self.proposition_id
+            # An episode we could not load declares nothing and says nothing
+            # about role or polarity: in any group it may belong to this
+            # proposition (and may oppose it). It is reported, never mapped.
+            missing = [epid for epid in edge.episodes if unloaded(store, epid)]
+            unresolved.extend(missing)
+            edge = dataclasses.replace(edge, episodes=[e for e in edge.episodes if e not in missing])
+            store.edges[uid] = edge
+            if missing and not edge.episodes:
+                edge.group_id = f"graphiti-group:{edge.group_id}"
+                continue
+            if not edge.episodes:
+                keep = [] if not group_is_proposition else edge.episodes
+                mine = group_is_proposition
+            else:
+                keep = episodes_for(store, edge, self.proposition_id, undeclared=group_is_proposition)
+                mine = bool(keep)
+            if mine:
+                # Only this proposition's episodes: an edge Graphiti merged from
+                # episodes of several propositions appears in each, with its own.
+                store.edges[uid] = dataclasses.replace(edge, group_id=self.proposition_id, episodes=keep)
+            else:
+                edge.group_id = f"graphiti-group:{edge.group_id}"
+        return store, unresolved
+
     def _view(
         self,
         store: FakeGraphitiStore,
@@ -259,20 +341,29 @@ class GraphitiClientAdapter:
     ) -> EvidenceView:
         if proposition_id:
             self.proposition_id = proposition_id
-        live_edges = await self._list_edges()
+        live_edges = self._in_group(await self._list_edges())
         episode_ids: list[str] = []
         for edge in live_edges:
             episode_ids.extend(str(x) for x in as_list(attr(edge, "episodes", default=[])))
         episode_ids.append(f"meta:{self.proposition_id}")
-        live_eps = await self._get_episodes(list(dict.fromkeys(episode_ids)))
-        store = store_from_live(live_edges, live_eps)
-        return self._view(
+        live_eps = self._episodes_in_group(await self._get_episodes(list(dict.fromkeys(episode_ids))))
+        store, unresolved = self._scoped(store_from_live(live_edges, live_eps))
+        view = self._view(
             store,
             view_id=view_id,
             fact_text=fact_text,
             raw_count=None,
             retrieval_scope="complete",
         )
+        return self._mark_unresolved(view, unresolved)
+
+    @staticmethod
+    def _mark_unresolved(view: EvidenceView, unresolved: list[str]) -> EvidenceView:
+        """Episodes whose proposition could not be read make the view incomplete."""
+        missing = [f"graphiti:episode:{epid}" for epid in dict.fromkeys(unresolved)]
+        if missing:
+            view.omitted_sources = sorted(set(view.omitted_sources) | set(missing))
+        return view
 
     async def search_view(
         self,
@@ -284,26 +375,32 @@ class GraphitiClientAdapter:
     ) -> EvidenceView:
         if proposition_id:
             self.proposition_id = proposition_id
-        hits_live = await self._search_edges(query, limit=limit)
-        raw_live = await self._list_edges()
+        hits_live = self._in_group(await self._search_edges(query, limit=limit))
+        raw_live = self._in_group(await self._list_edges())
         episode_ids: list[str] = []
         for edge in list(hits_live) + list(raw_live):
             episode_ids.extend(str(x) for x in as_list(attr(edge, "episodes", default=[])))
         episode_ids.append(f"meta:{self.proposition_id}")
-        live_eps = await self._get_episodes(list(dict.fromkeys(episode_ids)))
-        store = store_from_live(raw_live, live_eps)
+        live_eps = self._episodes_in_group(await self._get_episodes(list(dict.fromkeys(episode_ids))))
+        store, unresolved = self._scoped(store_from_live(raw_live, live_eps))
         hit_ids = {str(attr(h, "uuid", "id", default="")) for h in hits_live}
-        hits = [e for e in store.edges.values() if e.uuid in hit_ids]
-        if not hits:
-            # search returned edges not in group listing — still map them
+        if hit_ids - set(store.edges):
+            # search returned edges the group listing did not: map and scope them too
             extra = store_from_live(hits_live, live_eps)
-            hits = list(extra.edges.values())
             for ep in extra.episodes.values():
                 store.add_episode(ep)
             for edge in extra.edges.values():
-                store.add_edge(edge)
+                if edge.uuid not in store.edges:
+                    store.add_edge(edge)
+            # The first pass already stripped (and reported) its unloaded
+            # episodes; keep that report and add this pass's.
+            store, more = self._scoped(store)
+            unresolved = unresolved + more
+        # A search over a shared group returns other propositions' edges too;
+        # only this proposition's hits enter its view.
+        hits = [e for e in store.edges.values() if e.uuid in hit_ids and e.group_id == self.proposition_id]
         store.search_hits[query] = [e.uuid for e in hits]
-        return self._view(
+        view = self._view(
             store,
             view_id=view_id,
             fact_text=fact_text,
@@ -311,6 +408,7 @@ class GraphitiClientAdapter:
             retrieval_scope="graphiti.search",
             hits=hits,
         )
+        return self._mark_unresolved(view, unresolved)
 
     async def ingest_view_via_episodes(self, view: EvidenceView) -> dict[str, Any]:
         """Write through Graphiti.add_episode. LLM extraction may drop fields.
@@ -322,12 +420,31 @@ class GraphitiClientAdapter:
         if not hasattr(self.client, "add_episode"):
             raise RuntimeError("client has no add_episode")
         report = {"episodes": 0, "checks_parked": 0, "conflicts_parked": 0, "path": "add_episode"}
+        # Graphiti keeps one episode per source, so each episode says every
+        # role its source plays and the polarity of its evidence.
+        kinds: dict[str, set[str]] = {}
+        polarities: dict[str, set[str]] = {}
+        for a in view.assertions:
+            kinds.setdefault(a.source.source_id, set()).add("assertion")
+        for ev in view.evidence:
+            kinds.setdefault(ev.source.source_id, set()).add("evidence")
+            polarities.setdefault(ev.source.source_id, set()).add(ev.polarity)
+        record_times = episode_record_times(view)
+        mixed = sorted(sid for sid, p in polarities.items() if len(p) > 1)
+        if mixed:
+            raise ValueError(
+                f"Graphiti keeps one episode per source; source(s) {mixed} carry both supporting and "
+                "opposing evidence, which one episode cannot hold. Split them into separate sources."
+            )
         seen: set[str] = set()
 
-        async def put_episode(src, body: str, kind: str, polarity: str | None) -> None:
+        async def put_episode(src, body: str) -> None:
             if src.source_id in seen:
                 return
             seen.add(src.source_id)
+            roles = kinds[src.source_id]
+            kind = "both" if roles == {"assertion", "evidence"} else next(iter(roles))
+            polarity = next(iter(polarities.get(src.source_id, {None})))
             payload = {
                 EWP_META_KEY: {
                     "lineage_id": src.lineage_id,
@@ -340,6 +457,7 @@ class GraphitiClientAdapter:
                     "snapshot_id": src.snapshot_id,
                     "kind": kind,
                     **({"polarity": polarity} if polarity else {}),
+                    **record_times.get(src.source_id, {}),
                 }
             }
             try:
@@ -362,11 +480,11 @@ class GraphitiClientAdapter:
             report["episodes"] += 1
 
         for assertion in view.assertions:
-            await put_episode(assertion.source, assertion.text, "assertion", None)
+            await put_episode(assertion.source, assertion.text)
         # Evidence-only sources (e.g. an opposing camera) are episodes too;
         # skipping them would drop a lineage and hide opposition.
         for ev in view.evidence:
-            await put_episode(ev.source, ev.content, "evidence", ev.polarity)
+            await put_episode(ev.source, ev.content)
 
         park = {
             EWP_META_KEY: {

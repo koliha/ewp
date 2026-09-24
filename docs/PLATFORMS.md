@@ -18,6 +18,23 @@ OpenClaw / Claude / Codex / other MCP agents
 
 Agents never get store mutation tools directly. If someone wires an agent straight to Particles or Graphiti, they have bypassed EWP on purpose.
 
+## Building a view (every adapter)
+
+**Assemble by key, not by similarity.** A view for proposition `P` that claims `retrieval_scope=complete` is built from explicit keys: every record whose `proposition_id` is `P` (or `P:<suffix>`), every conflict row naming `P`, and every `superseded_by` edge from `P`. That is how SQLite and JSON `get_view` and Mem0 `raw_view` work. If similarity search (vector, full-text, hybrid, graph walk by relevance) chose any of the records, the view is not complete: set `degraded`, list what was left out in `omitted_sources`, or name the search in `retrieval_scope`. Each of these makes the view `DEGRADED`, as `search_view` does. Following every relation you happen to know about is still not completeness: contradictions nobody recorded are exactly what `DEGRADED` marks. Contradictions between claims are recorded as conflict rows when they are noticed, not left for search to rediscover.
+
+**Extracting nothing is a valid result.** An ingest step may produce no assertions or evidence from an input. No record is better than a weak synthetic one: an empty view reads `UNACCEPTED` / `INSUFFICIENT`, while a manufactured extract still counts as an assertion.
+
+**Point back to the raw source.** Keep the source material, and make `SourceRef.origin_locator` precise enough for a person to find the exact passage. There is no span field; use the locator's own syntax, pinned to something that does not move:
+
+| Source | `origin_locator` |
+|---|---|
+| PDF page | `https://example.com/report.pdf#page=17` |
+| Lines in a file at a commit | `https://github.com/org/repo/blob/<commit-sha>/policy.md#L120-L136` |
+| Field in a JSON document | `s3://bucket/object.json#/customers/42/status` (JSON Pointer fragment) |
+| Tool call | the tool-call or episode id |
+
+`content_hash` and `snapshot_id` pin the content the locator points into. Adapters carry the locator through unchanged; EWP does not read it.
+
 ## OpenClaw
 
 OpenClaw already consumes outbound MCP servers. That is the integration.
@@ -69,7 +86,8 @@ Use Graphiti as a temporal/entity mirror, not as warrant.
 - The locked suite uses fake Graphiti-shaped records (`ewp/graphiti_adapter.py`). Every fixture must round-trip through it with identical axes.
 - Park the view's and each check's `subjects[]` with the checks. Dropping them changes warrant.
 - The live client mapping is `ewp/graphiti_client_adapter.py` — see `docs/implementer/LIVE_ADAPTERS.md`.
-- Adapter maps edges → `EvidenceView`. `invalid_at` is store-local. `valid_at` is not a verification check.
+- Adapter maps edges → `EvidenceView`. `invalid_at` is store-local. `valid_at` is not a verification check, and not an observation time.
+- Edges belong to a proposition by the `proposition_id` their episodes declare, not by Graphiti group: one group (a user) can hold many propositions.
 - Search collapse must mark the view `DEGRADED`.
 - Live pin: `graphiti-core 0.30.2`. Live `graphiti-core` is **not** validated. Graphiti adapts to EWP. EWP does not adapt to Graphiti.
 
@@ -82,7 +100,8 @@ Use Mem0 as an extract-and-retrieve store, not as warrant.
 - Write assertions and evidence as separate memories with their own polarity and timestamps (`Mem0Adapter.ingest_view` does). Mem0's `created_at` is ingest time, not observation time.
 - Retrieval `score` is adapter metadata, never warrant strength.
 - `search` that drops memories the store still holds must mark the view `DEGRADED`.
-- Live mapping: `ewp/mem0_adapter.py`. Notes: `docs/implementer/LIVE_ADAPTERS.md`.
+- A raw read is checked against the digest committed at ingest; a partial read fails instead of posing as complete.
+- Live mapping: `ewp/mem0_adapter.py`, for the mem0ai 2.x client (entity ids in `filters`). Notes: `docs/implementer/LIVE_ADAPTERS.md`.
 
 ## Particles
 

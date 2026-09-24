@@ -21,7 +21,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from .classify import InvalidEvidenceView
+from .classify import InvalidEvidenceView, parse_evaluated_at
 from .codec import view_from_dict
 from .sqlite_adapter import ImmutableRecordError, LedgerError, SQLiteAdapter
 from .types import TRUSTED_ORIGINS, EvidenceView, Policy
@@ -57,6 +57,14 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--evaluated-at", default="", help="report warrant at this instant (default: now, UTC)")
     args = parser.parse_args(argv)
 
+    # Checked before the ledger is opened or created: a bad reporting time
+    # must not leave views stored behind a failing exit.
+    if args.evaluated_at:
+        try:
+            parse_evaluated_at(args.evaluated_at)
+        except ValueError as exc:
+            print(f"ewp-ingest: --evaluated-at: {exc}; nothing stored", file=sys.stderr)
+            return 2
     Path(args.db).parent.mkdir(parents=True, exist_ok=True)
     try:
         store = SQLiteAdapter(args.db)
@@ -88,11 +96,17 @@ def _ingest(store: SQLiteAdapter, args: argparse.Namespace) -> int:
                         "(you are declaring these were observed outside the agent)"
                     )
                 store.load_view(view)
-                w = warrant_now(view, Policy(), evaluated_at).warrant
             except (InvalidEvidenceView, ImmutableRecordError, PermissionError, KeyError, TypeError, ValueError, sqlite3.Error) as exc:
                 reason = f"missing field {exc}" if isinstance(exc, KeyError) else str(exc)
                 print(f"FAIL {label}: {reason}", file=sys.stderr)
                 failures += 1
+                continue
+            # Stored. Reporting is separate: a failure here does not mean the
+            # view is missing from the ledger.
+            try:
+                w = warrant_now(view, Policy(), evaluated_at).warrant
+            except (InvalidEvidenceView, ValueError, TypeError) as exc:
+                print(f"stored {view.proposition_id} view={view.view_id}  (warrant not computed: {exc})")
                 continue
             print(
                 f"stored {view.proposition_id} view={view.view_id}  "

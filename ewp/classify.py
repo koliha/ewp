@@ -20,13 +20,20 @@ from .types import (
     LINEAGE_KINDS,
     POLARITIES,
     TRUSTED_ORIGINS,
+    Assertion,
+    Conflict,
     EvidenceItem,
     EvidenceView,
     LineageEdge,
+    SourceRef,
     VerificationCheck,
 )
 
 CLASS_RANK = {"NONE": 0, "INDIRECT": 1, "EXTERNAL": 2, "HUMAN": 3}
+
+# The largest integer every JSON implementation represents exactly (2^53 - 1,
+# about 285 million years); it also fits SQLite's 64-bit integers.
+MAX_FRESHNESS_SECONDS = 2**53 - 1
 
 
 class InvalidEvidenceView(ValueError):
@@ -53,6 +60,60 @@ def _duplicates(ids) -> list[str]:
     return dups
 
 
+def _in_enum(value, members) -> bool:
+    """Closed-enum membership that refuses (rather than crashes on) a list or dict."""
+    return isinstance(value, str) and value in members
+
+
+def _finite(number: int | float) -> bool:
+    """Finite and representable as a float (an int too large for one is not)."""
+    try:
+        return math.isfinite(number)
+    except OverflowError:
+        return False
+
+
+_RECORD_TYPES = (
+    ("assertions", Assertion),
+    ("evidence", EvidenceItem),
+    ("lineage", LineageEdge),
+    ("conflicts", Conflict),
+    ("checks", VerificationCheck),
+)
+
+
+_REQUIRED_FIELDS = {
+    "assertions": ("assertion_id", "text", "asserted_by", "assertion_confidence", "source", "asserted_at"),
+    "evidence": ("evidence_id", "polarity", "source", "content", "observed_at"),
+    "checks": ("check_id", "method", "scope", "source", "observed_at", "result"),
+    "conflicts": ("conflict_id", "status"),
+    "lineage": ("kind",),
+}
+_REQUIRED_SOURCE_FIELDS = (
+    "source_id", "lineage_id", "origin_type", "origin_locator", "snapshot_id", "content_hash", "observed_at",
+)
+
+
+def _missing_required(view: EvidenceView) -> list[str]:
+    """SCHEMA.md required fields, checked on the view itself so Python callers
+    get the same refusals as JSON: null is missing."""
+    missing: list[str] = []
+    for name, fields in _REQUIRED_FIELDS.items():
+        for i, record in enumerate(getattr(view, name)):
+            for f in fields:
+                if getattr(record, f) is None:
+                    missing.append(f"{name}[{i}] missing required field {f}")
+            source = getattr(record, "source", None)
+            if "source" in fields and source is not None:
+                if not isinstance(source, SourceRef):
+                    missing.append(f"{name}[{i}] source must be a SourceRef")
+                    continue
+                for f in _REQUIRED_SOURCE_FIELDS:
+                    if getattr(source, f) is None:
+                        missing.append(f"{name}[{i}] source missing required field {f}")
+    return missing
+
+
 def validate_view(view: EvidenceView) -> None:
     """Invalid input is refused, never evaluated.
 
@@ -70,9 +131,29 @@ def validate_view(view: EvidenceView) -> None:
     - Types: `subjects`, `omitted_sources`, and conflict `proposition_ids`
       are lists of non-empty strings (a bare string would be iterated as
       characters); lineage endpoints are non-empty strings;
-      `freshness_policy_seconds` is a non-negative int (not bool);
+      `freshness_policy_seconds` is an int (not bool) from 0 to 2^53 - 1;
       `degraded` is a bool; `retrieval_scope` is a string.
+    - Shape: the five record fields are lists of their record type (a
+      string or a dict is not an empty list), every SCHEMA.md required
+      field (records and SourceRefs) is present and not None,
+      `proposition_id` is a non-empty string, and `view_id` is a string.
     """
+    shape: list[str] = []
+    for name, record_type in _RECORD_TYPES:
+        records = getattr(view, name)
+        if not isinstance(records, (list, tuple)):
+            shape.append(f"{name}={records!r} must be a list of records")
+        elif not all(isinstance(r, record_type) for r in records):
+            shape.append(f"{name} must contain only {record_type.__name__} records")
+    if not shape:
+        shape.extend(_missing_required(view))
+    if not (isinstance(view.proposition_id, str) and view.proposition_id):
+        shape.append(f"proposition_id={view.proposition_id!r} must be a non-empty string")
+    if not isinstance(view.view_id, str):
+        shape.append(f"view_id={view.view_id!r} must be a string")
+    if shape:
+        raise InvalidEvidenceView("invalid EvidenceView: " + "; ".join(shape))
+
     problems: list[str] = []
     pid = view.proposition_id
 
@@ -94,29 +175,30 @@ def validate_view(view: EvidenceView) -> None:
         problems.append(f"source_id {sid!r} carries different SourceRefs (lineage, origin, time, ...) within one view")
 
     for a in view.assertions:
-        if not (isinstance(a.assertion_confidence, (int, float)) and math.isfinite(a.assertion_confidence)):
+        confidence = a.assertion_confidence
+        if isinstance(confidence, bool) or not (isinstance(confidence, (int, float)) and _finite(confidence)):
             problems.append(f"assertion {a.assertion_id}: assertion_confidence={a.assertion_confidence!r} must be a finite number")
         if not about_proposition(a.proposition_id, pid):
             problems.append(f"assertion {a.assertion_id}: proposition_id={a.proposition_id!r} is not {pid!r}")
     for e in view.evidence:
-        if e.polarity not in POLARITIES:
+        if not _in_enum(e.polarity, POLARITIES):
             problems.append(f"evidence {e.evidence_id}: polarity={e.polarity!r}")
         if not about_proposition(e.proposition_id, pid):
             problems.append(f"evidence {e.evidence_id}: proposition_id={e.proposition_id!r} is not {pid!r}")
     for c in view.checks:
-        if c.result not in CHECK_RESULTS:
+        if not _in_enum(c.result, CHECK_RESULTS):
             problems.append(f"check {c.check_id}: result={c.result!r}")
         if not _is_string_list(c.subjects):
             problems.append(f"check {c.check_id}: subjects={c.subjects!r} must be a list of strings")
     for c in view.conflicts:
-        if c.status not in CONFLICT_STATUSES:
+        if not _in_enum(c.status, CONFLICT_STATUSES):
             problems.append(f"conflict {c.conflict_id}: status={c.status!r}")
         if not _is_string_list(c.proposition_ids, allow_empty=False):
             problems.append(f"conflict {c.conflict_id}: proposition_ids={c.proposition_ids!r} must be a non-empty list of strings")
         elif not any(about_proposition(x, pid) for x in c.proposition_ids):
             problems.append(f"conflict {c.conflict_id}: proposition_ids={list(c.proposition_ids)!r} do not name {pid!r}")
     for edge in view.lineage:
-        if edge.kind not in LINEAGE_KINDS:
+        if not _in_enum(edge.kind, LINEAGE_KINDS):
             problems.append(f"lineage {edge.from_id}->{edge.to_id}: kind={edge.kind!r}")
         if not (isinstance(edge.from_id, str) and edge.from_id and isinstance(edge.to_id, str) and edge.to_id):
             problems.append(f"lineage edge {edge.from_id!r}->{edge.to_id!r}: endpoints must be non-empty strings")
@@ -125,8 +207,10 @@ def validate_view(view: EvidenceView) -> None:
     if not _is_string_list(view.omitted_sources):
         problems.append(f"omitted_sources={view.omitted_sources!r} must be a list of strings")
     fresh = view.freshness_policy_seconds
-    if type(fresh) is not int or fresh < 0:
-        problems.append(f"freshness_policy_seconds={fresh!r} must be a non-negative integer")
+    if type(fresh) is not int or not 0 <= fresh <= MAX_FRESHNESS_SECONDS:
+        problems.append(
+            f"freshness_policy_seconds={fresh!r} must be an integer from 0 to {MAX_FRESHNESS_SECONDS}"
+        )
     if type(view.degraded) is not bool:
         problems.append(f"degraded={view.degraded!r} must be a boolean")
     if not isinstance(view.retrieval_scope, str):
@@ -137,6 +221,8 @@ def validate_view(view: EvidenceView) -> None:
 
 def parse_ts(ts: str) -> datetime:
     """Parse an instant. Naive values are UTC. Result is always aware."""
+    if ts is not None and not isinstance(ts, str):
+        raise ValueError(f"timestamp {ts!r} is not a string")
     text = (ts or "").strip().replace("Z", "+00:00")
     if not text:
         raise ValueError("empty timestamp")

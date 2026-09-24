@@ -91,7 +91,9 @@ Rules that matter most:
 - **`lineage_id`** is "where did this originally come from". Give copies, summaries, and paraphrases of one source the same `lineage_id`, or repetition will look like independent confirmation.
 - **Timestamps** are ISO 8601 with a timezone (`2026-09-20T09:00:00Z`). A record dated after the time you evaluate at is ignored for that evaluation.
 - **`subjects`** (optional) names what the claim is about, e.g. `["db-prod-1"]`. If you set it, only checks naming the same subject can verify the claim.
-- **Only `tool`, `document`, `human`, `api`, `vendor`, `sensor` origins can verify.** Anything the model produced itself (`turn`, `summary`, `extract`) never can, however confident it sounds.
+- **Only `tool`, `document`, `human`, `api`, `vendor`, `sensor` origins can verify.** Anything the model produced itself (`turn`, `summary`, `extract`) never can, however confident it sounds. A trusted origin says where a check came from, not that the source is any good.
+- **Leave out what you don't have.** If a conversation contains nothing worth keeping, ingest nothing for it. A missing record reads `UNACCEPTED`; a made-up one still counts as an assertion.
+- **`origin_locator`** should let you find the exact passage again (a URL with `#page=`, a commit-pinned line range). See `docs/PLATFORMS.md`.
 
 Updating a claim: ingest a new view for the same `proposition_id` containing everything that should be in it, with a new `view_id` (or no `view_id`: one is derived from the content). Earlier views stay readable by id; Claude sees the latest.
 

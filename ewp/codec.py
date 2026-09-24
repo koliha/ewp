@@ -65,11 +65,57 @@ def _list_from(value: Any) -> Any:
     return value
 
 
+def _records(d: dict[str, Any], key: str) -> list[Any]:
+    """A record array: missing or null is []; any other non-list is refused.
+
+    `d.get(key) or []` would read `"checks": false` or `"evidence": ""` as
+    empty, silently accepting a mistyped field.
+    """
+    value = d.get(key)
+    if value is None:
+        return []
+    if not isinstance(value, (list, tuple)):
+        raise InvalidEvidenceView(f"invalid EvidenceView: {key}={value!r} must be a list of records")
+    return list(value)
+
+
+def _number(value: Any) -> Any:
+    """A JSON number stays a number; anything else (a string like "0.99", a
+    boolean) is passed through unconverted so validation refuses it."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return value
+    try:
+        return float(value)
+    except OverflowError:
+        return value  # an integer no float can hold: validation refuses it
+
+
+def _view_id(d: dict[str, Any]) -> str:
+    """Absent, null, or "" means "derive from content"; any other non-id is refused."""
+    value = d.get("view_id")
+    if value is None or value == "":
+        return ""
+    if isinstance(value, bool) or not isinstance(value, (str, int)):
+        raise InvalidEvidenceView(f"invalid EvidenceView: view_id={value!r} must be a string")
+    return str(value)
+
+
+def _adapter_meta(d: dict[str, Any]) -> dict[str, Any]:
+    """Non-normative, but still typed: missing or null is {}, a non-object is refused."""
+    value = d.get("adapter_meta")
+    if value is None:
+        return {}
+    if not isinstance(value, dict):
+        raise InvalidEvidenceView(f"invalid EvidenceView: adapter_meta={value!r} must be an object")
+    return dict(value)
+
+
 def _endpoint(d: dict[str, Any], *keys: str) -> Any:
-    """First present endpoint id, normalized to str; None when absent (refused by validation)."""
+    """First present endpoint id, as written; None when absent. Anything but a
+    string is refused by validation (a number or list is not coerced)."""
     for key in keys:
         if d.get(key) is not None:
-            return str(d[key])
+            return d[key]
     return None
 
 
@@ -147,7 +193,7 @@ def _req(d: dict[str, Any], key: str) -> Any:
     return value
 
 
-def _opt_str(d: dict[str, Any], key: str) -> str | None:
+def optional_id(d: dict[str, Any], key: str) -> str | None:
     """An optional id: absent or null stays None; any other value is normalized with str()."""
     value = d.get(key)
     return None if value is None else str(value)
@@ -162,8 +208,8 @@ def source_from_dict(d: dict[str, Any]) -> SourceRef:
         snapshot_id=str(_req(d, "snapshot_id")),
         content_hash=str(_req(d, "content_hash")),
         observed_at=str(_req(d, "observed_at")),
-        extractor_id=_opt_str(d, "extractor_id"),
-        parent_source_id=_opt_str(d, "parent_source_id"),
+        extractor_id=optional_id(d, "extractor_id"),
+        parent_source_id=optional_id(d, "parent_source_id"),
     )
 
 
@@ -188,6 +234,8 @@ def view_from_dict(d: dict[str, Any]) -> EvidenceView:
     """
     try:
         view = _decode_view(d)
+    except InvalidEvidenceView:
+        raise
     except KeyError as exc:
         raise InvalidEvidenceView(f"invalid EvidenceView: missing required field {exc}") from exc
     except (TypeError, AttributeError, ValueError) as exc:
@@ -199,9 +247,11 @@ def view_from_dict(d: dict[str, Any]) -> EvidenceView:
 
 
 def _decode_view(d: dict[str, Any]) -> EvidenceView:
-    pid = str(_req(d, "proposition_id"))
+    pid = _req(d, "proposition_id")
+    if not isinstance(pid, str):
+        raise InvalidEvidenceView(f"invalid EvidenceView: proposition_id={pid!r} must be a string")
     view = EvidenceView(
-        view_id=str(d.get("view_id") or ""),
+        view_id=_view_id(d),
         proposition_id=pid,
         assertions=[
             Assertion(
@@ -209,11 +259,11 @@ def _decode_view(d: dict[str, Any]) -> EvidenceView:
                 proposition_id=str(_default(a, "proposition_id", pid)),
                 text=str(_req(a, "text")),
                 asserted_by=str(_req(a, "asserted_by")),
-                assertion_confidence=float(_req(a, "assertion_confidence")),
+                assertion_confidence=_number(_req(a, "assertion_confidence")),
                 source=source_from_dict(_req(a, "source")),
                 asserted_at=str(_req(a, "asserted_at")),
             )
-            for a in d.get("assertions") or []
+            for a in _records(d, "assertions")
         ],
         evidence=[
             EvidenceItem(
@@ -224,11 +274,11 @@ def _decode_view(d: dict[str, Any]) -> EvidenceView:
                 content=str(_req(e, "content")),
                 observed_at=str(_req(e, "observed_at")),
             )
-            for e in d.get("evidence") or []
+            for e in _records(d, "evidence")
         ],
         lineage=[
             LineageEdge(_endpoint(x, "from_id"), _endpoint(x, "to_id"), _req(x, "kind"))
-            for x in d.get("lineage") or []
+            for x in _records(d, "lineage")
         ],
         conflicts=[
             Conflict(
@@ -237,14 +287,14 @@ def _decode_view(d: dict[str, Any]) -> EvidenceView:
                 _req(c, "status"),
                 str(c.get("note") or ""),
             )
-            for c in d.get("conflicts") or []
+            for c in _records(d, "conflicts")
         ],
-        checks=[check_from_dict(c) for c in d.get("checks") or []],
+        checks=[check_from_dict(c) for c in _records(d, "checks")],
         omitted_sources=_list_from(d.get("omitted_sources")),
         retrieval_scope=_default(d, "retrieval_scope", "complete"),
         degraded=_default(d, "degraded", False),
         freshness_policy_seconds=_default(d, "freshness_policy_seconds", DEFAULT_FRESHNESS_SECONDS),
-        adapter_meta=dict(d.get("adapter_meta") or {}),
+        adapter_meta=_adapter_meta(d),
         subjects=subjects_from(d.get("subjects")),
     )
     return view

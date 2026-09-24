@@ -512,7 +512,26 @@ INVALID_PACK = [
     ("unparsable_evaluated_at", lambda: _mutated(_base, lambda d: d.__setitem__("evaluated_at", "not-a-time"))),
     ("missing_required_field", lambda: _mutated(_base, lambda d: d["evidence"][0].pop("content"))),
     ("non_numeric_confidence", lambda: _mutated(_base, lambda d: d["assertions"][0].__setitem__("assertion_confidence", "high"))),
-    ("non_finite_confidence", lambda: _mutated(_base, lambda d: d["assertions"][0].__setitem__("assertion_confidence", "nan"))),
+    ("non_finite_confidence", lambda: _mutated(_base, lambda d: d["assertions"][0].__setitem__("assertion_confidence", float("nan")))),
+    ("string_confidence", lambda: _mutated(_base, lambda d: d["assertions"][0].__setitem__("assertion_confidence", "0.99"))),
+    ("boolean_confidence", lambda: _mutated(_base, lambda d: d["assertions"][0].__setitem__("assertion_confidence", True))),
+    ("checks_false", lambda: _mutated(_base, lambda d: d.__setitem__("checks", False))),
+    ("evidence_empty_string", lambda: _mutated(_base, lambda d: d.__setitem__("evidence", ""))),
+    ("conflicts_zero", lambda: _mutated(_base, lambda d: d.__setitem__("conflicts", 0))),
+    ("lineage_object", lambda: _mutated(_base, lambda d: d.__setitem__("lineage", {}))),
+    ("numeric_lineage_endpoint", lambda: _mutated(_base, lambda d: d.__setitem__(
+        "lineage", [{"from_id": "P-win", "to_id": 7, "kind": "derived_from"}]))),
+    ("list_view_id", lambda: _mutated(_base, lambda d: d.__setitem__("view_id", ["v1"]))),
+    ("huge_freshness", lambda: _mutated(_base, lambda d: d.__setitem__("freshness_policy_seconds", 2**53))),
+    ("numeric_proposition_id", lambda: _mutated(_base, lambda d: [
+        d.__setitem__("proposition_id", 42),
+        *[r.pop("proposition_id", None) for r in d["assertions"] + d["evidence"]],
+    ])),
+    # Records omit proposition_id (they default to the view's), so only the empty id is wrong.
+    ("empty_proposition_id", lambda: _mutated(_base, lambda d: [
+        d.__setitem__("proposition_id", ""),
+        *[r.pop("proposition_id", None) for r in d["assertions"] + d["evidence"]],
+    ])),
 ]
 
 

@@ -17,6 +17,29 @@ from .graphiti_records import FakeEntityEdge, FakeEpisode, FakeGraphitiStore
 from .types import EvidenceView
 
 
+def episode_record_times(view: EvidenceView) -> dict[str, dict[str, str]]:
+    """Per source: the time of its assertions and the time of its evidence.
+
+    Graphiti keeps one episode per source, and extraction merges facts, so a
+    record's own time can only travel on its episode, one per role. A source
+    whose assertions (or whose evidence items) carry different times cannot
+    be represented: it is refused rather than given one of the times, which
+    could change what is available at T.
+    """
+    times: dict[str, dict[str, set[str]]] = {}
+    for a in view.assertions:
+        times.setdefault(a.source.source_id, {}).setdefault("asserted_at", set()).add(a.asserted_at)
+    for e in view.evidence:
+        times.setdefault(e.source.source_id, {}).setdefault("observed_at", set()).add(e.observed_at)
+    mixed = sorted(sid for sid, roles in times.items() if any(len(v) > 1 for v in roles.values()))
+    if mixed:
+        raise ValueError(
+            f"Graphiti keeps one time per episode; source(s) {mixed} carry records of one kind with "
+            "different times. Split them into separate sources."
+        )
+    return {sid: {role: next(iter(v)) for role, v in roles.items()} for sid, roles in times.items()}
+
+
 def ingest_view(store: FakeGraphitiStore, view: EvidenceView) -> dict:
     """Write evidence only. Returns an ingest report for the four-stage runner."""
     report = {
@@ -27,6 +50,7 @@ def ingest_view(store: FakeGraphitiStore, view: EvidenceView) -> dict:
         "invalid_at_written": False,
     }
     seen_ep: set[str] = set()
+    record_times = episode_record_times(view)
 
     def put_source(source, content: str) -> None:
         if source.source_id in seen_ep:
@@ -46,6 +70,7 @@ def ingest_view(store: FakeGraphitiStore, view: EvidenceView) -> dict:
                     "parent_source_id": source.parent_source_id,
                     "snapshot_id": source.snapshot_id,
                     "extractor_id": source.extractor_id,
+                    **record_times.get(source.source_id, {}),
                 },
             )
         )

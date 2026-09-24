@@ -32,10 +32,10 @@ from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any, Callable
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import unquote, urlparse
 
 from .classify import InvalidEvidenceView, check_verification_class, parse_ts
-from .codec import subjects_from, view_from_dict
+from .codec import _number, optional_id, subjects_from, view_from_dict
 from .may_act import RISK_LEVELS, Action, RiskPolicy, may_act
 from .sqlite_adapter import ImmutableRecordError, LedgerError, MissingViewError, SQLiteAdapter
 from .types import (
@@ -75,6 +75,7 @@ REFUSE_INVALID_VIEW = "EWP_REFUSE_INVALID_EVIDENCE_VIEW"
 REFUSE_IMMUTABLE_RECORD = "EWP_REFUSE_IMMUTABLE_RECORD"
 REFUSE_INVALID_ARGUMENTS = "EWP_REFUSE_INVALID_ARGUMENTS"
 REFUSE_LEDGER = "EWP_REFUSE_LEDGER_UNAVAILABLE"
+REFUSE_STALE_VIEW_FOR_ACTION = "EWP_REFUSE_STALE_VIEW_FOR_ACTION"
 
 # JSON-RPC error codes for non-tool methods (MCP: resource not found is -32002).
 _RPC_CODES = {"EWP_UNKNOWN_RESOURCE": -32002, REFUSE_MISSING_VIEW: -32002}
@@ -166,7 +167,17 @@ class EwpMcp:
         if mid is None:
             # MCP: request ids must not be null. Answer rather than leave the client waiting.
             return self._err(None, -32600, "invalid request: id must not be null")
-        params = message.get("params") or {}
+        if isinstance(mid, bool) or not isinstance(mid, (str, int)):
+            # MCP: a request id is a string or an integer. Anything else is not echoed back.
+            return self._err(None, -32600, "invalid request: id must be a string or an integer")
+        params = message.get("params")
+        if params is None:
+            params = {}
+        if not isinstance(params, dict):
+            return self._err(mid, -32602, "invalid params: params must be an object")
+        for key in ("name", "uri", "protocolVersion"):
+            if params.get(key) is not None and not isinstance(params[key], str):
+                return self._err(mid, -32602, f"invalid params: {key} must be a string")
         try:
             if method == "initialize":
                 return self._ok(mid, self._initialize(params))
@@ -175,7 +186,7 @@ class EwpMcp:
             if method == "tools/list":
                 return self._ok(mid, {"tools": TOOLS})
             if method == "tools/call":
-                return self._ok(mid, self._call_tool(params.get("name"), params.get("arguments") or {}))
+                return self._ok(mid, self._call_tool(params.get("name"), {} if params.get("arguments") is None else params["arguments"]))
             if method == "resources/list":
                 return self._ok(mid, {"resources": self._resources()})
             if method == "resources/read":
@@ -225,6 +236,8 @@ class EwpMcp:
         try:
             if name not in dispatch:
                 raise McpError("EWP_UNKNOWN_TOOL", f"unknown tool {name}")
+            if not isinstance(args, dict):
+                raise McpError(REFUSE_INVALID_ARGUMENTS, "tool arguments must be an object")
             try:
                 result = dispatch[name](args)
             except McpError:
@@ -269,7 +282,7 @@ class EwpMcp:
         the caller to declare ingest_attestation=true."""
         self._require_role()
         trusted = _origins_in(view) & set(TRUSTED_ORIGINS)
-        if trusted and not args.get("ingest_attestation"):
+        if trusted and args.get("ingest_attestation") is not True:
             raise McpError(
                 REFUSE_UNATTESTED_ORIGIN,
                 "trusted origin_type values require ingest_attestation=true at the ingest boundary: "
@@ -277,11 +290,13 @@ class EwpMcp:
             )
 
     def _server_time(self, args: dict[str, Any]) -> str:
-        """Live decisions use the server clock. A caller-supplied T must be
-        within the allowed skew of it."""
+        """Live decisions use the server clock, always. A caller-supplied T is
+        only a sanity check (refused beyond the allowed skew); it never
+        becomes the decision time, so a caller cannot pick a moment before a
+        recent opposing check or after a future-dated supporting one."""
         now = self.clock()
         supplied = args.get("evaluated_at")
-        if not supplied:
+        if supplied is None:
             return now
         try:
             skew = abs((parse_ts(str(supplied)) - parse_ts(now)).total_seconds())
@@ -293,14 +308,14 @@ class EwpMcp:
                 f"evaluated_at {supplied} is {int(skew)}s from server time {now}; "
                 f"live gates allow {self.max_clock_skew_seconds}s. Use ewp_warrant_now to replay a past T.",
             )
-        return str(supplied)
+        return now
 
     def _load(self, args: dict[str, Any]) -> EvidenceView:
         """The requested snapshot, or the latest one for the proposition."""
-        pid = str(args["proposition_id"])
-        view_id = args.get("view_id") or None
+        pid = _id_arg(args, "proposition_id")
+        view_id = None if args.get("view_id") is None else _id_arg(args, "view_id")
         try:
-            return self.store.get_view(pid, None if view_id is None else str(view_id))
+            return self.store.get_view(pid, view_id)
         except MissingViewError as exc:
             raise McpError(REFUSE_MISSING_VIEW, str(exc.args[0] if exc.args else exc)) from exc
 
@@ -310,7 +325,9 @@ class EwpMcp:
         self._require_role()
         if "warrant" in args and "proposition_id" in (args.get("warrant") or {}):
             raise McpError(REFUSE_PERSIST_WARRANT, "WarrantView is computed. Do not write it as evidence.")
-        raw = args.get("view") or args
+        raw = _inline_view(args)
+        if raw is None:
+            raw = args
         if raw.get("warrant") and raw.get("evaluated_at") and "assertions" not in raw:
             raise McpError(REFUSE_PERSIST_WARRANT, "WarrantView is computed. Do not write it as evidence.")
         view = view_from_dict(raw)
@@ -332,9 +349,10 @@ class EwpMcp:
         if not evaluated_at:
             raise McpError("EWP_MISSING_EVALUATED_AT", "evaluated_at is required")
         demoted: list[str] = []
-        if args.get("view"):
-            view = view_from_dict(args["view"])
-            if not (self._has_ingest_role() and args.get("ingest_attestation")):
+        inline = _inline_view(args)
+        if inline is not None:
+            view = view_from_dict(inline)
+            if not (self._has_ingest_role() and args.get("ingest_attestation") is True):
                 demoted = sorted(_origins_in(view) & set(TRUSTED_ORIGINS))
                 view = demote_inline_origins(view)
         else:
@@ -356,65 +374,78 @@ class EwpMcp:
         payload["note"] = "normative: identity, time, five axes. rationale_codes and strength are diagnostic"
         return payload
 
-    def _build_source(self, raw: dict[str, Any], fallback: str) -> SourceRef:
-        return source_from_args(raw or {}, fallback=fallback)
+    def _build_source(self, raw: Any, fallback: str) -> SourceRef:
+        if raw is None:
+            raw = {}
+        if not isinstance(raw, dict):
+            raise McpError(REFUSE_INVALID_ARGUMENTS, "source must be an object")
+        return source_from_args(raw, fallback=fallback)
 
     def tool_check_record(self, args: dict[str, Any]) -> dict[str, Any]:
         """Append a check: a new snapshot = latest snapshot + this check."""
         self._require_role()
-        pid = str(args["proposition_id"])
-        check = args["check"]
-        source = self._build_source(check.get("source"), fallback=f"check:{check.get('check_id')}")
+        pid = _id_arg(args, "proposition_id")
+        check = _object_arg(args, "check")
+        check_id = _id_arg(check, "check_id")
+        source = self._build_source(check.get("source"), fallback=f"check:{check_id}")
         built = VerificationCheck(
-            check_id=str(check["check_id"]),
-            method=str(check["method"]),
-            scope=str(check.get("scope") or pid),
+            check_id=check_id,
+            method=str(_required_arg(check, "method")),
+            scope=pid if check.get("scope") is None else str(check["scope"]),
             source=source,
-            observed_at=str(check["observed_at"]),
-            result=check["result"],
+            observed_at=str(_required_arg(check, "observed_at")),
+            result=_required_arg(check, "result"),
             subjects=subjects_from(check.get("subjects")),
         )
         self._require_write(args, EvidenceView(view_id="probe", proposition_id=pid, checks=[built]))
-        view = self.store.extend_view(pid, checks=[built], new_view_id=args.get("new_view_id") or None)
+        view = self.store.extend_view(pid, checks=[built], new_view_id=_new_view_id(args))
         return {"recorded": True, "check_id": built.check_id, "view_id": view.view_id, "count": len(view.checks)}
 
     def tool_evidence_record(self, args: dict[str, Any]) -> dict[str, Any]:
         """Append evidence (and optional assertion text): a new snapshot."""
         self._require_role()
-        pid = str(args["proposition_id"])
-        item = args["evidence"]
-        if "polarity" not in item:
+        pid = _id_arg(args, "proposition_id")
+        item = _object_arg(args, "evidence")
+        if item.get("polarity") is None:
             raise McpError(REFUSE_INVALID_ARGUMENTS, "evidence.polarity is required (supports|opposes); it is never assumed")
-        source = self._build_source(item.get("source"), fallback=str(item.get("evidence_id")))
+        evidence_id = _id_arg(item, "evidence_id")
+        source = self._build_source(item.get("source"), fallback=evidence_id)
         ev = EvidenceItem(
-            evidence_id=str(item["evidence_id"]),
+            evidence_id=evidence_id,
             proposition_id=pid,
             polarity=item["polarity"],
             source=source,
-            content=str(item["content"]),
-            observed_at=str(item["observed_at"]),
+            content=str(_required_arg(item, "content")),
+            observed_at=str(_required_arg(item, "observed_at")),
         )
         assertions: list[Assertion] = []
-        if args.get("text"):
+        text = args.get("text")
+        if text is not None and not isinstance(text, str):
+            raise McpError(REFUSE_INVALID_ARGUMENTS, f"text must be a string; got {text!r}")
+        if text:
             confidence = args.get("assertion_confidence")
+            if confidence is not None and (isinstance(confidence, bool) or not isinstance(confidence, (int, float))):
+                raise McpError(REFUSE_INVALID_ARGUMENTS, f"assertion_confidence must be a JSON number; got {confidence!r}")
             assertions.append(
                 Assertion(
-                    assertion_id=str(args.get("assertion_id") or ev.evidence_id + ":a"),
+                    assertion_id=ev.evidence_id + ":a" if args.get("assertion_id") is None else _id_arg(args, "assertion_id"),
                     proposition_id=pid,
                     text=str(args["text"]),
-                    asserted_by=str(args.get("asserted_by") or "mcp"),
-                    assertion_confidence=0.5 if confidence is None else float(confidence),
+                    asserted_by="mcp" if args.get("asserted_by") is None else str(args["asserted_by"]),
+                    assertion_confidence=0.5 if confidence is None else _number(confidence),
                     source=source,
                     asserted_at=ev.observed_at,
                 )
             )
         self._require_write(args, EvidenceView(view_id="probe", proposition_id=pid, evidence=[ev]))
         view = self.store.extend_view(
-            pid, evidence=[ev], assertions=assertions, new_view_id=args.get("new_view_id") or None
+            pid, evidence=[ev], assertions=assertions, new_view_id=_new_view_id(args)
         )
         return {"recorded": True, "evidence_id": ev.evidence_id, "view_id": view.view_id, "count": len(view.evidence)}
 
-    def _action_from(self, raw: dict[str, Any]) -> Action:
+    def _action_from(self, raw: Any) -> Action:
+        if not isinstance(raw, dict):
+            raise McpError(REFUSE_INVALID_ACTION, "action must be an object with risk and reversible")
         risk = raw.get("risk")
         reversible = raw.get("reversible")
         if risk not in RISK_LEVELS:
@@ -430,8 +461,10 @@ class EwpMcp:
 
     def _risk_policy_from(self, raw: dict[str, Any] | None) -> RiskPolicy:
         """The action policy belongs to the operator, not the agent being gated."""
-        if not raw:
+        if raw is None or raw == {}:
             return RiskPolicy()
+        if not isinstance(raw, dict):
+            raise McpError(REFUSE_CLIENT_RISK_POLICY, "risk_policy must be an object")
         if not self._has_ingest_role():
             raise McpError(
                 REFUSE_CLIENT_RISK_POLICY,
@@ -452,14 +485,14 @@ class EwpMcp:
 
     def tool_may_act(self, args: dict[str, Any]) -> dict[str, Any]:
         action_raw = args.get("action")
-        if not action_raw:
+        if action_raw is None or action_raw == {}:
             raise McpError(REFUSE_MAY_ACT_WITHOUT_ACTION, "may_act requires an action; it is not inferred from WarrantView")
-        if args.get("warrant"):
+        if args.get("warrant") is not None:
             raise McpError(
                 REFUSE_CLIENT_WARRANT,
                 "ewp_may_act does not accept a caller-built WarrantView; it evaluates the stored view",
             )
-        if args.get("view"):
+        if args.get("view") is not None:
             raise McpError(
                 REFUSE_INLINE_VIEW,
                 "ewp_may_act evaluates stored evidence only; a caller-built EvidenceView cannot authorize action",
@@ -467,12 +500,22 @@ class EwpMcp:
         action = self._action_from(action_raw)
         risk_policy = self._risk_policy_from(args.get("risk_policy"))
         evaluated_at = self._server_time(args)
-        view = self._load(args)
+        # The latest snapshot only. A caller may name the view it read, as a
+        # guard against acting on stale evidence, but may not pick an older
+        # snapshot that lacks a newer contradiction.
+        view = self._load({"proposition_id": args.get("proposition_id")})
+        if args.get("view_id") is not None and _id_arg(args, "view_id") != view.view_id:
+            raise McpError(
+                REFUSE_STALE_VIEW_FOR_ACTION,
+                f"view {args['view_id']!r} is not the latest snapshot of {view.proposition_id!r} "
+                f"({view.view_id!r}); action is gated on the latest evidence",
+            )
         warrant = warrant_now(view, Policy(), evaluated_at)
         decision = may_act(warrant, action, risk_policy)
         return {
             "decision": decision,
             "proposition_id": warrant.proposition_id,
+            "view_id": view.view_id,
             "evaluated_at": evaluated_at,
             "acceptance": warrant.warrant.acceptance,
             "conflict": warrant.warrant.conflict,
@@ -493,7 +536,10 @@ class EwpMcp:
         }
 
     def tool_memory_context(self, args: dict[str, Any]) -> dict[str, Any]:
-        evaluated_at = str(args.get("evaluated_at") or self.clock())
+        supplied = args.get("evaluated_at")
+        if supplied is not None and not isinstance(supplied, str):
+            raise McpError(REFUSE_INVALID_ARGUMENTS, f"evaluated_at must be an ISO 8601 string; got {supplied!r}")
+        evaluated_at = supplied if supplied else self.clock()
         view = self._load(args)
         result = warrant_now(view, Policy(), evaluated_at)
         w = result.warrant
@@ -549,17 +595,22 @@ class EwpMcp:
             body = json.dumps({"protocol": PROTOCOL, "policy": POLICY, "mcp": SERVER_NAME})
             return {"contents": [{"uri": uri, "mimeType": "application/json", "text": body}]}
         if parsed.netloc == "proposition":
-            parts = [p for p in parsed.path.split("/") if p]
+            # Segments are percent-decoded after splitting, so an id containing
+            # "/" or a space arrives as its template expansion encoded it. The
+            # query is a URI query, not an HTML form: "+" stays "+" (a time
+            # offset like +00:00), and only %XX escapes are decoded.
+            parts = [unquote(p) for p in parsed.path.split("/") if p]
+            query = dict((unquote(k), unquote(v)) for k, _, v in (pair.partition("=") for pair in parsed.query.split("&") if pair))
             if not parts:
                 raise McpError(REFUSE_MISSING_VIEW, "proposition id required")
             pid = parts[0]
-            qs = parse_qs(parsed.query)
-            if parts[-1] == "warrant" or qs.get("kind") == ["warrant"]:
-                evaluated_at = (qs.get("evaluated_at") or [""])[0]
-                result = self.tool_warrant_now({"proposition_id": pid, "evaluated_at": evaluated_at})
+            if len(parts) == 2 and parts[1] == "warrant" or len(parts) == 1 and query.get("kind") == "warrant":
+                result = self.tool_warrant_now({"proposition_id": pid, "evaluated_at": query.get("evaluated_at", "")})
                 text = json.dumps(result)
-            else:
+            elif len(parts) == 1:
                 text = json.dumps(self.tool_view_get({"proposition_id": pid}))
+            else:
+                raise McpError("EWP_UNKNOWN_RESOURCE", uri)
             return {"contents": [{"uri": uri, "mimeType": "application/json", "text": text}]}
         raise McpError("EWP_UNKNOWN_RESOURCE", uri)
 
@@ -572,22 +623,60 @@ class EwpMcp:
         return {"jsonrpc": "2.0", "id": mid, "error": {"code": code, "message": message}}
 
 
+def _required_arg(d: dict[str, Any], key: str) -> Any:
+    """A required argument: absent and null are both missing (null never becomes "None")."""
+    value = d.get(key)
+    if value is None:
+        raise McpError(REFUSE_INVALID_ARGUMENTS, f"{key} is required")
+    return value
+
+
+def _id_arg(d: dict[str, Any], key: str) -> str:
+    """A required id: a non-empty string or a number, normalized with str()."""
+    value = _required_arg(d, key)
+    if isinstance(value, bool) or not isinstance(value, (str, int, float)) or value == "":
+        raise McpError(REFUSE_INVALID_ARGUMENTS, f"{key} must be a non-empty string; got {value!r}")
+    return str(value)
+
+
+def _object_arg(d: dict[str, Any], key: str) -> dict[str, Any]:
+    value = _required_arg(d, key)
+    if not isinstance(value, dict):
+        raise McpError(REFUSE_INVALID_ARGUMENTS, f"{key} must be an object")
+    return value
+
+
+def _new_view_id(args: dict[str, Any]) -> str | None:
+    """Absent or null: derive from content. Otherwise it must be a usable id."""
+    return None if args.get("new_view_id") is None else _id_arg(args, "new_view_id")
+
+
+def _inline_view(args: dict[str, Any]) -> dict[str, Any] | None:
+    """The `view` argument: absent or null is None; anything but an object is refused."""
+    view = args.get("view")
+    if view is None:
+        return None
+    if not isinstance(view, dict):
+        raise McpError(REFUSE_INVALID_ARGUMENTS, "view must be an EvidenceView object")
+    return view
+
+
 def source_from_args(d: dict[str, Any], fallback: str) -> SourceRef:
-    sid = str(d.get("source_id") or fallback)
+    sid = fallback if d.get("source_id") is None else str(d["source_id"])
     if not d.get("content_hash"):
         raise McpError(REFUSE_MISSING_CONTENT_HASH, "source.content_hash is required; the server will not invent one")
     if not d.get("observed_at"):
         raise McpError(REFUSE_MISSING_OBSERVED_AT, "source.observed_at is required; the server will not invent epoch")
     return SourceRef(
         source_id=sid,
-        lineage_id=str(d.get("lineage_id") or sid),
-        origin_type=str(d.get("origin_type") or "extract"),
-        origin_locator=str(d.get("origin_locator") or f"mcp:{sid}"),
-        snapshot_id=str(d.get("snapshot_id") or sid),
+        lineage_id=sid if d.get("lineage_id") is None else str(d["lineage_id"]),
+        origin_type="extract" if d.get("origin_type") is None else str(d["origin_type"]),
+        origin_locator=f"mcp:{sid}" if d.get("origin_locator") is None else str(d["origin_locator"]),
+        snapshot_id=sid if d.get("snapshot_id") is None else str(d["snapshot_id"]),
         content_hash=str(d["content_hash"]),
         observed_at=str(d["observed_at"]),
-        extractor_id=d.get("extractor_id"),
-        parent_source_id=d.get("parent_source_id"),
+        extractor_id=optional_id(d, "extractor_id"),
+        parent_source_id=optional_id(d, "parent_source_id"),
     )
 
 
@@ -689,9 +778,9 @@ TOOLS = [
     {
         "name": "ewp_may_act",
         "description": (
-            "Separate action gate over the stored view at server time. Requires an action with "
-            "risk (low|medium|high) and reversible (boolean). Refuses inline views and caller-built "
-            "WarrantViews. risk_policy is operator-only (ingest role)."
+            "Separate action gate over the latest stored view at server time. Requires an action with "
+            "risk (low|medium|high) and reversible (boolean). Refuses inline views, caller-built "
+            "WarrantViews, and a view_id that is not the latest. risk_policy is operator-only (ingest role)."
         ),
         "inputSchema": {
             "type": "object",
@@ -707,8 +796,8 @@ TOOLS = [
                     "required": ["risk", "reversible"],
                 },
                 "proposition_id": {"type": "string"},
-                "view_id": {"type": "string"},
-                "evaluated_at": {"type": "string", "description": "optional; must be within the server's clock skew"},
+                "view_id": {"type": "string", "description": "optional guard; must be the latest snapshot"},
+                "evaluated_at": {"type": "string", "description": "optional sanity check; the decision always uses server time"},
                 "risk_policy": {"type": "object"},
             },
             "required": ["action", "proposition_id"],
@@ -835,6 +924,14 @@ def make_http_server(server: EwpMcp, host: str, port: int) -> ThreadingHTTPServe
                 return
             self._write(404, {"error": "not found"})
 
+        def _not_allowed(self) -> None:
+            self.send_response(405)
+            self.send_header("Allow", "GET, POST")
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+
+        do_HEAD = do_PUT = do_DELETE = do_CONNECT = do_OPTIONS = do_TRACE = do_PATCH = _not_allowed  # noqa: N815
+
     return ThreadingHTTPServer((host, port), Handler)
 
 
@@ -846,7 +943,7 @@ def _read_token(path: str) -> str:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="ewp-mcp", description="EWP MCP façade")
-    parser.add_argument("--db", default=":memory:", help="SQLite path, default memory")
+    parser.add_argument("--db", default=":memory:", help="SQLite path; required for read-only mode (ingest-enabled mode defaults to memory)")
     parser.add_argument("--http", default="", help="host:port for plain JSON-RPC over HTTP (not MCP Streamable HTTP)")
     parser.add_argument("--stdio", action="store_true", help="MCP stdio transport (default if no --http)")
     parser.add_argument("--allow-ingest", action="store_true", help="stdio only: this process holds the ingest role")

@@ -104,13 +104,15 @@ Verification is evidence with method, scope, source, time, and `result`. It is n
 
 Method name is not enough. Only origins `tool`, `document`, `human`, `api`, `vendor`, `sensor` may raise `HUMAN` or `EXTERNAL`. If `source.origin_type` is endogenous or unknown (`extract`, `turn`, `derived`, `summary`, `model_introspection`, `episode`, …), a human or external method is capped at `INDIRECT`.
 
+`EXTERNAL` and `HUMAN` name the verification channel, not source quality: a trusted origin says the check came from outside the agent, not that the source is reputable or correct.
+
 ### Closed enums
 
 `polarity`, `result`, conflict `status`, and lineage `kind` are closed enums (`docs/implementer/SCHEMA.md`). A view carrying any other value is invalid. Implementations MUST refuse it rather than evaluate it: an unknown value may not be read as `supports`, as "no conflict", or be silently dropped.
 
 ### Bounded views
 
-An `EvidenceView` is bounded to one proposition. Every assertion and evidence item MUST be about the view's `proposition_id` (or a `proposition_id:<suffix>` variant), and every conflict row MUST name it. A view that mixes propositions is invalid and MUST be refused, not filtered. Record ids MUST be unique within a view and every use of a `source_id` MUST carry the same `SourceRef`; all ids, including `conflict_id`, are local to their proposition. Field types are part of the contract: `subjects` are lists of strings, `freshness_policy_seconds` is a non-negative integer (0 is valid), `degraded` is a boolean, `assertion_confidence` is a finite number, required fields are present and not null, and `evaluated_at` parses as an instant. `docs/implementer/invalid/` has one refused view per rule.
+An `EvidenceView` is bounded to one proposition. Every assertion and evidence item MUST be about the view's `proposition_id` (or a `proposition_id:<suffix>` variant), and every conflict row MUST name it. A view that mixes propositions is invalid and MUST be refused, not filtered. Record ids MUST be unique within a view and every use of a `source_id` MUST carry the same `SourceRef`; all ids, including `conflict_id`, are local to their proposition. Field types are part of the contract: the five record arrays are lists (`false` or `""` is not an empty list), `proposition_id` is a non-empty id, `subjects` are lists of strings, `freshness_policy_seconds` is an integer from 0 to 2^53 − 1, `degraded` is a boolean, `assertion_confidence` is a finite number, required fields are present and not null, and `evaluated_at` parses as an instant. `docs/implementer/invalid/` has one refused view per rule.
 
 ### WarrantView
 

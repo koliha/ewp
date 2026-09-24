@@ -22,6 +22,8 @@ class InvalidView(ValueError):
 
 
 def instant(ts: str) -> datetime:
+    if ts is not None and not isinstance(ts, str):
+        raise ValueError(f"timestamp {ts!r} is not a string")
     text = (ts or "").strip().replace("Z", "+00:00")
     dt = datetime.fromisoformat(text)
     if dt.tzinfo is None:
@@ -74,10 +76,15 @@ REQUIRED_SOURCE = ("source_id", "lineage_id", "origin_type", "origin_locator", "
 
 
 def check_required(view: dict) -> None:
-    if view.get("proposition_id") is None:
-        raise InvalidView("missing proposition_id")
+    if not isinstance(view.get("proposition_id"), str) or view["proposition_id"] == "":
+        raise InvalidView("proposition_id must be a non-empty string")
+    view_id = view.get("view_id")
+    if view_id not in (None, "") and (isinstance(view_id, bool) or not isinstance(view_id, (str, int))):
+        raise InvalidView(f"view_id {view_id!r} must be a string")
     for part, keys in REQUIRED.items():
-        records = view.get(part) or []
+        records = view.get(part)
+        if records is None:
+            continue
         if not isinstance(records, list):
             raise InvalidView(f"{part} must be a list")
         for r in records:
@@ -91,10 +98,13 @@ def check_required(view: dict) -> None:
                 if not isinstance(src, dict) or any(src.get(k) is None for k in REQUIRED_SOURCE):
                     raise InvalidView(f"{part} record has an incomplete source")
             if part == "assertions":
+                confidence = r["assertion_confidence"]
+                if isinstance(confidence, bool) or not isinstance(confidence, (int, float)):
+                    raise InvalidView("assertion_confidence is not a JSON number")
                 try:
-                    confidence = float(r["assertion_confidence"])
-                except (TypeError, ValueError):
-                    raise InvalidView("assertion_confidence is not a number") from None
+                    confidence = float(confidence)
+                except OverflowError:
+                    raise InvalidView("assertion_confidence is too large to be a finite number") from None
                 if confidence != confidence or confidence in (float("inf"), float("-inf")):
                     raise InvalidView("assertion_confidence must be finite")
 
@@ -149,12 +159,14 @@ def validate(view: dict) -> None:
     if not is_subject_list(field(view, "subjects")):
         raise InvalidView(f"view subjects {view.get('subjects')!r}")
     fresh = field(view, "freshness_policy_seconds")
-    if type(fresh) is not int or fresh < 0:
+    if type(fresh) is not int or not 0 <= fresh <= 2**53 - 1:
         raise InvalidView(f"freshness_policy_seconds {fresh!r}")
     if type(field(view, "degraded")) is not bool:
         raise InvalidView(f"degraded {view.get('degraded')!r}")
     if not isinstance(field(view, "retrieval_scope"), str):
         raise InvalidView(f"retrieval_scope {view.get('retrieval_scope')!r}")
+    if view.get("adapter_meta") is not None and not isinstance(view["adapter_meta"], dict):
+        raise InvalidView("adapter_meta must be an object")
 
 
 def scope_caps_check(check: dict, view: dict) -> bool:

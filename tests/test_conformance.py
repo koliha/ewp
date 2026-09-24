@@ -124,13 +124,9 @@ def test_10_store_independence_sqlite_roundtrip():
     direct = eval_view(view).normalized()
     db = SQLiteAdapter()
     db.load_view(view)
-    loaded = db.get_view(
-        view.proposition_id,
-        view.view_id,
-        freshness_policy_seconds=view.freshness_policy_seconds,
-    )
+    loaded = db.get_view(view.proposition_id, view.view_id)
     via_store = eval_view(loaded).normalized()
-    # view_id may be supplied by caller; compare epistemic payload
+    assert via_store == direct, "SQLite snapshot must evaluate exactly like the view it stores"
     for key in ("warrant", "independent_lineage_count", "stale", "checks", "supporting_evidence_ids"):
         assert direct[key] == via_store[key], key
     with TemporaryDirectory() as tmp:

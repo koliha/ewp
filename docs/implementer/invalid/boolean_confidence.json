@@ -4,7 +4,7 @@
     {
       "asserted_at": "2026-09-01T00:00:00+00:00",
       "asserted_by": "agent",
-      "assertion_confidence": NaN,
+      "assertion_confidence": true,
       "assertion_id": "a1",
       "proposition_id": "P-win",
       "source": {

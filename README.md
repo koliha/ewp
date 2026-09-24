@@ -15,7 +15,7 @@ Stores adapt to the protocol. The protocol does not inherit the store’s episte
 
 v0.2.0 binds verification to declared `subjects[]` as exact ids, scopes supersession to the proposition, treats future, missing, and unparsable times as unavailable at T, refuses invalid input (values outside the closed enums, views that mix propositions, duplicate or ambiguous ids, mistyped fields), stores immutable `(proposition, view_id)` snapshots over an append-only ledger, requires adapters to round-trip every field (Graphiti's unavoidable losses are listed), and ships an MCP façade where every write needs a server-side ingest role. Those judgments changed, so the policy is `reference-v2`. `WarrantView` carries `protocol_version`.
 
-See `NAME.md`, `docs/PROTOCOL.md`, `docs/DESIGN_NOTE.md`, `docs/implementer/`, `docs/PLATFORMS.md`, `docs/implementer/LIVE_ADAPTERS.md`, `docs/MCP_CONTRACT.md`, `CONFORMANCE.md`. MCP server: `ewp-mcp --db <ledger>` (`python3 -m ewp.mcp_server`), over a ledger loaded with `ewp-ingest`. The pre-freeze claim/confidence sketch is `historical/docs/MCP_CONTRACT.md` (superseded).
+See `NAME.md`, `docs/PROTOCOL.md`, `docs/DESIGN_NOTE.md`, `docs/implementer/`, `docs/PLATFORMS.md`, `docs/implementer/LIVE_ADAPTERS.md`, `docs/MCP_CONTRACT.md`, `CONFORMANCE.md`, `docs/OPEN_QUESTIONS.md`. MCP server: `ewp-mcp --db <ledger>` (`python3 -m ewp.mcp_server`), over a ledger loaded with `ewp-ingest`. The pre-freeze claim/confidence sketch is `historical/docs/MCP_CONTRACT.md` (superseded).
 
 Boundary. Policy. Observations. Permission. Four things. None gets to wear the others' clothes.
 
@@ -231,15 +231,17 @@ The v0.2.0 *reference kernel*:
 - deterministic `warrant_now()` — no network, no LLM, no hidden writes
 - shared `ewp/classify.py` used by both reference evaluators
 - separate `may_act()`
-- 14 canonical + 12 pathological + 26 hardening fixtures (laundering, subject binding, time at T, supersession scope, zero freshness, variant record propositions), plus 24 invalid views that must be refused
+- 14 canonical + 12 pathological + 26 hardening fixtures (laundering, subject binding, time at T, supersession scope, zero freshness, variant record propositions), plus 35 invalid views that must be refused
 - 26 pinned golden `WarrantView`s; all 52 fixtures' expected axes pinned in `docs/implementer/`
 - an independent third evaluator (`docs/implementer/third_eval.py`) written from the policy text alone
 - SQLite and JSON reference adapters (immutable snapshots; SQLite over an append-only ledger)
 - `ewp-ingest` to load your own evidence from JSON, and `ewp-mcp` to serve it read-only to Claude (`QUICKSTART.md`)
 - Graphiti-*shaped* semantic adapter (fake records)
-- live Mem0 mapping and an **experimental** live Graphiti mapping (`ewp/mem0_adapter.py`, `ewp/graphiti_client_adapter.py`); every fixture round-trips through Mem0 with every field intact and through fake Graphiti with only its listed losses; live `graphiti-core 0.30.2` is **not** validated
+- live Mem0 mapping for the mem0ai 2.x clients, tested against a real OSS `mem0.Memory` (mem0ai 2.2.0), and an **experimental** live Graphiti mapping (`ewp/mem0_adapter.py`, `ewp/graphiti_client_adapter.py`); every fixture round-trips through Mem0 with every field intact and through fake Graphiti with only its listed losses; live `graphiti-core 0.30.2` is **not** validated
+- differential fuzz tests: every field of every fixture replaced by malformed values (about 88,000 views) must be refused by all three evaluators or evaluated identically, every accepted malformed view must round-trip unchanged through every store, and every malformed MCP argument or JSON-RPC/HTTP request must get a specific error
 - MCP façade (`ewp/mcp_server.py`, `tests/test_mcp.py`): MCP stdio transport or plain JSON-RPC `POST /mcp`; contract in `docs/MCP_CONTRACT.md`
 - four-stage runners and field-level diffs
+- SQLite and JSON stores safe for concurrent writers and readers (SQLite transactions; an OS file lock and atomic replaces for the JSON store)
 
 Warrant evaluation does not require MCP. Persona files (`MEMORY.md`) are a generated checkout, not the system of record.
 
@@ -258,7 +260,7 @@ EWP_INGEST_TOKEN=... python3 -m ewp.mcp_server --http 127.0.0.1:8765 --db ./ewp.
 openclaw mcp add ewp --url http://127.0.0.1:8765/mcp
 ```
 
-Contract: `docs/MCP_CONTRACT.md`. Stdio is the standard MCP transport (newline-delimited JSON-RPC). HTTP is plain JSON-RPC, not MCP Streamable HTTP. Every write needs the server-side ingest role (`--allow-ingest` on stdio, the token on HTTP); without it the server is evaluate-only. Give the token to the ingest pipeline, not the agent. `ewp_may_act` gates only stored evidence, at server time.
+Contract: `docs/MCP_CONTRACT.md`. Stdio is the standard MCP transport (newline-delimited JSON-RPC). HTTP is plain JSON-RPC, not MCP Streamable HTTP. Every write needs the server-side ingest role (`--allow-ingest` on stdio, the token on HTTP); without it the server is evaluate-only. Give the token to the ingest pipeline, not the agent. `ewp_may_act` gates only the latest stored evidence, at server time.
 
 | OpenClaw object | Role under EWP |
 |---|---|
@@ -308,7 +310,7 @@ python3 tests/runner.py
 python3 tests/runner_pathological.py
 ```
 
-CI enforces the fixture, evaluator, policy, golden, and implementer-pack lock hashes; all 26 goldens; all 52 fixtures through the codec, SQLite, JSON, Mem0, and fake Graphiti with identical axes and fields; 24 invalid views refused by all three evaluators; fake-Graphiti isolation; the hardening pack; live-adapter mappings; the MCP façade; and the third evaluator. Changing a golden, the pack, the policy text, or the evaluator requires an explicit version change, then `python3 tests/ci.py --write-lock`. `tests/report.py` only says `CONFORMANT` for a CI stamp taken on the exact CI surface it is run on (kernel, adapters, MCP server, tests, implementer pack, examples, workflow).
+CI enforces the fixture, evaluator, policy, golden, and implementer-pack lock hashes; all 26 goldens; all 52 fixtures through the codec, SQLite, JSON, Mem0, and fake Graphiti with identical axes and fields; 35 invalid views refused by all three evaluators; fake-Graphiti isolation; the hardening pack; live-adapter mappings; the Mem0 adapter against a real mem0ai 2.2.0 client; the MCP façade, including the official MCP SDK client; the differential fuzz tests (evaluator parity, store neutrality, MCP arguments, JSON-RPC and HTTP transport); and the third evaluator. Changing a golden, the pack, the policy text, or the evaluator requires an explicit version change, then `python3 tests/ci.py --write-lock`. `tests/report.py` only says `CONFORMANT` for a CI stamp taken on the exact CI surface it is run on (kernel, adapters, MCP server, tests, implementer pack, examples, workflow).
 
 Failure classes: `INGEST_LOSS`, `ADAPTER_MAP_LOSS`, `WARRANT_MISMATCH`, `RETRIEVAL_LOSS`, `EXPECTED_DIVERGENCE`.
 
@@ -328,7 +330,7 @@ Policy: reference-v2
 Canonical: 14/14
 Pathological: 12/12
 Hardening: 26/26
-Invalid refused: 24/24
+Invalid refused: 35/35
 SQLite PASS
 JSON PASS
 Fake Graphiti PASS
@@ -336,15 +338,15 @@ Mem0 (fake client) PASS
 graphiti-core 0.30.2 — NOT VALIDATED
 
 fixture_set_sha256:
-8ce13da7d39cf8e82633f62e0a069bb15d60de32a5c5d60a324c73a9bf5b865f
+4358b59fdda94f522abbbb8fc810c1b344da7aebc1ba116bc3fa614e3bb6c419
 evaluator_set_sha256:
-8601420fde07c974f15b792f64eb86f549b8c0e7af677f55d2100f2cc389c1ca
+fd446401b46ca19626cbdf287ecd6c67f7bf82c231e5135b92393774ae464e57
 policy_set_sha256:
-b454db46f6a94a6d97e750a803168b62d8493519ff9d348a6f931b23467e5d3f
+8a9f94fffc7fa95473232da5fb1de8120c26a70c7624eb126c67021412b6405b
 golden_set_sha256:
 1db7cab34639a87ce35c36635d4b6cffa46ba08855107fc9a04a4b89348a81c8
 implementer_pack_sha256:
-76dee67e5408cd7aab08628367b1e2fdf8488e7016d26b4bbb852f970dfbec20
+700153b13a020ce7f6abcb876a1b6fab86ec79b3b8931656fd1b051c0276fa0e
 ```
 
 A store that produces a different answer has an adapter or conformance problem, not a license to move the goldens.
@@ -357,7 +359,7 @@ A store that produces a different answer has an adapter or conformance problem, 
 ewp/               kernel (classify, warrant, adapters, fixtures, MCP server)
                    plus live Graphiti/Mem0 mappings
 tests/             conformance, goldens, adapter round trips, runners, CI,
-                   live-adapter and MCP tests
+                   live-adapter, real Mem0 client, MCP, and fuzz tests
 docs/              PROTOCOL.md, design note, platforms, implementer pack, PDFs
                    docs/MCP_CONTRACT.md — shipped MCP façade
 historical/        pre-freeze warrantmem ledger/MCP/Postgres sketches
@@ -382,7 +384,7 @@ That answer can be reproduced, tested, inspected, and challenged.
 
 ## Status
 
-EWP-0.2.0, policy `reference-v2`. The 26 golden axes are unchanged from 0.1.0; their identity fields now read `reference-v2` and `EWP-0.2.0`. The hardening pack (26) and the invalid pack (24) are locked. Known limits: conflict rows and lineage edges carry no timestamp, so they are not filtered by availability at T; assertions carry no polarity. See `CHANGELOG.md`.
+EWP-0.2.0, policy `reference-v2`. The 26 golden axes are unchanged from 0.1.0; their identity fields now read `reference-v2` and `EWP-0.2.0`. The hardening pack (26) and the invalid pack (35) are locked. Known limits: conflict rows and lineage edges carry no timestamp, so they are not filtered by availability at T; assertions carry no polarity. See `CHANGELOG.md`.
 
 New stores may reveal adapter bugs, retrieval loss, missing tests, or a genuine hole. They do not redefine warrant.
 

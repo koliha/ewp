@@ -12,7 +12,7 @@ Mem0 stores extracted memories, not EWP records. Mapping rules:
 * `infer=False` on add keeps the raw string; still origin `extract`
   unless metadata supplies a trusted origin.
 * Retrieval score is adapter_meta only. Never warrant strength.
-* `search` vs `get_all` length mismatch ⇒ `degraded=True`.
+* A search that returns fewer of the snapshot's memories ⇒ `degraded=True`.
 * EWP ingest writes assertions (`kind=assertion`) and evidence
   (`kind=evidence`) as separate memories. Each keeps its own polarity and
   its original asserted_at / observed_at; Mem0's created_at is ingest
@@ -20,17 +20,22 @@ Mem0 stores extracted memories, not EWP records. Mapping rules:
   outside EWP) maps to an assertion plus supporting evidence.
 * Checks / conflicts are parked as sibling memories with
   `metadata.ewp.kind` in {ewp_check, ewp_conflict, ewp_parked}.
-* Snapshots: `ingest_view` tags every memory with the view's `view_id` and
-  writes the parked sidecar last, carrying a content digest and a sequence
-  number. `raw_view(pid, view_id)` rebuilds exactly that snapshot;
-  `raw_view(pid)` the latest. Re-ingesting an identical snapshot is a no-op;
-  different content under an existing `view_id` is refused. Memories with no
-  sidecar (written outside EWP, or an interrupted ingest) are only read when
-  the proposition has no EWP snapshots at all.
+* Snapshots: `ingest_view` tags every memory with the view's `view_id`, a
+  fresh `ingest_id`, and a sequence number, and writes the parked sidecar
+  last with the same ids and a content digest. `raw_view(pid, view_id)`
+  rebuilds exactly that snapshot and checks it against the digest;
+  `raw_view(pid)` the latest, refused when a newer uncommitted ingest or a
+  sequence tie makes "latest" unknowable. Re-ingesting an identical snapshot
+  is a no-op; different content under an existing `view_id` is refused.
+  Memories of an interrupted ingest are never read. Memories written outside
+  EWP (no `view_id`) are read only when the proposition has no EWP snapshot,
+  as `retrieval_scope=mem0.unverified` (DEGRADED).
 """
 
 from __future__ import annotations
 
+import inspect
+import uuid
 from typing import Any
 
 from .live_util import (
@@ -39,12 +44,12 @@ from .live_util import (
     as_list,
     attr,
     ewp_blob,
-    iso,
+    observed_time,
     unwrap_collection,
 )
 from .classify import InvalidEvidenceView, validate_view
-from .codec import content_view_id, record_identity_conflicts, subjects_from
-from .sqlite_adapter import ImmutableRecordError, MissingViewError
+from .codec import _number, content_view_id, record_identity_conflicts, subjects_from
+from .sqlite_adapter import ImmutableRecordError, LedgerError, MissingViewError
 from .types import (
     Assertion,
     Conflict,
@@ -73,7 +78,7 @@ def _item_text(item: Any) -> str:
 
 
 def _item_when(item: Any) -> str:
-    return iso(attr(item, "created_at", "updated_at", "timestamp", default=None))
+    return observed_time(attr(item, "created_at", "updated_at", "timestamp", default=None))
 
 
 def _item_score(item: Any) -> float | None:
@@ -84,23 +89,26 @@ def _item_score(item: Any) -> float | None:
         return None
 
 
+def _given(blob: dict[str, Any], key: str, default: Any) -> Any:
+    """The written value, even when falsy (""); the default only when absent.
+    EWP-written memories must read back exactly what was written."""
+    value = blob.get(key)
+    return default if value is None else value
+
+
 def source_from_mem0(item: Any, *, fallback_id: str) -> SourceRef:
     """EWP-written memories carry the original SourceRef in metadata and get
     it back exactly. Memories written outside EWP get Mem0-derived defaults."""
     blob = ewp_blob(item)
     mid = _item_id(item) or fallback_id
-    origin = str(blob.get("origin_type") or "extract")
-    lineage = str(blob.get("lineage_id") or mid)
-    locator = str(blob.get("origin_locator") or f"mem0:memory:{mid}")
-    digest = str(blob.get("content_hash") or attr(item, "hash", default=f"mem0:{mid}"))
     return SourceRef(
-        source_id=str(blob.get("source_id") or mid),
-        lineage_id=lineage,
-        origin_type=origin,
-        origin_locator=locator,
-        snapshot_id=str(blob.get("snapshot_id") or mid),
-        content_hash=str(digest),
-        observed_at=str(blob.get("source_observed_at") or _item_when(item)),
+        source_id=str(_given(blob, "source_id", mid)),
+        lineage_id=str(_given(blob, "lineage_id", mid)),
+        origin_type=str(_given(blob, "origin_type", "extract")),
+        origin_locator=str(_given(blob, "origin_locator", f"mem0:memory:{mid}")),
+        snapshot_id=str(_given(blob, "snapshot_id", mid)),
+        content_hash=str(_given(blob, "content_hash", attr(item, "hash", default=f"mem0:{mid}"))),
+        observed_at=str(_given(blob, "source_observed_at", _item_when(item))),
         extractor_id=blob["extractor_id"] if "extractor_id" in blob else "mem0.extract",
         parent_source_id=blob.get("parent_source_id"),
     )
@@ -163,7 +171,7 @@ def items_to_view(
                     method=str(blob.get("method") or "extract"),
                     scope=str(blob.get("scope") or proposition_id),
                     source=src,
-                    observed_at=str(blob.get("observed_at") or when),
+                    observed_at=str(_given(blob, "observed_at", when)),
                     result=blob.get("result") or "inconclusive",  # type: ignore[arg-type]
                     subjects=subjects_from(blob.get("subjects")),
                 )
@@ -193,30 +201,30 @@ def items_to_view(
 
         # The record's own proposition (may be a variant pid:<suffix>); the
         # tag `proposition_id` is the view the memory belongs to.
-        prop = str(blob.get("record_proposition_id") or blob.get("proposition_id") or proposition_id)
+        prop = str(_given(blob, "record_proposition_id", _given(blob, "proposition_id", proposition_id)))
         text = _item_text(item)
-        polarity = blob.get("polarity") or "supports"
+        polarity = _given(blob, "polarity", "supports")
         if kind in {"memory", "assertion"}:
             assertions.append(
                 Assertion(
-                    assertion_id=str(blob.get("assertion_id") or f"{mid}:a"),
+                    assertion_id=str(_given(blob, "assertion_id", f"{mid}:a")),
                     proposition_id=prop,
                     text=text,
-                    asserted_by=str(blob.get("asserted_by") or "mem0.extract"),
-                    assertion_confidence=float(0.5 if blob.get("assertion_confidence") is None else blob["assertion_confidence"]),
+                    asserted_by=str(_given(blob, "asserted_by", "mem0.extract")),
+                    assertion_confidence=_number(_given(blob, "assertion_confidence", 0.5)),
                     source=src,
-                    asserted_at=str(blob.get("asserted_at") or when),
+                    asserted_at=str(_given(blob, "asserted_at", when)),
                 )
             )
         if kind in {"memory", "evidence"}:
             evidence.append(
                 EvidenceItem(
-                    evidence_id=str(blob.get("evidence_id") or f"{mid}:e"),
+                    evidence_id=str(_given(blob, "evidence_id", f"{mid}:e")),
                     proposition_id=prop,
                     polarity=polarity,  # type: ignore[arg-type]
                     source=src,
                     content=text,
-                    observed_at=str(blob.get("observed_at") or when),
+                    observed_at=str(_given(blob, "observed_at", when)),
                 )
             )
 
@@ -276,8 +284,37 @@ def _lineage_from_blob(blob: dict[str, Any]) -> list[LineageEdge]:
     ]
 
 
+DEFAULT_READ_LIMIT = 10_000
+HOSTED_PAGE_SIZE = 100
+
+
+def _seq(item: Any) -> int:
+    """A snapshot sequence number: a positive integer. Missing or malformed is
+    a damaged store, never 0 (which would quietly demote a snapshot below
+    older ones and let "latest" pick a stale view)."""
+    raw = ewp_blob(item).get("seq")
+    if raw is None or isinstance(raw, bool) or not isinstance(raw, (int, str)):
+        raise LedgerError(f"Mem0 memory {_item_id(item)!r} has a missing or malformed seq {raw!r}")
+    try:
+        value = int(raw)
+    except ValueError as exc:
+        raise LedgerError(f"Mem0 memory {_item_id(item)!r} has a malformed seq {raw!r}") from exc
+    if value < 1:
+        raise LedgerError(f"Mem0 memory {_item_id(item)!r} has a non-positive seq {raw!r}")
+    return value
+
+
 class Mem0Adapter:
-    """Production adapter around a Mem0 client."""
+    """Adapter around a Mem0 2.x client: OSS `mem0.Memory` or hosted
+    `mem0.MemoryClient`.
+
+    Reads use the 2.x contract: entity ids go in `filters`, never as
+    top-level arguments. OSS `get_all` returns at most `top_k` memories with
+    no paging, so a read that comes back exactly at `read_limit` may be
+    truncated and is refused. The hosted client pages; every page is read.
+    A snapshot is only returned once it matches the digest committed in its
+    sidecar, so a partial read fails closed instead of posing as complete.
+    """
 
     def __init__(
         self,
@@ -287,12 +324,15 @@ class Mem0Adapter:
         agent_id: str | None = None,
         run_id: str | None = None,
         infer: bool = False,
+        read_limit: int = DEFAULT_READ_LIMIT,
     ) -> None:
         self.client = client
         self.user_id = user_id
         self.agent_id = agent_id
         self.run_id = run_id
         self.infer = infer
+        self.read_limit = read_limit
+        self.page_size = HOSTED_PAGE_SIZE
 
     def _scope(self) -> dict[str, Any]:
         kw: dict[str, Any] = {"user_id": self.user_id}
@@ -302,22 +342,70 @@ class Mem0Adapter:
             kw["run_id"] = self.run_id
         return kw
 
-    def _call(self, method: str, *args: Any, **kwargs: Any) -> Any:
-        fn = getattr(self.client, method)
+    def _filters(self) -> dict[str, Any]:
+        """Mem0 2.x read filters: the entity ids (at least user_id)."""
+        return dict(self._scope())
+
+    def _paginated(self) -> bool:
+        """Hosted MemoryClient.get_all pages (page/page_size); OSS Memory.get_all takes top_k."""
         try:
-            return fn(*args, **kwargs)
-        except TypeError:
-            # Platform client is picky about unused kwargs.
-            slim = {k: v for k, v in kwargs.items() if v is not None}
-            return fn(*args, **slim)
+            params = inspect.signature(self.client.get_all).parameters
+        except (TypeError, ValueError):
+            return False
+        return "top_k" not in params
 
     def _all_items(self) -> list[Any]:
-        payload = self._call("get_all", **self._scope())
-        return unwrap_collection(payload)
+        if not self._paginated():
+            payload = self.client.get_all(filters=self._filters(), top_k=self.read_limit)
+            items = unwrap_collection(payload)
+            if len(items) >= self.read_limit:
+                raise LedgerError(
+                    f"Mem0 get_all returned {len(items)} memories, the read limit; the read may be "
+                    "truncated. Raise read_limit."
+                )
+            return items
+        items: list[Any] = []
+        page = 1
+        while True:
+            payload = self.client.get_all(filters=self._filters(), page=page, page_size=self.page_size)
+            batch = unwrap_collection(payload)
+            items.extend(batch)
+            if len(items) > self.read_limit:
+                raise LedgerError(f"Mem0 get_all passed read_limit={self.read_limit}; raise read_limit")
+            if not batch or not (isinstance(payload, dict) and payload.get("next")):
+                break
+            page += 1
+        count = payload.get("count") if isinstance(payload, dict) else None
+        if isinstance(count, int) and count != len(items):
+            raise LedgerError(f"Mem0 get_all reported {count} memories but returned {len(items)}; retry the read")
+        return items
 
     def _search_items(self, query: str, limit: int) -> list[Any]:
-        payload = self._call("search", query, limit=limit, **self._scope())
+        payload = self.client.search(query, filters=self._filters(), top_k=limit)
         return unwrap_collection(payload)
+
+    def _verified(self, members: list[Any], car: Any, proposition_id: str) -> EvidenceView:
+        """The snapshot this sidecar committed, rebuilt from what the store
+        returned. If the store returned fewer (or other) records than were
+        committed, the digest differs and the read is refused."""
+        blob = ewp_blob(car)
+        if not blob.get("digest"):
+            raise LedgerError(
+                f"Mem0 snapshot {blob['view_id']!r} of {proposition_id!r} has no digest; "
+                "it cannot be checked and is not read"
+            )
+        view = items_to_view(
+            members + [car],
+            proposition_id=proposition_id,
+            view_id=blob["view_id"],
+            retrieval_scope="complete",
+        )
+        if content_view_id(view) != blob["digest"]:
+            raise LedgerError(
+                f"Mem0 returned an incomplete or altered snapshot {blob['view_id']!r} of {proposition_id!r}: "
+                "its records do not match the digest committed at ingest"
+            )
+        return view
 
     def _for_proposition(self, items: list[Any], proposition_id: str) -> list[Any]:
         """Only memories tagged with this proposition_id.
@@ -344,7 +432,22 @@ class Mem0Adapter:
     def _sidecars(self, items: list[Any]) -> list[Any]:
         """EWP snapshot sidecars for a proposition, oldest first."""
         cars = [it for it in items if _kind(it) == "ewp_parked" and ewp_blob(it).get("view_id")]
-        return sorted(cars, key=lambda it: int(ewp_blob(it).get("seq") or 0))
+        return sorted(cars, key=lambda it: (_seq(it), str(ewp_blob(it).get("ingest_id") or "")))
+
+    @staticmethod
+    def _sidecar_for(cars: list[Any], proposition_id: str, view_id: str) -> Any:
+        """The one committed sidecar for view_id. Two ingests racing on a new
+        view_id can both commit; identical content is one snapshot, different
+        content is refused rather than silently picking a winner."""
+        matching = [c for c in cars if ewp_blob(c).get("view_id") == view_id]
+        if not matching:
+            raise MissingViewError(f"no stored view for {proposition_id!r} with view_id {view_id!r}")
+        if len({ewp_blob(c).get("digest") for c in matching}) > 1:
+            raise LedgerError(
+                f"view {view_id!r} of {proposition_id!r} was committed twice with different content "
+                "(concurrent ingest); re-ingest under a new view_id"
+            )
+        return matching[0]
 
     def _snapshot(self, proposition_id: str, view_id: str | None) -> tuple[list[Any], str | None, Any]:
         """(member memories, snapshot view_id, sidecar).
@@ -360,28 +463,73 @@ class Mem0Adapter:
                 raise MissingViewError(f"no stored view for {proposition_id!r} with view_id {view_id!r}")
             return [it for it in items if not ewp_blob(it).get("view_id")], None, None
         if view_id is None:
-            car = cars[-1]
-        else:
-            matching = [c for c in cars if ewp_blob(c).get("view_id") == view_id]
-            if not matching:
-                raise MissingViewError(f"no stored view for {proposition_id!r} with view_id {view_id!r}")
-            car = matching[-1]
-        chosen = ewp_blob(car)["view_id"]
-        members = [it for it in items if _kind(it) in MEMORY_KINDS and ewp_blob(it).get("view_id") == chosen]
-        return members, chosen, car
+            self._check_latest(items, cars, proposition_id)
+        chosen = ewp_blob(cars[-1])["view_id"] if view_id is None else view_id
+        car = self._sidecar_for(cars, proposition_id, chosen)
+        return self._members_of(items, car), chosen, car
+
+    @staticmethod
+    def _check_latest(items: list[Any], cars: list[Any], proposition_id: str) -> None:
+        """The newest committed sidecar is the latest snapshot only if no newer
+        ingest left records behind. Records from an ingest with a higher
+        sequence and no committed sidecar mean either an interrupted ingest or
+        a sidecar this read lost; either way "latest" cannot be established,
+        so the read is refused rather than serving an older snapshot as
+        current. (A store that hides a newer snapshot entirely, records and
+        sidecar, cannot be detected: Mem0 has no transactional latest pointer.)"""
+        committed = {str(ewp_blob(c).get("ingest_id")) for c in cars}
+        newest = _seq(cars[-1])
+        tied = sorted({str(ewp_blob(c).get("view_id")) for c in cars if _seq(c) == newest})
+        if len(tied) > 1:
+            raise LedgerError(
+                f"{proposition_id!r}: snapshots {tied} were committed concurrently with the same sequence "
+                "number, so none of them is the latest. Read an explicit view_id, or ingest a new snapshot."
+            )
+        pending = sorted({
+            str(ewp_blob(it).get("ingest_id"))
+            for it in items
+            if _kind(it) in MEMORY_KINDS
+            and ewp_blob(it).get("view_id")
+            and ewp_blob(it).get("seq") is not None
+            and _seq(it) > newest
+            and str(ewp_blob(it).get("ingest_id")) not in committed
+        })
+        if pending:
+            raise LedgerError(
+                f"{proposition_id!r}: Mem0 holds records of a newer ingest with no committed snapshot "
+                f"(ingest {', '.join(pending)}): an interrupted ingest (re-run it) or a snapshot this read "
+                "lost. The latest snapshot cannot be established; read an explicit view_id instead."
+            )
+
+    @staticmethod
+    def _members_of(items: list[Any], car: Any) -> list[Any]:
+        """Memories of exactly the ingest this sidecar committed. Records left
+        by an interrupted attempt at the same view_id carry another ingest_id."""
+        blob = ewp_blob(car)
+        return [
+            it for it in items
+            if _kind(it) in MEMORY_KINDS
+            and ewp_blob(it).get("view_id") == blob["view_id"]
+            and ewp_blob(it).get("ingest_id") == blob.get("ingest_id")
+        ]
 
     def raw_view(
         self,
         proposition_id: str,
         view_id: str | None = None,
     ) -> EvidenceView:
-        """Exactly the stored snapshot; the latest one when view_id is None."""
+        """Exactly the stored snapshot; the latest one when view_id is None.
+
+        Memories written outside EWP (no snapshot sidecar) have no manifest to
+        check the read against, so that view is never called complete."""
         members, chosen, car = self._snapshot(proposition_id, view_id)
+        if car is not None:
+            return self._verified(members, car, proposition_id)
         return items_to_view(
-            members + ([car] if car is not None else []),
+            members,
             proposition_id=proposition_id,
             view_id=chosen,
-            retrieval_scope="complete",
+            retrieval_scope="mem0.unverified",
         )
 
     def search_view(
@@ -394,6 +542,8 @@ class Mem0Adapter:
         """Search within one snapshot (the latest by default). Dropped members
         are listed in omitted_sources and mark the view DEGRADED."""
         members, chosen, car = self._snapshot(proposition_id, view_id)
+        if car is not None:
+            self._verified(members, car, proposition_id)
         member_ids = {_item_id(m) for m in members if _kind(m) in MEMORY_KINDS}
         hits = [h for h in self._for_proposition(self._search_items(query, limit), proposition_id) if _item_id(h) in member_ids]
         omitted = sorted(member_ids - {_item_id(h) for h in hits})
@@ -421,7 +571,8 @@ class Mem0Adapter:
         validate_view(view)
         report = {"memories": 0, "checks_parked": 0, "conflicts_parked": 0, "infer": self.infer, "stored": True}
         digest = content_view_id(view)
-        cars = self._sidecars(self._for_proposition(self._all_items(), view.proposition_id))
+        items = self._for_proposition(self._all_items(), view.proposition_id)
+        cars = self._sidecars(items)
         for car in cars:
             blob = ewp_blob(car)
             if blob.get("view_id") == view.view_id:
@@ -431,18 +582,25 @@ class Mem0Adapter:
                     )
                 report["stored"] = False  # identical snapshot already present
                 return report
-        stored = [self.raw_view(view.proposition_id, ewp_blob(c)["view_id"]) for c in cars]
+        # Every committed sidecar on its own, including both sides of a racing
+        # commit, so one bad view_id cannot block later snapshots.
+        stored = [self._verified(self._members_of(items, c), c, view.proposition_id) for c in cars]
         clashes = record_identity_conflicts(stored, view)
         if clashes:
             raise ImmutableRecordError(
                 f"{view.proposition_id!r}: ids already name different records in earlier snapshots: {', '.join(clashes)}"
             )
-        seq = 1 + max((int(ewp_blob(c).get("seq") or 0) for c in cars), default=0)
+        seq = 1 + max((_seq(c) for c in cars), default=0)
+        # Tags every memory of this attempt. A retry after an interrupted
+        # ingest gets a new id, so the orphans of the failed attempt stay out.
+        ingest_id = uuid.uuid4().hex
 
         def source_meta(src: SourceRef) -> dict[str, Any]:
             return {
                 "proposition_id": view.proposition_id,
                 "view_id": view.view_id,
+                "ingest_id": ingest_id,
+                "seq": seq,
                 "lineage_id": src.lineage_id,
                 "origin_type": src.origin_type,
                 "origin_locator": src.origin_locator,
@@ -509,6 +667,7 @@ class Mem0Adapter:
                 "freshness_policy_seconds": view.freshness_policy_seconds,
                 "subjects": list(view.subjects),
                 "view_id": view.view_id,
+                "ingest_id": ingest_id,
                 "digest": digest,
                 "seq": seq,
             }
@@ -521,5 +680,6 @@ class Mem0Adapter:
 
     def _add(self, text: str, metadata: dict[str, Any]) -> Any:
         messages = [{"role": "user", "content": text}]
-        kwargs = {**self._scope(), "metadata": metadata, "infer": self.infer}
-        return self._call("add", messages, **kwargs)
+        # Called once. A retry here could write the memory twice under one
+        # ingest_id, and that snapshot would then never match its digest.
+        return self.client.add(messages, **self._scope(), metadata=metadata, infer=self.infer)

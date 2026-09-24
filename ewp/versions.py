@@ -1,6 +1,6 @@
 PROTOCOL = "EWP-0.2.0"
 POLICY = "reference-v2"
-FIXTURES = "canonical-14 + pathological-12 + hardening-26 + invalid-24"
+FIXTURES = "canonical-14 + pathological-12 + hardening-26 + invalid-35"
 GRAPHITI_PIN = "0.30.2"
 
 

@@ -4,7 +4,7 @@
     {
       "asserted_at": "2026-09-01T00:00:00+00:00",
       "asserted_by": "agent",
-      "assertion_confidence": NaN,
+      "assertion_confidence": 0.9,
       "assertion_id": "a1",
       "proposition_id": "P-win",
       "source": {
@@ -42,7 +42,7 @@
       "subjects": []
     }
   ],
-  "conflicts": [],
+  "conflicts": 0,
   "degraded": false,
   "evaluated_at": "2026-09-21T21:00:00+00:00",
   "evidence": [

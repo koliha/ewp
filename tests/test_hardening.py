@@ -508,6 +508,229 @@ def test_codec_normalizes_optional_ids():
     print("PASS codec normalizes optional source ids; identical re-put through SQLite is a no-op")
 
 
+def test_json_store_concurrent_writers_keep_every_snapshot():
+    """Without a lock, two writers each rewrote latest.json from what they
+    read and one view_id vanished from the history. Readers run alongside:
+    on Windows a replace fails while any process has the file open, and an
+    open can fail mid-replace, so neither may surface as an error."""
+    import tempfile
+    import threading
+
+    from ewp.json_adapter import JsonFileAdapter
+
+    base = fixture_verified_current()
+    with tempfile.TemporaryDirectory() as tmp:
+        JsonFileAdapter(tmp).load_view(base)
+        start = threading.Barrier(12)
+        stop = threading.Event()
+        errors: list[BaseException] = []
+
+        def writer(n: int) -> None:
+            store = JsonFileAdapter(tmp)
+            start.wait()
+            try:
+                for i in range(10):
+                    store.load_view(dataclasses.replace(base, view_id=f"w{n}-{i}"))
+            except BaseException as exc:  # surfaced below
+                errors.append(exc)
+
+        def reader() -> None:
+            store = JsonFileAdapter(tmp)
+            start.wait()
+            try:
+                while not stop.is_set():
+                    store.view_ids(base.proposition_id)
+                    store.get_view(base.proposition_id)
+            except BaseException as exc:  # surfaced below
+                errors.append(exc)
+
+        writers = [threading.Thread(target=writer, args=(n,)) for n in range(8)]
+        readers = [threading.Thread(target=reader) for _ in range(4)]
+        for t in writers + readers:
+            t.start()
+        for t in writers:
+            t.join()
+        stop.set()
+        for t in readers:
+            t.join()
+        assert not errors, errors
+        ids = JsonFileAdapter(tmp).view_ids(base.proposition_id)
+        assert len(ids) == 81 and len(set(ids)) == 81, (len(ids), len(set(ids)))
+    print("PASS JSON store: concurrent writers and readers keep every snapshot in the history")
+
+
+def test_json_store_recovers_from_interrupted_writes():
+    """A snapshot is committed once its view_id is in the history. A retry
+    after a crash replaces a partial file, or finishes a write whose history
+    update was lost; a damaged committed file is an error, not a no-op."""
+    import tempfile
+
+    from ewp.codec import canonical_dict
+    from ewp.json_adapter import JsonFileAdapter, _key
+    from ewp.sqlite_adapter import LedgerError, MissingViewError
+
+    base = fixture_verified_current()
+    v2 = dataclasses.replace(base, view_id="v2", degraded=True)
+    with tempfile.TemporaryDirectory() as tmp:
+        store = JsonFileAdapter(tmp)
+        store.load_view(base)
+        snap = store._pdir(base.proposition_id) / "views" / f"{_key('v2')}.json"
+
+        # 1. crashed mid-write: a partial file, not in the history
+        snap.write_text('{"claim": "P-win", "view_me', encoding="utf-8")
+        try:
+            store.get_view(base.proposition_id, "v2")
+        except MissingViewError:
+            pass
+        else:
+            raise AssertionError("an uncommitted file was read as a snapshot")
+        store.load_view(v2)
+        assert canonical_dict(store.get_view(base.proposition_id, "v2")) == canonical_dict(v2)
+        assert store.view_ids(base.proposition_id) == [base.view_id, "v2"]
+
+        # 2. crashed after the file, before the history: the retry finishes the commit
+        v3 = dataclasses.replace(base, view_id="v3")
+        full = store._pdir(base.proposition_id) / "views" / f"{_key('v3')}.json"
+        history = store.view_ids(base.proposition_id)
+        store.load_view(v3)
+        (store._pdir(base.proposition_id) / "latest.json").write_text(
+            json.dumps({"claim": base.proposition_id, "view_ids": history}), encoding="utf-8")
+        assert full.exists() and "v3" not in store.view_ids(base.proposition_id)
+        store.load_view(v3)
+        assert store.view_ids(base.proposition_id)[-1] == "v3"
+
+        # 2b. finishing an interrupted commit still checks record ids against
+        # the committed snapshots: an orphan that reuses an id for other content
+        # must not be committed by the retry
+        clash = dataclasses.replace(base, view_id="v4", assertions=[
+            dataclasses.replace(base.assertions[0], text="server01 runs Windows Server 2019")])
+        orphan = store._pdir(base.proposition_id) / "views" / f"{_key('v4')}.json"
+        store_for_orphan = JsonFileAdapter(tmp)
+        store_for_orphan.view_ids = lambda pid: []  # write the file as if no history existed, then "crash"
+        store_for_orphan._append_history = lambda *a, **k: None
+        store_for_orphan.load_view(clash)
+        assert orphan.exists() and "v4" not in store.view_ids(base.proposition_id)
+        try:
+            store.load_view(clash)
+        except ImmutableRecordError:
+            pass
+        else:
+            raise AssertionError("an orphan reusing a committed record id was committed by the retry")
+        assert "v4" not in store.view_ids(base.proposition_id)
+
+        # 2c. an orphan is not a snapshot: a corrected retry under the same
+        # view_id replaces it (it used to be refused as immutable)
+        corrected = dataclasses.replace(base, view_id="v4", degraded=True)
+        store.load_view(corrected)
+        assert canonical_dict(store.get_view(base.proposition_id, "v4")) == canonical_dict(corrected)
+        assert store.view_ids(base.proposition_id)[-1] == "v4"
+
+        # 3. a committed snapshot that is unreadable is damage, never overwritten
+        snap.write_text("garbage", encoding="utf-8")
+        try:
+            store.load_view(v2)
+        except LedgerError:
+            pass
+        else:
+            raise AssertionError("a damaged committed snapshot was silently rewritten or accepted")
+    print("PASS JSON store: partial and half-committed writes recover on retry; damaged snapshots are errors")
+
+
+def test_snapshot_reads_have_no_overrides():
+    """(proposition_id, view_id) reads return exactly the stored snapshot.
+    A view with other completeness metadata is a new snapshot, not a read option."""
+    import tempfile
+
+    from ewp.json_adapter import JsonFileAdapter
+    from ewp.sqlite_adapter import SQLiteAdapter
+
+    base = fixture_verified_current()
+    with tempfile.TemporaryDirectory() as tmp:
+        for store in (SQLiteAdapter(), JsonFileAdapter(tmp)):
+            store.load_view(base)
+            for override in ({"degraded": False}, {"freshness_policy_seconds": 10**9},
+                             {"retrieval_scope": "complete"}, {"omitted_sources": []}):
+                try:
+                    store.get_view(base.proposition_id, base.view_id, **override)
+                except TypeError:
+                    continue
+                raise AssertionError(f"{type(store).__name__}.get_view accepted {override}")
+    print("PASS snapshot reads take no completeness overrides")
+
+
+def test_kernel_refuses_malformed_record_fields():
+    """The Python API fails closed like the codec: "" or {} is not an empty
+    record list, and both evaluators refuse rather than evaluate."""
+    from ewp.classify import InvalidEvidenceView
+    from ewp.codec import view_from_dict
+    from ewp.warrant_b import axes_only
+
+    for name, value in (("checks", ""), ("checks", None), ("lineage", {}), ("assertions", "ab"), ("evidence", [object()])):
+        view = fixture_verified_current()
+        setattr(view, name, value)
+        for evaluate in (lambda v: warrant_now(v, Policy(), EVAL), lambda v: axes_only(v, Policy(), EVAL)):
+            try:
+                evaluate(view)
+            except InvalidEvidenceView:
+                continue
+            raise AssertionError(f"{name}={value!r} was evaluated")
+    for attr, value in (("proposition_id", ""), ("proposition_id", None), ("view_id", 5)):
+        view = fixture_verified_current()
+        setattr(view, attr, value)
+        try:
+            warrant_now(view, Policy(), EVAL)
+        except InvalidEvidenceView:
+            continue
+        raise AssertionError(f"{attr}={value!r} was evaluated")
+    empty = dataclasses.replace(fixture_verified_current(), evidence=())
+    warrant_now(empty, Policy(), EVAL)  # an empty tuple is an empty list
+    d = fixture_verified_current().to_dict()
+    for bad in ({}, False, [1], 1.5):
+        try:
+            view_from_dict(dict(d, view_id=bad))
+        except InvalidEvidenceView:
+            continue
+        raise AssertionError(f"view_id={bad!r} was accepted")
+    assert view_from_dict(dict(d, view_id="")).view_id.startswith("v-"), "empty view_id is derived from content"
+    assert view_from_dict(dict(d, view_id=7)).view_id == "7"
+    base = fixture_verified_current()
+    no_hash = lambda r: dataclasses.replace(r, source=dataclasses.replace(r.source, content_hash=None))
+    for broken in (
+        dataclasses.replace(base, assertions=[no_hash(a) for a in base.assertions],
+                            evidence=[no_hash(e) for e in base.evidence], checks=[no_hash(c) for c in base.checks]),
+        dataclasses.replace(base, checks=[dataclasses.replace(c, method=None) for c in base.checks]),
+        dataclasses.replace(base, evidence=[dataclasses.replace(e, content=None) for e in base.evidence]),
+        dataclasses.replace(base, assertions=[dataclasses.replace(a, source="s1") for a in base.assertions]),
+        dataclasses.replace(base, assertions=[dataclasses.replace(a, assertion_confidence=True) for a in base.assertions]),
+    ):
+        for evaluate in (lambda v: warrant_now(v, Policy(), EVAL), lambda v: axes_only(v, Policy(), EVAL)):
+            try:
+                evaluate(broken)
+            except InvalidEvidenceView:
+                continue
+            raise AssertionError("a view missing required fields was evaluated")
+    # An integer too large for a float is refused, not a crash, by the codec,
+    # the kernel, and the third evaluator.
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "docs" / "implementer"))
+    import third_eval
+
+    huge = json.loads(json.dumps(fixture_verified_current().to_dict()))
+    huge["assertions"][0]["assertion_confidence"] = 10**400
+    try:
+        warrant_now(view_from_dict(huge), Policy(), EVAL)
+    except InvalidEvidenceView:
+        pass
+    else:
+        raise AssertionError("a confidence no float can hold was evaluated")
+    try:
+        third_eval.validate(dict(huge, evaluated_at=EVAL))
+    except third_eval.InvalidView:
+        pass
+    else:
+        raise AssertionError("the third evaluator accepted a confidence no float can hold")
+    print("PASS kernel and codec refuse malformed record fields, missing required fields, empty proposition_id, non-id view_id, huge confidence")
+
+
 def main() -> int:
     test_future_assertion_and_evidence_not_available_at_t()
     test_naive_and_aware_timestamps_compare()
@@ -528,6 +751,10 @@ def main() -> int:
     test_sqlite_read_only_ledger()
     test_conflict_ids_are_per_proposition_and_order_is_not_content()
     test_codec_normalizes_optional_ids()
+    test_snapshot_reads_have_no_overrides()
+    test_json_store_concurrent_writers_keep_every_snapshot()
+    test_json_store_recovers_from_interrupted_writes()
+    test_kernel_refuses_malformed_record_fields()
     print("HARDENING SUITE PASS")
     return 0
 

@@ -21,7 +21,7 @@ python3 tests/ci.py
 python3 tests/report.py
 ```
 
-Python 3.12+ is what the reference tree is run on. `pip install mcp` enables the official-SDK interop test in `tests/test_mcp.py`; it is skipped otherwise.
+Python 3.12+ is what the reference tree is run on; GitHub CI uses 3.12. `pip install mcp "mem0ai==2.2.0"` enables the official MCP SDK interop test in `tests/test_mcp.py` and the real Mem0 client test in `tests/test_mem0_client.py`; each is skipped when its package is missing. The fuzz tests (`tests/test_*_fuzz.py`) run in CI and take a minute or two.
 
 ## Pull requests
 

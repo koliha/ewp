@@ -10,7 +10,7 @@ EWP assumes source-origin metadata presented in an `EvidenceView` has been authe
 - Secret storage
 - Prompt injection against an MCP client. `ewp.mcp_server` is an ingest boundary, not an authenticator. Every write requires a server-side ingest role (`--allow-ingest` on stdio, the ingest token on HTTP); without it the server is evaluate-only and opens its ledger with SQLite's read-only mode, so even a bug in a tool cannot write. `ingest_attestation` is not a credential.
 - The HTTP façade (`POST /mcp`) has no TLS and no origin check. Bind it to loopback. Supply the ingest token through `EWP_INGEST_TOKEN` or `--ingest-token-file`, not the command line.
-- Caller-built evidence. An inline `EvidenceView` sent to `ewp_warrant_now` has its trusted origins demoted; `ewp_may_act` refuses inline views and evaluates stored evidence at server time.
+- Caller-built evidence. An inline `EvidenceView` sent to `ewp_warrant_now` has its trusted origins demoted; `ewp_may_act` refuses inline views and older snapshots and decides on the latest stored evidence at server time; a caller cannot choose the decision time.
 - Store credentials
 
 Those belong in the platform (OpenClaw allowlists, Tenuo-style action warrants, ordinary IAM).
@@ -19,9 +19,9 @@ Those belong in the platform (OpenClaw allowlists, Tenuo-style action warrants, 
 
 - A path where endogenous processing (summarization, Dreaming, majority, Graphiti invalidation) can raise `verification` without new external evidence
 - A path where compression or retrieval omits a contradictor without `sufficiency=DEGRADED`
-- A path where `may_act` can be skipped or inferred from `WarrantView` alone
+- A path where `may_act` can be skipped, inferred from `WarrantView` alone, or steered to older evidence or a caller-chosen time
 - A write path that changes a stored record, conflict participants, or view completeness without the ingest role
-- An input value outside a closed enum that is evaluated instead of refused
+- Invalid input that is evaluated instead of refused (a value outside a closed enum, a record about another proposition, a mistyped field, a missing required field)
 - An adapter that loses a field (`subjects[]`, polarity, timestamps, completeness) and changes the axes on round trip
 - Supply-chain issues in this repository
 

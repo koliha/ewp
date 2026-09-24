@@ -21,6 +21,15 @@ def iso(value: Any) -> str:
     return text or EPOCH
 
 
+def observed_time(value: Any) -> str:
+    """An observation time as ISO text, or "" when the store has none. Never
+    the epoch: a record of unknown time must be unavailable at every T, not
+    available at every T."""
+    if value is None or value == "":
+        return ""
+    return iso(value)
+
+
 def attr(obj: Any, *names: str, default: Any = None) -> Any:
     if obj is None:
         return default

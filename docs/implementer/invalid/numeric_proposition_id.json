@@ -4,9 +4,8 @@
     {
       "asserted_at": "2026-09-01T00:00:00+00:00",
       "asserted_by": "agent",
-      "assertion_confidence": NaN,
+      "assertion_confidence": 0.9,
       "assertion_id": "a1",
-      "proposition_id": "P-win",
       "source": {
         "content_hash": "sha256:winrm",
         "extractor_id": null,
@@ -51,7 +50,6 @@
       "evidence_id": "e1",
       "observed_at": "2026-09-01T00:00:00+00:00",
       "polarity": "supports",
-      "proposition_id": "P-win",
       "source": {
         "content_hash": "sha256:winrm",
         "extractor_id": null,
@@ -68,7 +66,7 @@
   "freshness_policy_seconds": 604800,
   "lineage": [],
   "omitted_sources": [],
-  "proposition_id": "P-win",
+  "proposition_id": 42,
   "retrieval_scope": "complete",
   "subjects": [],
   "view_id": "l-honest-tool"

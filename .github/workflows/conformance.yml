@@ -13,8 +13,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Install MCP SDK (interop test)
-        run: python3 -m pip install mcp
+      - name: Install MCP SDK and mem0ai (client interop tests)
+        run: python3 -m pip install mcp "mem0ai==2.2.0"
       - name: Run frozen CI
         run: python3 tests/ci.py
       - name: Print conformance claim

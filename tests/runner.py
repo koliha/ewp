@@ -51,23 +51,15 @@ COMPARE_KEYS = (
 )
 
 
-def _load_through(adapter_cls, view: EvidenceView, **get_kw) -> EvidenceView:
+def _load_through(adapter_cls, view: EvidenceView) -> EvidenceView:
     if adapter_cls is SQLiteAdapter:
         ad = adapter_cls()
         ad.load_view(view)
-        return ad.get_view(
-            view.proposition_id,
-            view.view_id,
-            omitted_sources=view.omitted_sources,
-            retrieval_scope=view.retrieval_scope,
-            degraded=view.degraded,
-            freshness_policy_seconds=view.freshness_policy_seconds,
-            **get_kw,
-        )
+        return ad.get_view(view.proposition_id, view.view_id)
     tmp = TemporaryDirectory()
     ad = adapter_cls(tmp.name)
     ad.load_view(view)
-    loaded = ad.get_view(view.proposition_id, view.view_id, **get_kw)
+    loaded = ad.get_view(view.proposition_id, view.view_id)
     # keep tmp alive for the call; then persist loaded which is already in memory
     tmp.cleanup()
     return loaded

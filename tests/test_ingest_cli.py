@@ -61,9 +61,21 @@ def test_bad_input_is_reported_not_stored():
     print("PASS ewp-ingest: invalid view reported and not stored")
 
 
+def test_bad_evaluated_at_stores_nothing():
+    """A bad reporting time is refused before the ledger is opened: a failing
+    exit must never leave views stored behind it."""
+    with tempfile.TemporaryDirectory() as tmp:
+        db = Path(tmp) / "ledger.sqlite"
+        code, out, err = run("--db", str(db), EXAMPLE, "--attest-trusted-origins", "--evaluated-at", "not-a-time")
+        assert code == 2 and "nothing stored" in err and not out, (code, out, err)
+        assert not db.exists(), "no ledger may be created"
+    print("PASS ewp-ingest: bad --evaluated-at is refused before any write")
+
+
 def main() -> int:
     test_quickstart_example()
     test_bad_input_is_reported_not_stored()
+    test_bad_evaluated_at_stores_nothing()
     print("INGEST CLI SUITE PASS")
     return 0
 
