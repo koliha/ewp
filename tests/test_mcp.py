@@ -637,6 +637,30 @@ def test_argument_shapes_are_checked():
     print("PASS tool arguments: null ids, non-objects, bad view ids, and non-number confidence are refused; incremental and full ingest agree")
 
 
+def test_tool_definitions_are_documented():
+    """Agents choose tools from these definitions: every parameter is described, every tool annotated."""
+    server = EwpMcp(clock=at_eval)
+    writes = {"ewp_evidence_view_put", "ewp_check_record", "ewp_evidence_record"}
+
+    def undescribed(schema: dict, path: str) -> list[str]:
+        out = []
+        for name, prop in schema.get("properties", {}).items():
+            if not prop.get("description"):
+                out.append(f"{path}.{name}")
+            out += undescribed(prop, f"{path}.{name}")
+        return out
+
+    for t in call(server, "tools/list")["result"]["tools"]:
+        assert not undescribed(t["inputSchema"], t["name"]), undescribed(t["inputSchema"], t["name"])
+        notes = t["annotations"]
+        assert notes["title"], t["name"]
+        assert notes["readOnlyHint"] is (t["name"] not in writes), t["name"]
+        assert notes["destructiveHint"] is False, t["name"]
+        assert notes["openWorldHint"] is False, t["name"]
+        assert isinstance(notes["idempotentHint"], bool), t["name"]
+    print("PASS tool definitions: every parameter described; read-only, append-only, closed-world annotations")
+
+
 def main() -> int:
     test_initialize_and_tools()
     test_every_write_requires_ingest_role()
@@ -667,6 +691,7 @@ def main() -> int:
     test_incremental_source_ids_are_strings()
     test_argument_shapes_are_checked()
     test_may_act_uses_latest_snapshot()
+    test_tool_definitions_are_documented()
     print("MCP SUITE PASS")
     return 0
 

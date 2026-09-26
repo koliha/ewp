@@ -1,5 +1,21 @@
 # Changelog
 
+## EWP-0.2.1
+
+Protocol `EWP-0.2.0` and policy `reference-v2` are unchanged. No evaluator, fixture, golden, or lock hash changed, and no tool changed behavior.
+
+### MCP tool definitions
+
+- Every tool parameter now has a description, including the nested `check`, `evidence`, `source`, `action`, and `risk_policy` fields: formats, defaults, closed enums, trusted and endogenous `origin_type` values, and verification methods.
+- Tool descriptions say what each tool returns, when to use it instead of its nearest sibling, and what it refuses.
+- Every tool carries MCP annotations (`title`, `readOnlyHint`, `destructiveHint`, `idempotentHint`, `openWorldHint`). Only the three write tools are not read-only; none is destructive or open-world.
+- `ewp_evidence_record` declares `assertion_id`, `asserted_by`, and `assertion_confidence`, which it already accepted.
+- `tests/test_mcp.py` fails if a parameter loses its description or a tool its annotations.
+
+### Docs
+
+- `historical/README.md` and `historical/docs/MCP_CONTRACT.md` named the shipped server `python3 -m protocol.mcp_server`; it is `python3 -m ewp.mcp_server`.
+
 ## EWP-0.2.0
 
 Protocol `EWP-0.2.0`, policy `reference-v2`. The development iterations previously listed as 0.2.0, 0.2.0-docs, 0.2.1, and 0.2.2 are folded into this entry; none of them was a release. The 26 golden axes are unchanged from 0.1.0 (only their identity fields changed); the hardening pack grew to 26 fixtures, a 35-view invalid pack was added, and all of it is locked.

@@ -696,141 +696,337 @@ RESOURCE_TEMPLATES = [
 ]
 
 
+_TS = "ISO 8601 instant, e.g. 2026-09-21T18:31:00Z; a value without an offset is read as UTC."
+
+_SOURCE_SCHEMA = {
+    "type": "object",
+    "description": (
+        "Provenance of the record (SourceRef). content_hash and observed_at are required; "
+        "the server never invents them. Other fields default as described."
+    ),
+    "properties": {
+        "source_id": {"type": "string", "description": "Id of the source. Defaults to the record id."},
+        "lineage_id": {
+            "type": "string",
+            "description": (
+                "Independence key. Records sharing a lineage_id count as one source however many "
+                "copies or summaries exist. Defaults to source_id."
+            ),
+        },
+        "origin_type": {
+            "type": "string",
+            "description": (
+                "Where the record came from. Trusted: tool, document, human, api, vendor, sensor "
+                "(these require ingest_attestation=true). Endogenous: extract, turn, derived, summary, "
+                "model_introspection (cannot raise verification above INDIRECT). Any other value is "
+                "untrusted. Defaults to extract."
+            ),
+        },
+        "origin_locator": {
+            "type": "string",
+            "description": "Where to find the original (URL, file path, message id). Defaults to mcp:<source_id>.",
+        },
+        "snapshot_id": {"type": "string", "description": "Id of the source snapshot the record was taken from. Defaults to source_id."},
+        "content_hash": {"type": "string", "description": "Stable digest of the source content, e.g. sha256:<hex>. Required."},
+        "observed_at": {"type": "string", "description": "When the source was observed. " + _TS},
+        "extractor_id": {"type": "string", "description": "Optional id of the extractor or model that produced the record."},
+        "parent_source_id": {"type": "string", "description": "Optional id of the source this one was derived from."},
+    },
+    "required": ["content_hash", "observed_at"],
+}
+
+_VIEW_DESCRIPTION = (
+    "An EvidenceView object: proposition_id, view_id (content-derived when omitted), and the lists "
+    "assertions, evidence, checks, lineage, conflicts, omitted_sources, plus optional subjects, "
+    "retrieval_scope, degraded, and freshness_policy_seconds. Records carry a source (SourceRef). "
+    "Shape: docs/implementer/SCHEMA.md; example: examples/quickstart.json."
+)
+
+_ATTESTATION = {
+    "type": "boolean",
+    "description": (
+        "Declare that trusted origin_type values (tool, document, human, api, vendor, sensor) were "
+        "checked at the ingest boundary. Required when the record carries one. A declaration, not "
+        "authentication. Default false."
+    ),
+}
+
+_NEW_VIEW_ID = {
+    "type": "string",
+    "description": "Id for the new snapshot. Optional; content-derived when omitted.",
+}
+
+_READ_ONLY = {"readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": False}
+_APPEND = {"readOnlyHint": False, "destructiveHint": False, "idempotentHint": False, "openWorldHint": False}
+
 TOOLS = [
     {
         "name": "ewp_warrant_now",
         "description": (
-            "Evaluate a stored EvidenceView (or a hypothetical inline one) at evaluated_at. "
-            "Returns the five normative axes. Inline views have trusted origins demoted unless the "
-            "caller holds the ingest role and sets ingest_attestation. Does not persist warrant."
+            "Compute the warrant for one proposition at a given time: the five axes acceptance, conflict, "
+            "verification, currency, sufficiency, plus supporting/opposing evidence ids, independent lineage "
+            "count, omitted sources, and rationale codes. Evaluates a stored snapshot (proposition_id, latest "
+            "unless view_id) or a hypothetical inline view; pass one or the other. Deterministic and read-only: "
+            "the result is not persisted. Use it to replay a past or future evaluated_at, or to test a "
+            "hypothetical view; for an agent-ready packet with warnings at server time, use ewp_memory_context; "
+            "to decide whether to act, use ewp_may_act. Inline views have trusted origins demoted to untrusted "
+            "unless the caller holds the ingest role and sets ingest_attestation. Refuses a missing evaluated_at, "
+            "an unknown proposition or view_id, an invalid view, and a policy it does not implement."
         ),
         "inputSchema": {
             "type": "object",
             "properties": {
-                "evaluated_at": {"type": "string"},
-                "proposition_id": {"type": "string"},
-                "view_id": {"type": "string"},
-                "view": {"type": "object"},
-                "policy_id": {"type": "string"},
-                "policy_version": {"type": "string"},
-                "ingest_attestation": {"type": "boolean"},
+                "evaluated_at": {"type": "string", "description": "The time T to evaluate at. Required. " + _TS},
+                "proposition_id": {"type": "string", "description": "Stored proposition to evaluate. Use this or view."},
+                "view_id": {"type": "string", "description": "Stored snapshot of proposition_id to evaluate. Defaults to the latest."},
+                "view": {"type": "object", "description": "Hypothetical inline view to evaluate instead of a stored one. " + _VIEW_DESCRIPTION},
+                "policy_id": {"type": "string", "description": "Epistemic policy id. Default and only implemented value: reference-v2."},
+                "policy_version": {"type": "string", "description": "Epistemic policy version. Default and only implemented value: reference-v2."},
+                "ingest_attestation": {
+                    "type": "boolean",
+                    "description": (
+                        "With the ingest role, keep an inline view's trusted origins instead of demoting them. "
+                        "Ignored without the ingest role. Default false."
+                    ),
+                },
             },
             "required": ["evaluated_at"],
         },
+        "annotations": {"title": "Evaluate warrant at time T", **_READ_ONLY},
     },
     {
         "name": "ewp_evidence_view_put",
-        "description": "Persist an EvidenceView. Requires the ingest role. Refuses WarrantView bodies. Trusted origins require ingest_attestation=true.",
+        "description": (
+            "Store a whole EvidenceView as an immutable snapshot (proposition_id, view_id). Returns stored, "
+            "proposition_id, view_id, and assertion and check counts. Use it to load a complete view at once; "
+            "to add one record to an existing proposition, use ewp_evidence_record or ewp_check_record. Requires "
+            "the server-side ingest role. Re-sending an identical snapshot is accepted; changing a stored record "
+            "or snapshot under an existing id is refused. Refuses WarrantView bodies (warrant is computed, never "
+            "stored) and trusted origins without ingest_attestation=true."
+        ),
         "inputSchema": {
             "type": "object",
             "properties": {
-                "view": {"type": "object"},
-                "ingest_attestation": {"type": "boolean"},
+                "view": {"type": "object", "description": "The view to store. " + _VIEW_DESCRIPTION},
+                "ingest_attestation": _ATTESTATION,
             },
             "required": ["view"],
         },
+        "annotations": {"title": "Store evidence view", **_READ_ONLY, "readOnlyHint": False},
     },
     {
         "name": "ewp_evidence_view_get",
-        "description": "Load a stored EvidenceView snapshot by proposition_id (latest snapshot unless view_id is given).",
+        "description": (
+            "Return the raw stored EvidenceView for a proposition: assertions, evidence, checks, lineage, "
+            "conflicts, and sources, exactly as stored. Latest snapshot unless view_id is given. Read-only. "
+            "This is evidence, not a verdict: to learn what is warranted, use ewp_memory_context or "
+            "ewp_warrant_now. Refuses an unknown proposition or view_id."
+        ),
         "inputSchema": {
             "type": "object",
             "properties": {
-                "proposition_id": {"type": "string"},
-                "view_id": {"type": "string"},
+                "proposition_id": {"type": "string", "description": "Proposition to load, from ewp_list_propositions."},
+                "view_id": {"type": "string", "description": "Snapshot to load. Defaults to the latest."},
             },
             "required": ["proposition_id"],
         },
+        "annotations": {"title": "Get stored evidence view", **_READ_ONLY},
     },
     {
         "name": "ewp_check_record",
-        "description": "Append a VerificationCheck: creates a new snapshot from the latest one. Requires the ingest role. Trusted origin requires ingest_attestation. Returns the new view_id.",
+        "description": (
+            "Append one VerificationCheck (a check of the claim by some method, with a result) to a stored "
+            "proposition. Creates a new snapshot from the latest one; earlier snapshots are unchanged. Returns "
+            "recorded, check_id, the new view_id, and the check count. Use this for checks that verify or "
+            "contradict the claim; for evidence items, use ewp_evidence_record. Requires the server-side ingest "
+            "role, and ingest_attestation=true when the source origin is trusted. Refuses an unknown proposition."
+        ),
         "inputSchema": {
             "type": "object",
             "properties": {
-                "proposition_id": {"type": "string"},
-                "new_view_id": {"type": "string", "description": "optional; content-derived when omitted"},
-                "check": {"type": "object"},
-                "ingest_attestation": {"type": "boolean"},
+                "proposition_id": {"type": "string", "description": "Stored proposition the check is about."},
+                "new_view_id": _NEW_VIEW_ID,
+                "check": {
+                    "type": "object",
+                    "description": "The check to append.",
+                    "properties": {
+                        "check_id": {"type": "string", "description": "Unique id for this check."},
+                        "method": {
+                            "type": "string",
+                            "description": (
+                                "How the check was made. External: tool_observation, external_clock, document_quote, "
+                                "independent_reproduction, vendor_documentation, winrm, external_api. Human: "
+                                "human_attestation, human_review. Indirect: inference, extract, derived, "
+                                "model_introspection. The source origin can cap the class it confers."
+                            ),
+                        },
+                        "result": {
+                            "type": "string",
+                            "enum": ["supports", "opposes", "inconclusive"],
+                            "description": "What the check found. opposes opens a conflict; inconclusive cannot raise verification.",
+                        },
+                        "observed_at": {"type": "string", "description": "When the check was made. " + _TS},
+                        "scope": {"type": "string", "description": "What was checked, in words. Defaults to the proposition_id."},
+                        "subjects": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": (
+                                "Exact subject ids the check covers. When the proposition declares subjects, only a "
+                                "check naming one of them can raise verification to EXTERNAL or HUMAN."
+                            ),
+                        },
+                        "source": _SOURCE_SCHEMA,
+                    },
+                    "required": ["check_id", "method", "result", "observed_at", "source"],
+                },
+                "ingest_attestation": _ATTESTATION,
             },
             "required": ["proposition_id", "check"],
         },
+        "annotations": {"title": "Record verification check", **_APPEND},
     },
     {
         "name": "ewp_evidence_record",
-        "description": "Append an EvidenceItem (polarity required): creates a new snapshot from the latest one. Requires the ingest role. Returns the new view_id.",
+        "description": (
+            "Append one EvidenceItem that supports or opposes a stored proposition, optionally with the "
+            "assertion text it states. Creates a new snapshot from the latest one; earlier snapshots are "
+            "unchanged. Returns recorded, evidence_id, the new view_id, and the evidence count. polarity is "
+            "required and never assumed. Use this for evidence; for a check that verifies the claim, use "
+            "ewp_check_record. Requires the server-side ingest role, and ingest_attestation=true when the source "
+            "origin is trusted. Refuses an unknown proposition."
+        ),
         "inputSchema": {
             "type": "object",
             "properties": {
-                "proposition_id": {"type": "string"},
-                "new_view_id": {"type": "string", "description": "optional; content-derived when omitted"},
+                "proposition_id": {"type": "string", "description": "Stored proposition the evidence is about."},
+                "new_view_id": _NEW_VIEW_ID,
                 "evidence": {
                     "type": "object",
-                    "properties": {"polarity": {"type": "string", "enum": ["supports", "opposes"]}},
+                    "description": "The evidence item to append.",
+                    "properties": {
+                        "evidence_id": {"type": "string", "description": "Unique id for this evidence item."},
+                        "polarity": {
+                            "type": "string",
+                            "enum": ["supports", "opposes"],
+                            "description": "Whether the evidence supports or opposes the proposition. Required.",
+                        },
+                        "content": {"type": "string", "description": "The evidence itself, as text."},
+                        "observed_at": {"type": "string", "description": "When the evidence was observed. " + _TS},
+                        "source": _SOURCE_SCHEMA,
+                    },
                     "required": ["evidence_id", "polarity", "content", "observed_at", "source"],
                 },
-                "text": {"type": "string"},
-                "ingest_attestation": {"type": "boolean"},
+                "text": {
+                    "type": "string",
+                    "description": "Optional assertion text to record with the evidence (the claim as the source states it).",
+                },
+                "assertion_id": {"type": "string", "description": "Id for the assertion recorded from text. Defaults to <evidence_id>:a."},
+                "asserted_by": {"type": "string", "description": "Who made the assertion recorded from text. Defaults to mcp."},
+                "assertion_confidence": {
+                    "type": "number",
+                    "description": (
+                        "How strongly the source stated the assertion, 0 to 1. Default 0.5. This is not warrant "
+                        "and never raises it."
+                    ),
+                },
+                "ingest_attestation": _ATTESTATION,
             },
             "required": ["proposition_id", "evidence"],
         },
+        "annotations": {"title": "Record evidence", **_APPEND},
     },
     {
         "name": "ewp_may_act",
         "description": (
-            "Separate action gate over the latest stored view at server time. Requires an action with "
-            "risk (low|medium|high) and reversible (boolean). Refuses inline views, caller-built "
-            "WarrantViews, and a view_id that is not the latest. risk_policy is operator-only (ingest role)."
+            "Decide whether an action that relies on a proposition may proceed: returns decision MAY_ACT, "
+            "REQUIRE_CONFIRMATION, or DENY, with the view_id, server time, and axes it gated on. Always evaluates "
+            "the latest stored snapshot at server time, so a caller cannot pick an older snapshot or a convenient "
+            "time. Use this before acting on a claim; ewp_memory_context tells you what is warranted, this tells "
+            "you whether that is enough for this action. Read-only. Refuses a missing action, an action without "
+            "risk and reversible, inline views, caller-built WarrantViews, a view_id that is not the latest, an "
+            "evaluated_at more than 300 s from server time, and risk_policy from a caller without the ingest role."
         ),
         "inputSchema": {
             "type": "object",
             "properties": {
                 "action": {
                     "type": "object",
+                    "description": "The action to gate. Permission is never inferred from warrant alone.",
                     "properties": {
-                        "action_id": {"type": "string"},
-                        "kind": {"type": "string"},
-                        "risk": {"type": "string", "enum": ["low", "medium", "high"]},
-                        "reversible": {"type": "boolean"},
+                        "action_id": {"type": "string", "description": "Optional id for the action, for logs."},
+                        "kind": {"type": "string", "description": "Optional kind of action, e.g. deploy or send_email."},
+                        "risk": {
+                            "type": "string",
+                            "enum": ["low", "medium", "high"],
+                            "description": "Risk of the action. high requires ACCEPTED and no open conflict under the default policy.",
+                        },
+                        "reversible": {"type": "boolean", "description": "Whether the action can be undone. Irreversible actions need stronger warrant."},
                     },
                     "required": ["risk", "reversible"],
                 },
-                "proposition_id": {"type": "string"},
-                "view_id": {"type": "string", "description": "optional guard; must be the latest snapshot"},
-                "evaluated_at": {"type": "string", "description": "optional sanity check; the decision always uses server time"},
-                "risk_policy": {"type": "object"},
+                "proposition_id": {"type": "string", "description": "Stored proposition the action relies on."},
+                "view_id": {
+                    "type": "string",
+                    "description": "Optional guard: the snapshot you read. Refused if it is not the latest, so you do not act on stale evidence.",
+                },
+                "evaluated_at": {
+                    "type": "string",
+                    "description": "Optional sanity check of your clock (within 300 s of server time). The decision always uses server time. " + _TS,
+                },
+                "risk_policy": {
+                    "type": "object",
+                    "description": "Operator-only action policy; requires the ingest role. Omit to use the default action-v0.1 policy.",
+                    "properties": {
+                        "policy_id": {"type": "string", "description": "Action policy id. Default action-v0.1."},
+                        "version": {"type": "string", "description": "Action policy version. Default 0.1.0."},
+                        "high_requires_accepted": {"type": "boolean", "description": "Deny high-risk actions unless acceptance is ACCEPTED. Default true."},
+                        "high_requires_no_open_conflict": {"type": "boolean", "description": "Deny high-risk actions while conflict is OPEN. Default true."},
+                    },
+                },
             },
             "required": ["action", "proposition_id"],
         },
+        "annotations": {"title": "Gate an action", **_READ_ONLY, "idempotentHint": False},
     },
     {
         "name": "ewp_list_propositions",
         "description": (
-            "Find stored propositions by id or assertion text (case-insensitive substring). "
-            "Returns ids, latest snapshot ids, and assertion texts. Discovery only: it does not say "
-            "what is warranted; call ewp_memory_context next."
+            "Find stored propositions by id or assertion text (case-insensitive substring); with no query, "
+            "list them newest first. Returns each proposition_id, its latest view_id, up to five assertion texts, "
+            "and its snapshot count. Start here to find the proposition_id the other tools need. Discovery only: "
+            "it says what exists, not what is warranted; call ewp_memory_context next. Read-only."
         ),
         "inputSchema": {
             "type": "object",
             "properties": {
-                "query": {"type": "string"},
-                "limit": {"type": "integer", "minimum": 1, "maximum": 500},
+                "query": {"type": "string", "description": "Substring to match against proposition ids and assertion texts. Omit to list all."},
+                "limit": {"type": "integer", "minimum": 1, "maximum": 500, "description": "Maximum results, 1 to 500. Default 50."},
             },
         },
+        "annotations": {"title": "Find propositions", **_READ_ONLY},
     },
     {
         "name": "ewp_memory_context",
-        "description": "Bounded packet: axes, evidence ids, warnings. Not a persona biography. OPEN and DEGRADED are explicit. evaluated_at defaults to server time.",
+        "description": (
+            "The packet an agent should read before relying on a remembered claim: the five warrant axes, "
+            "supporting and opposing evidence ids, checks, independent lineage count, omitted sources, and plain "
+            "warnings (OPEN conflict, DEGRADED view, STALE or SUPERSEDED, an EXTERNAL or HUMAN check that opposes "
+            "the claim, not ACCEPTED). Evaluates the latest snapshot unless view_id is given, at server time "
+            "unless evaluated_at is given. Use this first after ewp_list_propositions; use ewp_warrant_now for full "
+            "diagnostics or hypothetical views, and ewp_may_act before acting. Read-only. Not a persona biography: "
+            "persona is always null."
+        ),
         "inputSchema": {
             "type": "object",
             "properties": {
-                "proposition_id": {"type": "string"},
-                "evaluated_at": {"type": "string"},
-                "query": {"type": "string"},
-                "view_id": {"type": "string"},
+                "proposition_id": {"type": "string", "description": "Proposition to brief on, from ewp_list_propositions."},
+                "evaluated_at": {"type": "string", "description": "Time to evaluate at. Defaults to server time. " + _TS},
+                "query": {"type": "string", "description": "Optional: the question you are answering, echoed back in the packet for your records."},
+                "view_id": {"type": "string", "description": "Snapshot to evaluate. Defaults to the latest."},
             },
             "required": ["proposition_id"],
         },
+        "annotations": {"title": "Memory context packet", **_READ_ONLY},
     },
 ]
 

@@ -53,6 +53,8 @@ openclaw mcp add ewp --url http://127.0.0.1:8765/mcp
 
 `ewp_warrant_now` returns `WarrantView.normative()` (`protocol_version`, identity including the stored `view_id`, time, five axes) plus diagnostics (`rationale_codes`, evidence ids, lineage count). `strength` and `rationale_codes` are not part of the equality contract.
 
+`tools/list` describes every parameter, including nested `check`, `evidence`, `source`, `action`, and `risk_policy` fields, and annotates every tool. `ewp_evidence_view_put`, `ewp_check_record`, and `ewp_evidence_record` are the only tools that are not `readOnlyHint`; none is `destructiveHint` (the ledger is append-only) and none is `openWorldHint` (nothing leaves the ledger). The schemas describe the arguments; the server still checks every argument itself and does not rely on client-side validation.
+
 ## Arguments
 
 Tool `arguments` must be an object. Ids (`proposition_id`, `view_id`, `new_view_id`, record ids) are non-empty strings (numbers are converted); `null` is missing, never the string `"None"`. `check`, `evidence`, `action`, `source`, `risk_policy`, and an inline `view` must be objects. `assertion_confidence` is a JSON number (`"0.99"` or `true` is refused). In incremental writes a missing `source_id` defaults to the record id, `lineage_id` and `snapshot_id` to the `source_id`, `origin_type` to `extract`, and `scope` to the proposition; a value that is present is kept as given, even when empty.

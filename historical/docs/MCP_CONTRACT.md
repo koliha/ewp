@@ -3,7 +3,7 @@
 This sketch predates the freeze. It talks about ClaimView, confidence caps,
 `status=current`, and `claim_verify` raising a scalar. That is not EWP.
 
-**Shipped contract:** `docs/MCP_CONTRACT.md` (`python3 -m protocol.mcp_server`).
+**Shipped contract:** `docs/MCP_CONTRACT.md` (`python3 -m ewp.mcp_server`).
 
 Kept only so the pre-freeze design notes remain readable.
 
